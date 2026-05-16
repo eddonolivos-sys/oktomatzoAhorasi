@@ -1,0 +1,53 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ../shell/dist:/usr/share/shell
+    depends_on:
+      - backend
+      - app-dashboard
+      - app-viewer-3d
+    environment:
+      - DOMAIN=${DOMAIN:-localhost:8080}
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - backend_data:/app/data
+    environment:
+      - DB_PATH=/app/data/plataforma.db
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - PORT=8080
+
+  app-dashboard:
+    build:
+      context: ../apps/app-a-dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:80"
+
+  app-viewer-3d:
+    build:
+      context: ../apps/app-b-viewer-3d
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8083:80"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  backend_data:

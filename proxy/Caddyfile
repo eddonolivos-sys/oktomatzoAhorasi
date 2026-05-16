@@ -1,0 +1,76 @@
+{
+	admin off
+}
+
+# Production: uses domain from env variable
+{$DOMAIN:localhost:8080} {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# API backend (must be first)
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Sub-app: Dashboard
+	handle_path /apps/dashboard/* {
+		reverse_proxy app-dashboard:80
+	}
+
+	# Sub-app: Viewer 3D
+	handle_path /apps/viewer-3d/* {
+		reverse_proxy app-viewer-3d:80
+	}
+
+	# Static files caching
+	header /assets/* Cache-Control "public, immutable, max-age=31536000"
+
+	# Shell SPA (catch-all: must be last)
+	handle {
+		root * /usr/share/shell
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/access.log
+		level INFO
+	}
+}
+
+# Development: no TLS needed
+:8080 {
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle_path /apps/dashboard/* {
+		reverse_proxy app-dashboard:80
+	}
+
+	handle_path /apps/viewer-3d/* {
+		reverse_proxy app-viewer-3d:80
+	}
+
+	handle {
+		root * /usr/share/shell
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/access.log
+	}
+}

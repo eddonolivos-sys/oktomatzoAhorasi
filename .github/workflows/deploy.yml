@@ -1,0 +1,64 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build all
+        run: pnpm build
+
+      - name: Build backend
+        run: cd backend && CGO_ENABLED=0 go build -o bin/api ./cmd/api
+
+      - name: Deploy to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: |
+            shell/dist/
+            backend/bin/api
+            backend/Dockerfile
+            apps/*/dist/
+            apps/*/Dockerfile
+            apps/*/nginx.conf
+            proxy/Caddyfile
+            deploy/docker-compose.yml
+            deploy/.env
+          target: /opt/plataforma/
+          strip_components: 0
+
+      - name: Restart services
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/plataforma/deploy
+            docker compose down
+            docker compose up -d --build
+            docker image prune -f

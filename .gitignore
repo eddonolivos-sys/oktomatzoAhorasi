@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+*.local
+*.tsbuildinfo
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Go
+backend/bin/
+backend/tmp/
+
+# PocketBase data (if used)
+backend/pocketbase/pb_data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,26 @@
+apps:
+  - id: dashboard
+    name: Dashboard Comercial
+    description: Métricas y reportes de ventas
+    icon: bar-chart
+    route: /dashboard
+    src: /apps/dashboard/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin allow-forms"
+    category: Analítica
+    tags:
+      - react
+      - chartjs
+
+  - id: viewer-3d
+    name: Visor 3D
+    description: Visualización interactiva de modelos 3D
+    icon: cube
+    route: /viewer-3d
+    src: /apps/viewer-3d/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Herramientas
+    tags:
+      - threejs
+      - webgl

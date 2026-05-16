@@ -1,0 +1,83 @@
+:root {
+  /* Layout */
+  --shell-topbar-height: 56px;
+  --shell-sidebar-width: 260px;
+  --shell-sidebar-collapsed-width: 0px;
+  --shell-border-radius: 8px;
+  --shell-transition: 0.2s ease;
+
+  /* Light theme (default) */
+  --shell-bg: #f5f5f7;
+  --shell-surface: #ffffff;
+  --shell-surface-hover: #e8e8ed;
+  --shell-text: #1d1d1f;
+  --shell-text-secondary: #6e6e73;
+  --shell-border: #d2d2d7;
+  --shell-accent: #0071e3;
+  --shell-accent-hover: #0077ed;
+  --shell-error: #ff3b30;
+  --shell-success: #34c759;
+  --shell-warning: #ff9500;
+  --shell-info: #007aff;
+  --shell-shadow: rgba(0, 0, 0, 0.08);
+  --shell-overlay: rgba(0, 0, 0, 0.4);
+  --shell-topbar-bg: rgba(255, 255, 255, 0.85);
+  --shell-sidebar-bg: #ffffff;
+  --shell-input-bg: #ffffff;
+  --shell-input-border: #c7c7cc;
+}
+
+[data-theme='dark'] {
+  --shell-bg: #1c1c1e;
+  --shell-surface: #2c2c2e;
+  --shell-surface-hover: #3a3a3c;
+  --shell-text: #f5f5f7;
+  --shell-text-secondary: #98989d;
+  --shell-border: #38383a;
+  --shell-accent: #0a84ff;
+  --shell-accent-hover: #409cff;
+  --shell-error: #ff453a;
+  --shell-success: #30d158;
+  --shell-warning: #ff9f0a;
+  --shell-info: #0a84ff;
+  --shell-shadow: rgba(0, 0, 0, 0.3);
+  --shell-overlay: rgba(0, 0, 0, 0.6);
+  --shell-topbar-bg: rgba(44, 44, 46, 0.85);
+  --shell-sidebar-bg: #2c2c2e;
+  --shell-input-bg: #3a3a3c;
+  --shell-input-border: #48484a;
+}
+
+/* Responsive breakpoints (used by components) */
+/* Mobile: < 768px */
+/* Tablet: 768px - 1024px */
+/* Desktop: > 1024px */
+
+/* Base typography */
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--shell-bg);
+  color: var(--shell-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--shell-text-secondary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--shell-text);
+}

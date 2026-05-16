@@ -1,0 +1,21 @@
+{
+  "name": "plataforma-orquestadora",
+  "private": true,
+  "description": "Plataforma orquestadora para integración de múltiples aplicaciones web heterogéneas",
+  "scripts": {
+    "dev": "pnpm --recursive --parallel run dev",
+    "build": "pnpm --recursive run build",
+    "lint": "pnpm --recursive run lint",
+    "format": "prettier --write \"**/*.{ts,js,json,yaml,yml,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,yaml,yml,css,md}\"",
+    "clean": "pnpm --recursive run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.4"
+}

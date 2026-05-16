@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint shell
+        run: pnpm --filter @plataforma/shell lint
+
+      - name: Lint protocol
+        run: pnpm --filter @plataforma/shell-protocol lint
+
+      - name: Lint dashboard
+        run: pnpm --filter @plataforma/app-a-dashboard lint
+
+      - name: Build all frontend
+        run: pnpm build
+
+      - name: Build backend
+        run: cd backend && go build ./cmd/api
+
+      - name: Backend tests
+        run: cd backend && go test ./...
