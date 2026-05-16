@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto de prueba 1</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .card {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .numero { font-size: 80px; font-weight: 800; opacity: 0.3; line-height: 1; }
+    h1 { font-size: 32px; font-weight: 700; margin: 16px 0 8px; }
+    p { font-size: 16px; opacity: 0.8; line-height: 1.6; }
+    .status {
+      margin-top: 24px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.15);
+      font-size: 13px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="numero">01</div>
+    <h1>Proyecto de prueba 1</h1>
+    <p>Esta aplicación verifica que la plataforma orquestadora<br>carga correctamente las sub-apps en iframes.</p>
+    <div class="status" id="status">Esperando autenticación...</div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

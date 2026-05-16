@@ -129,15 +129,20 @@ export class ShellApp extends LitElement {
   }
 
   private async loadApps() {
-    try {
-      const res = await fetch('/api/apps');
-      const body = await res.json();
-      if (body.success) {
-        this.apps = body.data.filter((a: AppInfo) => a.enabled);
-        return;
+    const token = authClient.getToken();
+    if (token) {
+      try {
+        const res = await fetch('/api/apps', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await res.json();
+        if (body.success) {
+          this.apps = body.data.filter((a: AppInfo) => a.enabled);
+          return;
+        }
+      } catch {
+        // Fallback: load from YAML
       }
-    } catch {
-      // Fallback: load from YAML
     }
 
     // Fallback: fetch static YAML
@@ -263,7 +268,7 @@ export class ShellApp extends LitElement {
   }
 
   private handleLogin() {
-    // Auth state is reactive; after login, broadcast token
+    this.loadApps();
     this.broadcastAuth();
   }
 

@@ -129,42 +129,64 @@ export class ShellLogin extends LitElement {
     .error-msg.visible {
       display: block;
     }
+
+    .name-field {
+      display: none;
+    }
+
+    .name-field.visible {
+      display: block;
+    }
   `;
 
-  @state()
-  private mode: 'login' | 'register' = 'login';
+  @state() private _mode: 'login' | 'register' = 'login';
+  @state() private _loading = false;
+  @state() private _error = '';
 
-  @state()
-  private email = '';
+  private _switchMode(mode: 'login' | 'register') {
+    this._mode = mode;
+    this._error = '';
+    // Clear inputs on mode switch
+    this.updateComplete.then(() => {
+      const inputs = this.shadowRoot?.querySelectorAll('input');
+      inputs?.forEach((i) => { i.value = ''; });
+    });
+  }
 
-  @state()
-  private name = '';
-
-  @state()
-  private password = '';
-
-  @state()
-  private loading = false;
-
-  @state()
-  private error = '';
-
-  private async handleSubmit(e: Event) {
+  private async _handleSubmit(e: Event) {
     e.preventDefault();
-    this.loading = true;
-    this.error = '';
+
+    // Read values directly from shadow DOM - reliable regardless of reactive binding
+    const email = (this.shadowRoot?.getElementById('email') as HTMLInputElement)?.value.trim() ?? '';
+    const name = (this.shadowRoot?.getElementById('name') as HTMLInputElement)?.value.trim() ?? '';
+    const password = (this.shadowRoot?.getElementById('password') as HTMLInputElement)?.value ?? '';
+
+    if (!email) { this._error = 'El correo electrónico es obligatorio'; return; }
+    if (this._mode === 'register' && !name) { this._error = 'El nombre es obligatorio'; return; }
+    if (!password) { this._error = 'La contraseña es obligatoria'; return; }
+    if (password.length < 6) { this._error = 'La contraseña debe tener al menos 6 caracteres'; return; }
+
+    this._loading = true;
+    this._error = '';
 
     try {
-      if (this.mode === 'login') {
-        await authClient.login(this.email, this.password);
+      if (this._mode === 'login') {
+        await authClient.login(email, password);
       } else {
-        await authClient.register(this.email, this.name, this.password);
+        await authClient.register(email, name, password);
       }
       this.dispatchEvent(new CustomEvent('login-success', { bubbles: true, composed: true }));
     } catch (err) {
-      this.error = err instanceof Error ? err.message : 'Error desconocido';
+      const msg = err instanceof Error ? err.message : 'Error desconocido';
+      if (this._mode === 'login' && (msg.includes('invalid') || msg.includes('password') || msg.includes('credenciales'))) {
+        this._error = 'Correo o contraseña incorrectos. ¿Primera vez aquí? Usa la pestaña Registrarse.';
+      } else if (msg.includes('email already in use') || msg.includes('correo')) {
+        this._error = 'Este correo ya está registrado. Usa la pestaña Iniciar sesión.';
+      } else {
+        this._error = msg;
+      }
     } finally {
-      this.loading = false;
+      this._loading = false;
     }
   }
 
@@ -176,63 +198,43 @@ export class ShellLogin extends LitElement {
 
         <div class="tabs">
           <button
-            class="tab ${this.mode === 'login' ? 'active' : ''}"
-            @click=${() => { this.mode = 'login'; this.error = ''; }}
+            type="button"
+            class="tab ${this._mode === 'login' ? 'active' : ''}"
+            @click=${() => this._switchMode('login')}
           >
             Iniciar sesión
           </button>
           <button
-            class="tab ${this.mode === 'register' ? 'active' : ''}"
-            @click=${() => { this.mode = 'register'; this.error = ''; }}
+            type="button"
+            class="tab ${this._mode === 'register' ? 'active' : ''}"
+            @click=${() => this._switchMode('register')}
           >
             Registrarse
           </button>
         </div>
 
-        <div class="error-msg ${this.error ? 'visible' : ''}">${this.error}</div>
+        <div class="error-msg ${this._error ? 'visible' : ''}">${this._error}</div>
 
-        <form @submit=${this.handleSubmit}>
-          ${this.mode === 'register' ? html`
-            <div class="form-group">
-              <label for="name">Nombre</label>
-              <input
-                id="name"
-                type="text"
-                .value=${this.name}
-                @input=${(e: InputEvent) => this.name = (e.target as HTMLInputElement).value}
-                required
-                placeholder="Tu nombre"
-              />
-            </div>
-          ` : ''}
+        <form @submit=${this._handleSubmit}>
+          <div class="name-field form-group ${this._mode === 'register' ? 'visible' : ''}">
+            <label for="name">Nombre</label>
+            <input id="name" type="text" placeholder="Tu nombre" />
+          </div>
 
           <div class="form-group">
             <label for="email">Correo electrónico</label>
-            <input
-              id="email"
-              type="email"
-              .value=${this.email}
-              @input=${(e: InputEvent) => this.email = (e.target as HTMLInputElement).value}
-              required
-              placeholder="correo@ejemplo.com"
-            />
+            <input id="email" type="email" placeholder="correo@ejemplo.com" />
           </div>
 
           <div class="form-group">
             <label for="password">Contraseña</label>
-            <input
-              id="password"
-              type="password"
-              .value=${this.password}
-              @input=${(e: InputEvent) => this.password = (e.target as HTMLInputElement).value}
-              required
-              placeholder="••••••••"
-              minlength=${6}
-            />
+            <input id="password" type="password" placeholder="••••••••" />
           </div>
 
-          <button class="submit-btn" type="submit" ?disabled=${this.loading}>
-            ${this.loading ? 'Procesando...' : this.mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+          <button class="submit-btn" type="submit" ?disabled=${this._loading}>
+            ${this._loading
+              ? 'Procesando...'
+              : this._mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
           </button>
         </form>
       </div>

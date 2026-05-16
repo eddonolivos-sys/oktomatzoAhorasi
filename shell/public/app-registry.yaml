@@ -24,3 +24,29 @@ apps:
     tags:
       - threejs
       - webgl
+
+  - id: test-uno
+    name: Proyecto de prueba 1
+    description: Verificación del sistema con iframes
+    icon: home
+    route: /test-uno
+    src: /apps/test-uno/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Pruebas
+    tags:
+      - test
+      - vanilla
+
+  - id: test-dos
+    name: Proyecto de prueba 2
+    description: Segunda verificación con navegación cross-app
+    icon: home
+    route: /test-dos
+    src: /apps/test-dos/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Pruebas
+    tags:
+      - test
+      - vanilla

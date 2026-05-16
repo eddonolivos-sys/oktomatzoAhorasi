@@ -4,13 +4,15 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../proxy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
-      - ../shell/dist:/usr/share/shell
     depends_on:
       - backend
+      - shell
       - app-dashboard
       - app-viewer-3d
+      - test-uno
+      - test-dos
 
   backend:
     build:
@@ -25,19 +27,40 @@ services:
       - JWT_SECRET=dev-secret-change-in-production
       - PORT=8080
 
+  shell:
+    build:
+      context: ..
+      dockerfile: shell/Dockerfile
+    ports:
+      - "8086:80"
+
   app-dashboard:
     build:
-      context: ../apps/app-a-dashboard
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/app-a-dashboard/Dockerfile
     ports:
       - "8082:80"
 
   app-viewer-3d:
     build:
-      context: ../apps/app-b-viewer-3d
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/app-b-viewer-3d/Dockerfile
     ports:
       - "8083:80"
+
+  test-uno:
+    build:
+      context: ..
+      dockerfile: apps/test-uno/Dockerfile
+    ports:
+      - "8084:80"
+
+  test-dos:
+    build:
+      context: ..
+      dockerfile: apps/test-dos/Dockerfile
+    ports:
+      - "8085:80"
 
 volumes:
   caddy_data:

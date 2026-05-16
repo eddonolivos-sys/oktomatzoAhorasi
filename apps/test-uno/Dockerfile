@@ -10,11 +10,11 @@ COPY packages/ packages/
 
 RUN pnpm install --frozen-lockfile
 
-RUN cd /app/apps/app-b-viewer-3d && node_modules/.bin/tsc -b && node_modules/.bin/vite build
+RUN cd /app/apps/test-uno && node_modules/.bin/tsc && node_modules/.bin/vite build
 
 FROM nginx:alpine
 
-COPY --from=builder /app/apps/app-b-viewer-3d/dist /usr/share/nginx/html
-COPY --from=builder /app/apps/app-b-viewer-3d/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/apps/test-uno/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/test-uno/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

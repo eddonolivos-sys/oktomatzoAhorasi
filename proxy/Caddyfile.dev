@@ -1,0 +1,29 @@
+{
+	admin off
+}
+
+:8080 {
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle_path /apps/dashboard/* {
+		reverse_proxy app-dashboard:80
+	}
+
+	handle_path /apps/viewer-3d/* {
+		reverse_proxy app-viewer-3d:80
+	}
+
+	handle_path /apps/test-uno/* {
+		reverse_proxy test-uno:80
+	}
+
+	handle_path /apps/test-dos/* {
+		reverse_proxy test-dos:80
+	}
+
+	handle {
+		reverse_proxy shell:80
+	}
+}

@@ -3,11 +3,11 @@ package domain
 import "errors"
 
 var (
-	ErrNotFound       = errors.New("resource not found")
-	ErrAlreadyExists  = errors.New("resource already exists")
-	ErrInvalidInput   = errors.New("invalid input")
-	ErrUnauthorized   = errors.New("unauthorized")
-	ErrEmailTaken     = errors.New("email already in use")
-	ErrInvalidCreds   = errors.New("invalid email or password")
-	ErrForbidden      = errors.New("forbidden")
+	ErrNotFound       = errors.New("recurso no encontrado")
+	ErrAlreadyExists  = errors.New("el recurso ya existe")
+	ErrInvalidInput   = errors.New("datos inválidos")
+	ErrUnauthorized   = errors.New("no autorizado")
+	ErrEmailTaken     = errors.New("correo ya registrado")
+	ErrInvalidCreds   = errors.New("correo o contraseña incorrectos")
+	ErrForbidden      = errors.New("acceso denegado")
 )
