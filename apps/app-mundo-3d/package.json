@@ -1,0 +1,22 @@
+{
+  "name": "@plataforma/app-mundo-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@plataforma/shell-protocol": "workspace:*",
+    "cesium": "^1.122.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vite-plugin-static-copy": "^2.0.0"
+  }
+}
