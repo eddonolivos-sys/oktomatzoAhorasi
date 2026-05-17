@@ -1,5 +1,6 @@
 import {
   Cartesian3,
+  Cartesian4,
   Cartographic,
   Transforms,
   Matrix4,
@@ -112,10 +113,13 @@ export class PhysicsEngine {
     }
 
     // — Compute local ENU frame —
-    const transform = Transforms.eastNorthUpToFixedFrame(state.position);
-    const east  = Matrix4.getColumn(transform, 0, new Cartesian3());
-    const north = Matrix4.getColumn(transform, 1, new Cartesian3());
-    const up    = Matrix4.getColumn(transform, 2, new Cartesian3());
+    const mtx = Transforms.eastNorthUpToFixedFrame(state.position);
+    const eastCol = Matrix4.getColumn(mtx, 0, new Cartesian4());
+    const northCol = Matrix4.getColumn(mtx, 1, new Cartesian4());
+    const upCol = Matrix4.getColumn(mtx, 2, new Cartesian4());
+    const east  = new Cartesian3(eastCol.x, eastCol.y, eastCol.z);
+    const north = new Cartesian3(northCol.x, northCol.y, northCol.z);
+    const up    = new Cartesian3(upCol.x, upCol.y, upCol.z);
 
     const cosH = Math.cos(state.heading);
     const sinH = Math.sin(state.heading);

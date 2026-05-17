@@ -64,9 +64,6 @@ export class CameraController {
 
   // Release camera lock (call when switching to free mode)
   release() {
-    this.viewer.camera.lookAtTransform(
-      // @ts-expect-error: IDENTITY is not in typedefs for lookAtTransform directly
-      Cartesian3.ZERO as never
-    );
+    this.viewer.camera.lookAtTransform(Cartesian3.ZERO as never);
   }
 }

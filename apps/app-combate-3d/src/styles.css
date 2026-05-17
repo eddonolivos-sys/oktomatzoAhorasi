@@ -1,0 +1,287 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+#app canvas {
+  display: block;
+}
+
+/* ─── MENU ─── */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.85);
+  z-index: 100;
+}
+
+.menu-card {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 40px;
+  width: 90%;
+  max-width: 480px;
+  text-align: center;
+}
+
+.menu-card h1 {
+  font-size: 32px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #4facfe, #00f2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.menu-card p {
+  color: #aaa;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.menu-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.menu-btn:hover { transform: scale(1.02); }
+.menu-btn:active { transform: scale(0.98); }
+
+.menu-btn.primary {
+  background: linear-gradient(90deg, #4facfe, #00f2fe);
+  color: #000;
+}
+
+.menu-btn.secondary {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.menu-btn.danger {
+  background: linear-gradient(90deg, #f093fb, #f5576c);
+  color: #fff;
+}
+
+.menu-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.menu-input:focus { border-color: #4facfe; }
+
+/* ─── HUD ─── */
+#hud-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.hud-container {
+  position: absolute;
+  inset: 0;
+}
+
+.health-bar-bg {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 24px;
+  background: rgba(0,0,0,0.6);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 10px;
+  transition: width 0.3s, background 0.3s;
+}
+
+.hazard-counter {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid rgba(255,100,100,0.3);
+}
+
+.wave-timer {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.cooldown-ring {
+  position: absolute;
+  bottom: 80px;
+  right: 40px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.cooldown-ring::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #ffd700;
+  animation: spin 1s linear infinite;
+  opacity: 0;
+}
+
+.cooldown-ring.active::before { opacity: 1; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hud-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.8);
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.hud-message.visible { opacity: 1; }
+
+.hud-message.damage { color: #ff4757; }
+.hud-message.info { color: #4facfe; }
+.hud-message.death { color: #ff0000; font-size: 28px; }
+.hud-message.warning { color: #ffa502; }
+
+.menu-btn-hud {
+  position: absolute;
+  top: 20px;
+  right: 50%;
+  transform: translateX(calc(150px + 20px));
+  pointer-events: all;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.menu-btn-hud:hover { background: rgba(255,255,255,0.15); }
+
+.debug-toggle {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  pointer-events: all;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #aaa;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.tutorial-card {
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 32px;
+  width: 90%;
+  max-width: 500px;
+  text-align: left;
+}
+
+.tutorial-card h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #4facfe;
+}
+
+.tutorial-card kbd {
+  display: inline-block;
+  background: rgba(255,255,255,0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.tutorial-card li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+  list-style: none;
+  padding-left: 8px;
+}
+
+.tutorial-card li::before { content: '• '; color: #4facfe; }

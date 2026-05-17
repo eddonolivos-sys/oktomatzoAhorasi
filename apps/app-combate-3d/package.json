@@ -1,0 +1,19 @@
+{
+  "name": "@plataforma/app-combate-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@plataforma/shell-protocol": "workspace:*",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  }
+}

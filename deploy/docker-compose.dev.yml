@@ -5,12 +5,16 @@ services:
       - "8080:8080"
     volumes:
       - ../proxy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ../docs:/usr/share/docs:ro
       - caddy_data:/data
     depends_on:
       - backend
       - shell
       - app-dashboard
       - app-viewer-3d
+      - app-mundo-3d
+      - app-combate-3d
+      - oktomatzo2-app
       - test-uno
       - test-dos
 
@@ -47,6 +51,46 @@ services:
       dockerfile: apps/app-b-viewer-3d/Dockerfile
     ports:
       - "8083:80"
+
+  app-mundo-3d:
+    build:
+      context: ..
+      dockerfile: apps/app-mundo-3d/Dockerfile
+      args:
+        VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+        VITE_MODEL_CAR_URL: ${VITE_MODEL_CAR_URL:-}
+        VITE_MODEL_PLANE_URL: ${VITE_MODEL_PLANE_URL:-}
+        VITE_MODEL_BOAT_URL: ${VITE_MODEL_BOAT_URL:-}
+    ports:
+      - "8087:80"
+
+  app-combate-3d:
+    build:
+      context: ..
+      dockerfile: apps/app-combate-3d/Dockerfile
+    ports:
+      - "8088:80"
+
+  oktomatzo2-api:
+    build:
+      context: ../apps/oktomatzo2/tattoo-preview/backend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8089:8000"
+    environment:
+      - MAX_UPLOAD_MB=10
+
+  oktomatzo2-app:
+    build:
+      context: ../apps/oktomatzo2/tattoo-preview/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8090:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/oktomatzo2-api
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      - oktomatzo2-api
 
   test-uno:
     build:

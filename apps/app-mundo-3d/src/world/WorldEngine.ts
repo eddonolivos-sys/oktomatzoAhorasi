@@ -42,7 +42,9 @@ export class WorldEngine {
     this.viewer.scene.globe.depthTestAgainstTerrain = true;
     this.viewer.scene.fog.enabled = true;
     this.viewer.scene.fog.density = 0.0002;
-    this.viewer.scene.skyAtmosphere.show = true;
+    if (this.viewer.scene.skyAtmosphere) {
+      this.viewer.scene.skyAtmosphere.show = true;
+    }
 
     // Set clock for day/night cycle (1 simulated hour per real second)
     this.viewer.clock.clockRange = ClockRange.LOOP_STOP;

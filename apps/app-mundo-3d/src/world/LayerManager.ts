@@ -46,9 +46,9 @@ export class LayerManager {
   }
 
   private async loadStreet() {
-    const provider = await OpenStreetMapImageryProvider.fromUrl(
-      'https://tile.openstreetmap.org/'
-    );
+    const provider = new OpenStreetMapImageryProvider({
+      url: 'https://tile.openstreetmap.org/',
+    });
     this.viewer.imageryLayers.addImageryProvider(provider);
   }
 

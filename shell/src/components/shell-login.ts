@@ -178,9 +178,9 @@ export class ShellLogin extends LitElement {
       this.dispatchEvent(new CustomEvent('login-success', { bubbles: true, composed: true }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
-      if (this._mode === 'login' && (msg.includes('invalid') || msg.includes('password') || msg.includes('credenciales'))) {
+      if (this._mode === 'login' && (msg.includes('invalid') || msg.includes('password') || msg.includes('credenciales') || msg.includes('incorrectos'))) {
         this._error = 'Correo o contraseña incorrectos. ¿Primera vez aquí? Usa la pestaña Registrarse.';
-      } else if (msg.includes('email already in use') || msg.includes('correo')) {
+      } else if (this._mode === 'register' && (msg.includes('email already in use') || msg.includes('correo ya registrado'))) {
         this._error = 'Este correo ya está registrado. Usa la pestaña Iniciar sesión.';
       } else {
         this._error = msg;

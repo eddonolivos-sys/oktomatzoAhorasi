@@ -15,6 +15,28 @@
 		reverse_proxy app-viewer-3d:80
 	}
 
+	handle_path /apps/mundo-3d/* {
+		reverse_proxy app-mundo-3d:80
+	}
+
+	handle_path /apps/combate-3d/* {
+		reverse_proxy app-combate-3d:80
+	}
+
+	handle_path /docs/* {
+		root * /usr/share/docs
+		file_server
+	}
+
+	handle_path /apps/oktomatzo2/* {
+		reverse_proxy oktomatzo2-app:3000
+	}
+
+	handle /oktomatzo2-api/* {
+		uri strip_prefix /oktomatzo2-api
+		reverse_proxy oktomatzo2-api:8000
+	}
+
 	handle_path /apps/test-uno/* {
 		reverse_proxy test-uno:80
 	}

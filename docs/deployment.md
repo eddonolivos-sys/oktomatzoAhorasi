@@ -93,23 +93,45 @@ docker compose -f deploy/docker-compose.yml up --build -d
 
 ## Opción 3: Cloudflare Tunnel (gratuito, desde casa)
 
+Requiere tener Docker en ejecución. Se usa un contenedor `cloudflared` que crea
+un túnel seguro hacia tu máquina local sin necesidad de abrir puertos.
+
+La URL del túnel aparece en los logs del contenedor `cloudflared`.
+
+### Rápido (túnel efímero, ideal para pruebas)
+
 ```bash
-# 1. Instalar cloudflared
+# Iniciar plataforma + túnel
+docker compose -f deploy/docker-compose.dev.yml -f deploy/docker-compose.internet.yml up --build -d
+
+# Obtener la URL pública
+docker logs deploy-cloudflared-1 --tail 10 2>/dev/null | grep -oP 'https?://[a-z0-9.-]+\.trycloudflare\.com'
+```
+
+### Permanente (con dominio propio y Cloudflare)
+
+```bash
+# 1. Instalar cloudflared (una sola vez)
 # https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
 
 # 2. Autenticar
 cloudflared tunnel login
 
-# 3. Crear túnel
+# 3. Crear túnel nombrado
 cloudflared tunnel create plataforma
 
-# 4. Configurar DNS
+# 4. Configurar DNS (reemplaza tudominio.com con tu dominio real)
 cloudflared tunnel route dns plataforma plataforma.tudominio.com
 
-# 5. Iniciar la plataforma y el túnel
+# 5. Iniciar la plataforma
 docker compose -f deploy/docker-compose.dev.yml up --build -d
+
+# 6. Ejecutar el túnel (en otra terminal o como servicio)
 cloudflared tunnel run plataforma
 ```
+
+> ⚠️ Sin el archivo `docker-compose.internet.yml`, la plataforma solo es
+> accesible desde `localhost:8080`. Usa el overlay para exponerla a internet.
 
 ---
 

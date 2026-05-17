@@ -49,6 +49,10 @@ func seedApps(db *sql.DB) error {
 	}{
 		{"dashboard", "Dashboard Comercial", "Métricas y reportes de ventas", "bar-chart", "/dashboard", "/apps/dashboard/", "1.0.0", "allow-scripts allow-same-origin allow-forms", "Analítica", `["react","chartjs"]`},
 		{"viewer-3d", "Visor 3D", "Visualización interactiva de modelos 3D", "cube", "/viewer-3d", "/apps/viewer-3d/", "1.0.0", "allow-scripts allow-same-origin", "Herramientas", `["threejs","webgl"]`},
+		{"mundo-3d", "Mundo 3D", "Visualización de globo terráqueo con CesiumJS", "globe", "/mundo-3d", "/apps/mundo-3d/", "1.0.0", "allow-scripts allow-same-origin", "Herramientas", `["cesium","webgl","3d"]`},
+		{"combate-3d", "Combate 3D", "Juego de combate vehicular en 3D", "home", "/combate-3d", "/apps/combate-3d/", "1.0.0", "allow-scripts allow-same-origin", "Juegos", `["threejs","game","3d"]`},
+		{"oktomatzo2", "TattooAR", "Previsualización 3D de tatuajes", "home", "/oktomatzo2", "/apps/oktomatzo2/", "1.0.0", "allow-scripts allow-same-origin", "Herramientas", `["threejs","nextjs","tattoo"]`},
+		{"busqueda", "Búsqueda", "Búsqueda inteligente en la documentación del proyecto", "home", "/busqueda", "/docs/search.html", "1.0.0", "allow-scripts allow-same-origin", "Sistema", `["docs","search"]`},
 		{"test-uno", "Proyecto de prueba 1", "Verificación del sistema con iframes", "home", "/test-uno", "/apps/test-uno/", "1.0.0", "allow-scripts allow-same-origin", "Pruebas", `["test","vanilla"]`},
 		{"test-dos", "Proyecto de prueba 2", "Segunda verificación con navegación cross-app", "home", "/test-dos", "/apps/test-dos/", "1.0.0", "allow-scripts allow-same-origin", "Pruebas", `["test","vanilla"]`},
 	}

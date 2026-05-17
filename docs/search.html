@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Búsqueda — Plataforma Orquestadora</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0d0d18;
+    color: #e4e4f0;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 {
+    font-size: 28px;
+    margin-bottom: 6px;
+    background: linear-gradient(90deg, #4facfe, #00f2fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .search-box {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid #2a2a3f;
+    border-radius: 12px;
+    background: #16161f;
+    color: #e4e4f0;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 8px;
+  }
+  .search-box:focus { border-color: #4facfe; }
+  .stats { font-size: 13px; color: #666; margin-bottom: 20px; min-height: 20px; }
+  .result {
+    background: #16161f;
+    border: 1px solid #24242f;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .result:hover { border-color: #4facfe40; }
+  .result-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #4facfe;
+    margin-bottom: 4px;
+  }
+  .result-excerpt {
+    font-size: 13px;
+    color: #999;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .result-excerpt em { color: #ffd700; font-style: normal; }
+  .result-links {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .result-links a:hover { opacity: 0.8; }
+  .link-web { background: #1a3a5c; color: #4facfe; }
+  .link-file { background: #2a1a3c; color: #b388ff; }
+  .result-score {
+    font-size: 11px;
+    color: #555;
+    margin-top: 6px;
+  }
+  .no-results {
+    text-align: center;
+    padding: 40px;
+    color: #555;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-left: 8px;
+  }
+  .badge-section { background: #2a3a2a; color: #8bc34a; }
+  .badge-file { background: #3a2a3a; color: #ce93d8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 Búsqueda inteligente</h1>
+  <p class="subtitle">Busca en toda la documentación del proyecto. Resultados con enlaces al explorador de Windows.</p>
+  <input class="search-box" id="searchInput" type="text" placeholder="Ej: integración, docker, app, protocolo..." autofocus />
+  <div class="stats" id="stats"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+// ── Search Engine: tokenizer + TF scoring ──────────────────────────────
+const PROJECT_ROOT = 'C:\\Users\\victo\\OneDrive\\Documentos\\GitHub\\oktomatzoAhorasi';
+
+function tokenize(text) {
+  return text.toLowerCase()
+    .replace(/[^a-záéíóúñü0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function buildIndex(docs) {
+  const index = [];
+  for (const doc of docs) {
+    const tokens = tokenize(doc.content);
+    const tf = new Map();
+    for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+    const maxFreq = Math.max(...tf.values(), 1);
+    index.push({
+      ...doc,
+      tokens,
+      tf,
+      maxFreq,
+      length: tokens.length,
+    });
+  }
+  return index;
+}
+
+function search(query, index) {
+  const qTokens = tokenize(query);
+  if (qTokens.length === 0) return [];
+  const idf = new Map();
+  for (const qt of new Set(qTokens)) {
+    let count = 0;
+    for (const doc of index) if (doc.tokens.includes(qt)) count++;
+    idf.set(qt, Math.log((index.length + 1) / (count + 1)) + 1);
+  }
+  const results = [];
+  for (const doc of index) {
+    let score = 0;
+    for (const qt of qTokens) {
+      const freq = (doc.tf.get(qt) || 0) / doc.maxFreq;
+      score += freq * (idf.get(qt) || 1);
+    }
+    const exactBonus = query.length > 2 && doc.content.toLowerCase().includes(query.toLowerCase()) ? 2 : 0;
+    score += exactBonus;
+    if (score > 0) {
+      results.push({ ...doc, score: Math.round(score * 1000) / 1000 });
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 25);
+}
+
+function getExcerpt(content, query) {
+  const q = query.toLowerCase();
+  const idx = content.toLowerCase().indexOf(q);
+  if (idx === -1) return content.slice(0, 200) + (content.length > 200 ? '...' : '');
+  const start = Math.max(0, idx - 80);
+  const end = Math.min(content.length, idx + q.length + 120);
+  let excerpt = (start > 0 ? '…' : '') + content.slice(start, end) + (end < content.length ? '…' : '');
+  const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  excerpt = excerpt.replace(regex, m => `<em>${m}</em>`);
+  return excerpt;
+}
+
+function filePathToWebUrl(fp) {
+  return fp.replace(/\\/g, '/').replace(PROJECT_ROOT.replace(/\\/g, '/'), '');
+}
+
+// ── Document Corpus ────────────────────────────────────────────────────
+const DOCS = [
+  {
+    id: 'architecture',
+    title: 'Arquitectura del sistema',
+    section: 'docs/architecture.md',
+    file: PROJECT_ROOT + '\\docs\\architecture.md',
+    content: `Plataforma Orquestadora — Arquitectura. 5 principios de diseño: máximo aislamiento, agnóstico al stack, comunicación mínima (postMessage), despliegue independiente, simplicidad operacional. Diagrama de arquitectura: Caddy -> Shell SPA + Sub-apps -> Backend -> SQLite. Flujo de autenticación: Usuario -> Shell -> Backend (JWT) -> Shell almacena token -> reenvía a iframe via postMessage. Decisiones técnicas: Lit/WC para shell (<10KB JS), Go+SQLite para backend (binario único), Caddy como proxy (auto HTTPS), iframes para aislamiento. Estructura hexagonal del backend.`
+  },
+  {
+    id: 'protocol',
+    title: 'Protocolo de comunicación (postMessage)',
+    section: 'docs/protocol.md',
+    file: PROJECT_ROOT + '\\docs\\protocol.md',
+    content: `Protocolo de comunicación postMessage. Shell -> App: auth:token, auth:clear, theme, navigate, shell:ready. App -> Shell: app:ready, auth:request, navigate, resize, notify. Comunicación cross-app via shell como intermediario. Ejemplos de implementación para sub-apps y shell.`
+  },
+  {
+    id: 'adding-new-app',
+    title: 'Guía para añadir una nueva sub-app',
+    section: 'docs/adding-new-app.md',
+    file: PROJECT_ROOT + '\\docs\\adding-new-app.md',
+    content: `Guía completa para integrar nuevas aplicaciones al ecosistema. Monorepo con pnpm workspaces. El build context siempre debe ser la raíz del repo. Pasos: crear estructura de la app (package.json, vite.config, tsconfig), integrar protocolo ShellClient, crear Dockerfile (sin COPY shell/), añadir a docker-compose, configurar ruta en Caddyfile, registrar en la base de datos vía API o en app-registry.yaml. Checklist de integración de 10 pasos.`
+  },
+  {
+    id: 'deployment',
+    title: 'Despliegue',
+    section: 'docs/deployment.md',
+    file: PROJECT_ROOT + '\\docs\\deployment.md',
+    content: `Tres opciones de despliegue: Local/Desarrollo (docker-compose.dev.yml, hot-reload sin Docker), VPS económico (Hetzner CX22 ~5 EUR/mes), Cloudflare Tunnel gratuito para hosting desde casa. Variables de entorno: DOMAIN, JWT_SECRET, DB_PATH, PORT. Puertos en modo desarrollo: Caddy 8080, Backend 8081, Dashboard 8082, Visor 3D 8083, Test Uno 8084, Test Dos 8085, Shell 8086, Mundo 3D 8087, Combate 3D 8088. Respaldo manual y automático de SQLite. Monitoreo con logs y health check. CI/CD con GitHub Actions.`
+  },
+  {
+    id: 'combate-3d',
+    title: 'Combate 3D — Juego vehicular',
+    section: 'apps/app-combate-3d/',
+    file: PROJECT_ROOT + '\\apps\\app-combate-3d\\src\\Game.ts',
+    content: `Juego de combate vehicular en 3D con Three.js. Vehículo azul con controles WASD, cañón que dispara balas con espacio, objetos peligrosos rojos que caen cada 5 segundos. Barra de vida con color dinámico verde-naranja-rojo. Cámara en tercera persona con lerp suave, tecla C para alternar distancia. Cooldown de disparo con indicador visual. Muerte instantánea si objeto cae sobre el vehículo. Sistema de reinicio con 3 segundos de invulnerabilidad. Detección de frustración (3 muertes en 30s muestra consejo). Efectos de partículas en explosiones. Sin localStorage ni persistencia.`
+  },
+  {
+    id: 'mundo-3d',
+    title: 'Mundo 3D — CesiumJS Globe',
+    section: 'apps/app-mundo-3d/',
+    file: PROJECT_ROOT + '\\apps\\app-mundo-3d\\src\\main.ts',
+    content: `Visualización de globo terráqueo con CesiumJS. Capas de mapa: satélite (Ion), calle (OSM), topo (ArcGIS). Sistema de clima: despejado, nublado, cubierto. Modelos de vehículos: coche, avión, barco. Física de movimiento con colisión contra terreno. Cámara en tercera persona modo follow/free. HUD con coordenadas, altitud, velocidad. Requiere token de Cesium Ion.`
+  },
+  {
+    id: 'viewer-3d',
+    title: 'Visor 3D — Three.js',
+    section: 'apps/app-b-viewer-3d/',
+    file: PROJECT_ROOT + '\\apps\\app-b-viewer-3d\\src\\main.ts',
+    content: `Visualizador 3D simple con Three.js. Escena con icosaedro metálico azul, OrbitControls, partículas flotantes, plano de suelo con sombras. Integración con protocolo ShellClient para autenticación, tema y reporte de altura del iframe.`
+  },
+  {
+    id: 'tattooar',
+    title: 'TattooAR — Previsualización 3D de Tatuajes',
+    section: 'apps/oktomatzo2/',
+    file: PROJECT_ROOT + '\\apps\\oktomatzo2\\tattoo-preview\\frontend\\src\\app\\page.tsx',
+    content: `Aplicación TattooAR para previsualizar tatuajes en modelos 3D. Next.js + Three.js + FastAPI. Selecciona zonas corporales (cabeza, torso, brazos, piernas). Sube diseños PNG, SVG, JPG, WebP. Los JPG/WebP eliminan fondo automáticamente vía IA (rembg). Coloca tatuajes en el modelo 3D haciendo clic. Editor de tatuajes: posición, rotación, escala, opacidad, brillo, saturación, tono. 5 presets de iluminación. Modelo corporal procedimental con 18 partes. API backend en Python/FastAPI.`
+  },
+  {
+    id: 'backend-api',
+    title: 'Backend API — Go',
+    section: 'backend/',
+    file: PROJECT_ROOT + '\\backend\\cmd\\api\\main.go',
+    content: `API backend en Go con arquitectura hexagonal. Endpoints: POST /api/auth/register, POST /api/auth/login, GET /api/auth/me, GET /api/apps, POST /api/apps, PUT /api/apps/{id}, DELETE /api/apps/{id}, GET /api/users, PUT /api/users/{id}, DELETE /api/users/{id}. Base de datos SQLite con migraciones automáticas. Seed de apps al arrancar. JWT con bcrypt. Middleware de CORS, logging, autenticación.`
+  },
+  {
+    id: 'shell',
+    title: 'Shell SPA — Lit + Web Components',
+    section: 'shell/',
+    file: PROJECT_ROOT + '\\shell\\src\\components\\shell-app.ts',
+    content: `Shell orquestadora construida con Lit y Web Components. Componentes: shell-app (raíz), shell-topbar (menú superior), shell-sidebar (barra lateral con categorías), shell-app-container (iframe), shell-login (login/registro). Temas claro/oscuro con CSS variables. Carga de apps desde API o YAML estático. Comunicación con sub-apps via postMessage. Sin framework de estado externo.`
+  },
+  {
+    id: 'env-setup',
+    title: 'Variables de entorno y configuración',
+    section: 'deploy/.env.example',
+    file: PROJECT_ROOT + '\\deploy\\.env.example',
+    content: `Variables de entorno del sistema: DOMAIN (dominio para Caddy), JWT_SECRET (secreto JWT), DEBUG (modo debug), VITE_CESIUM_ION_TOKEN (token Cesium Ion para Mundo 3D), VITE_MODEL_CAR_URL, VITE_MODEL_PLANE_URL, VITE_MODEL_BOAT_URL (URLs de modelos 3D). Variables para Oktomatzo2: NEXT_PUBLIC_API_URL, MAX_UPLOAD_MB.`
+  },
+  {
+    id: 'docker-setup',
+    title: 'Docker Compose y servicios',
+    section: 'deploy/',
+    file: PROJECT_ROOT + '\\deploy\\docker-compose.yml',
+    content: `Servicios Docker: caddy (proxy reverso), backend (Go API), shell (SPA), app-dashboard (React), app-viewer-3d (Three.js), app-mundo-3d (CesiumJS), app-combate-3d (Three.js game), oktomatzo2-app (Next.js TattooAR), oktomatzo2-api (FastAPI), test-uno, test-dos. Cloudflare Tunnel con cloudflared para exponer a internet. Build context siempre desde raíz del repo.`
+  }
+];
+
+// ── Init ───────────────────────────────────────────────────────────────
+const index = buildIndex(DOCS);
+const input = document.getElementById('searchInput');
+const resultsDiv = document.getElementById('results');
+const statsDiv = document.getElementById('stats');
+
+function render() {
+  const q = input.value.trim();
+  if (!q) {
+    resultsDiv.innerHTML = '<div class="no-results">Escribe algo para buscar en la documentación</div>';
+    statsDiv.textContent = `${DOCS.length} documentos indexados`;
+    return;
+  }
+  const res = search(q, index);
+  statsDiv.textContent = `${res.length} resultado${res.length !== 1 ? 's' : ''} para "${q}" (de ${DOCS.length} documentos)`;
+  if (res.length === 0) {
+    resultsDiv.innerHTML = '<div class="no-results">Sin resultados. Intenta con otras palabras.</div>';
+    return;
+  }
+  resultsDiv.innerHTML = res.map(r => `
+    <div class="result">
+      <div class="result-title">${r.title} <span class="badge badge-section">${r.section}</span></div>
+      <div class="result-excerpt">${getExcerpt(r.content, q)}</div>
+      <div class="result-links">
+        <a class="link-web" href="${filePathToWebUrl(r.file)}" target="_blank" title="Abrir en el navegador">🌐 Ver en web</a>
+        <a class="link-file" href="file:///${r.file.replace(/\\/g, '/')}" target="_blank" title="Abrir en el explorador de Windows">📂 Abrir en Explorer</a>
+      </div>
+      <div class="result-score">Relevancia: ${r.score}</div>
+    </div>
+  `).join('');
+}
+
+input.addEventListener('input', render);
+render();
+</script>
+</body>
+</html>

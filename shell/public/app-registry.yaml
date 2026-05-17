@@ -25,6 +25,61 @@ apps:
       - threejs
       - webgl
 
+  - id: combate-3d
+    name: Combate 3D
+    description: Juego de combate vehicular en 3D
+    icon: cube
+    route: /combate-3d
+    src: /apps/combate-3d/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Juegos
+    tags:
+      - threejs
+      - game
+      - 3d
+
+  - id: oktomatzo2
+    name: TattooAR
+    description: Previsualización 3D de tatuajes
+    icon: home
+    route: /oktomatzo2
+    src: /apps/oktomatzo2/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Herramientas
+    tags:
+      - threejs
+      - nextjs
+      - tattoo
+
+  - id: busqueda
+    name: Búsqueda
+    description: Búsqueda inteligente en la documentación del proyecto
+    icon: home
+    route: /busqueda
+    src: /docs/search.html
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Sistema
+    tags:
+      - docs
+      - search
+
+  - id: mundo-3d
+    name: Mundo 3D
+    description: Visualización de globo terráqueo con CesiumJS
+    icon: globe
+    route: /mundo-3d
+    src: /apps/mundo-3d/
+    version: 1.0.0
+    sandbox: "allow-scripts allow-same-origin"
+    category: Herramientas
+    tags:
+      - cesium
+      - webgl
+      - 3d
+
   - id: test-uno
     name: Proyecto de prueba 1
     description: Verificación del sistema con iframes

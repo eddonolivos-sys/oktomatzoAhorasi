@@ -26,22 +26,22 @@ export class WeatherSystem {
     switch (mode) {
       case 'clear':
         this.cloudiness = 0;
-        this.viewer.scene.fog.density = this.fogBase;
-        this.viewer.scene.skyAtmosphere.hueShift = 0;
-        this.viewer.scene.skyAtmosphere.saturationShift = 0;
+        this.viewer.scene.fog!.density = this.fogBase;
+        this.viewer.scene.skyAtmosphere!.hueShift = 0;
+        this.viewer.scene.skyAtmosphere!.saturationShift = 0;
         break;
       case 'cloudy':
         this.cloudiness = 0.5;
-        this.viewer.scene.fog.density = this.fogBase * 4;
-        this.viewer.scene.skyAtmosphere.hueShift = -0.05;
-        this.viewer.scene.skyAtmosphere.saturationShift = -0.3;
+        this.viewer.scene.fog!.density = this.fogBase * 4;
+        this.viewer.scene.skyAtmosphere!.hueShift = -0.05;
+        this.viewer.scene.skyAtmosphere!.saturationShift = -0.3;
         break;
       case 'overcast':
         this.cloudiness = 1.0;
-        this.viewer.scene.fog.density = this.fogBase * 12;
-        this.viewer.scene.skyAtmosphere.hueShift = -0.1;
-        this.viewer.scene.skyAtmosphere.saturationShift = -0.6;
-        this.viewer.scene.skyAtmosphere.brightnessShift = -0.2;
+        this.viewer.scene.fog!.density = this.fogBase * 12;
+        this.viewer.scene.skyAtmosphere!.hueShift = -0.1;
+        this.viewer.scene.skyAtmosphere!.saturationShift = -0.6;
+        this.viewer.scene.skyAtmosphere!.brightnessShift = -0.2;
         break;
     }
   }
@@ -57,11 +57,13 @@ export class WeatherSystem {
     // Atmosphere colour shift: cooler at dawn/dusk
     const isTransition = hour < 7 || hour > 17;
     if (isTransition) {
-      this.viewer.scene.skyAtmosphere.hueShift = -0.03 + (1 - dayFactor) * -0.05;
+      this.viewer.scene.skyAtmosphere!.hueShift = -0.03 + (1 - dayFactor) * -0.05;
     }
 
     // Globe lighting intensity follows sun angle
-    this.viewer.scene.globe.dynamicAtmosphereLighting = true;
+    if (this.viewer.scene.globe) {
+      this.viewer.scene.globe.dynamicAtmosphereLighting = true;
+    }
   }
 
   get currentMode(): WeatherMode {
