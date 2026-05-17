@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
-const HAZARD_SIZE = 5;
-const SPAWN_HEIGHT = 120;
+const HAZARD_SIZE = 10;
+const SPAWN_HEIGHT = 180;
 const GROUND_Y = HAZARD_SIZE / 2;
-const MAX_HAZARDS = 50;
+const MAX_HAZARDS = 80;
 
 export interface Hazard {
   mesh: THREE.Mesh;
@@ -19,7 +19,7 @@ export class Hazards {
   private hazards: Hazard[] = [];
   private spawnTimer = 0;
   private readonly SPAWN_INTERVAL = 5;
-  private readonly WAVE_COUNT = 10;
+  private readonly WAVE_COUNT = 20;
   private readonly WORLD_HALF = 480;
   private readonly MIN_VEHICLE_DIST = 25;
 
@@ -51,7 +51,7 @@ export class Hazards {
       }
 
       if (!h.landed) {
-        h.velocity.y -= 20 * dt;
+        h.velocity.y -= 40 * dt;
         h.position.addScaledVector(h.velocity, dt);
 
         if (h.position.y <= GROUND_Y) {
@@ -100,7 +100,7 @@ export class Hazards {
     mesh.position.set(x, SPAWN_HEIGHT, z);
     this.scene.add(mesh);
 
-    const velocity = new THREE.Vector3(0, -2, 0);
+    const velocity = new THREE.Vector3(0, -4, 0);
 
     this.hazards.push({
       mesh, position: mesh.position, velocity,

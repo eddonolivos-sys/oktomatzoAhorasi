@@ -17,6 +17,7 @@ services:
       - app-viewer-3d
       - app-mundo-3d
       - app-combate-3d
+      - game-server
       - oktomatzo2-app
       - test-uno
       - test-dos
@@ -73,6 +74,14 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8088:80"
+
+  game-server:
+    build:
+      context: ../services/game-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8091:8080"
 
   oktomatzo2-api:
     build:

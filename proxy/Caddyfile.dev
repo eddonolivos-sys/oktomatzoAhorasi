@@ -23,6 +23,10 @@
 		reverse_proxy app-combate-3d:80
 	}
 
+	handle /ws {
+		reverse_proxy game-server:8080
+	}
+
 	handle_path /docs/* {
 		root * /usr/share/docs
 		file_server

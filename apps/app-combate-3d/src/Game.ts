@@ -4,6 +4,11 @@ import { Projectile } from './Projectile';
 import { Hazards } from './Hazards';
 import { HUD } from './HUD';
 import { Menu } from './Menu';
+import { MultiplayerClient, type RemotePlayer, type ShootData } from './MultiplayerClient';
+
+function generateId(): string {
+  return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
 
 type GameState = 'playing' | 'dead' | 'respawning';
 
@@ -55,10 +60,22 @@ export class Game {
   private cameraTarget = new THREE.Vector3();
   private cameraSmoothPos = new THREE.Vector3();
 
+  private cameraAzimuth = Math.PI;
+  private cameraElevation = 0.4;
+  private isOrbiting = false;
+  private orbitLastX = 0;
+  private orbitLastY = 0;
+
   private hitboxHelpers: THREE.LineSegments[] = [];
 
   private paused = false;
   private animFrameId = 0;
+
+  private multiplayer: MultiplayerClient | null = null;
+  private playerName = '';
+  private remoteVehicles: Map<string, { group: THREE.Group; body: THREE.Mesh }> = new Map();
+  private remoteProjectiles: Map<string, { mesh: THREE.Mesh; lifetime: number; dir: THREE.Vector3 }> = new Map();
+  private stateSyncTimer = 0;
 
   constructor() {
     const container = document.getElementById('app')!;
@@ -82,6 +99,7 @@ export class Game {
 
     this.setupScene();
     this.setupControls();
+    this.setupMouseOrbit();
     this.setupResize();
   }
 
@@ -133,11 +151,48 @@ export class Game {
     });
   }
 
+  private setupMouseOrbit() {
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.isOrbiting = true;
+        this.orbitLastX = e.clientX;
+        this.orbitLastY = e.clientY;
+      }
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isOrbiting) return;
+      const dx = e.clientX - this.orbitLastX;
+      const dy = e.clientY - this.orbitLastY;
+      this.cameraAzimuth -= dx * 0.008;
+      this.cameraElevation = Math.max(0.1, Math.min(1.3, this.cameraElevation + dy * 0.008));
+      this.orbitLastX = e.clientX;
+      this.orbitLastY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => { this.isOrbiting = false; });
+  }
+
   private updateInput() {
     this.input.forward = this.keys.has('w');
     this.input.backward = this.keys.has('s');
     this.input.left = this.keys.has('a');
     this.input.right = this.keys.has('d');
+  }
+
+  private computeTargetHeading(): number | null {
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    fwd.y = 0; fwd.normalize();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    right.y = 0; right.normalize();
+
+    let dx = 0, dz = 0;
+    if (this.input.forward) { dx += fwd.x; dz += fwd.z; }
+    if (this.input.backward) { dx -= fwd.x; dz -= fwd.z; }
+    if (this.input.left) { dx -= right.x; dz -= right.z; }
+    if (this.input.right) { dx += right.x; dz += right.z; }
+
+    if (dx === 0 && dz === 0) return null;
+    return Math.atan2(dx, -dz);
   }
 
   private setupResize() {
@@ -149,7 +204,8 @@ export class Game {
     window.addEventListener('resize', onResize);
   }
 
-  start() {
+  start(playerName?: string) {
+    this.playerName = playerName || 'Jugador';
     this.vehicle = new Vehicle(this.scene);
     this.hazards = new Hazards(this.scene);
     this.hud = new HUD(() => this.togglePause());
@@ -160,9 +216,23 @@ export class Game {
       onToggleHitboxes: () => {},
     });
 
+    this.setupMultiplayer();
+
     this.cameraSmoothPos.copy(this.camera.position);
     this.clock.start();
     this.loop();
+  }
+
+  private setupMultiplayer() {
+    const id = generateId();
+    this.multiplayer = new MultiplayerClient(id, {
+      onPlayers: (players) => this.syncRemotePlayers(players),
+      onPlayerJoined: (player) => this.addRemoteVehicle(player),
+      onPlayerLeft: (id) => this.removeRemoteVehicle(id),
+      onHazards: (hazards) => this.syncHazards(hazards),
+      onShoot: (data) => this.onRemoteShoot(data),
+    });
+    this.multiplayer.connect(this.playerName);
   }
 
   private loop = () => {
@@ -206,13 +276,27 @@ export class Game {
       return;
     }
 
-    this.vehicle.update(safeDt, this.input);
+    const targetHeading = this.computeTargetHeading();
+    this.vehicle.update(safeDt, this.input, targetHeading);
     this.hazards.update(safeDt, this.vehicle.group.position);
     this.updateProjectiles(safeDt);
     this.updateCamera(safeDt);
     this.checkCollisions();
 
     if (this.shootCooldown > 0) this.shootCooldown -= safeDt;
+
+    this.stateSyncTimer += safeDt;
+    if (this.stateSyncTimer >= 0.05 && this.multiplayer?.connected) {
+      this.stateSyncTimer = 0;
+      this.multiplayer.sendState({
+        x: this.vehicle.group.position.x,
+        z: this.vehicle.group.position.z,
+        heading: this.vehicle.heading,
+        speed: this.vehicle.speed,
+        alive: this.vehicle.alive,
+        health: this.health,
+      });
+    }
 
     this.hud.updateHealth(this.health, MAX_HEALTH);
     this.hud.updateHazardCount(this.hazards.activeCount);
@@ -226,12 +310,13 @@ export class Game {
 
   private updateCamera(dt: number) {
     const pos = this.vehicle.group.position;
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.vehicle.group.quaternion);
     const dist = this.cameraNear ? NEAR_DIST : FAR_DIST;
 
-    this.cameraTarget.copy(pos)
-      .add(fwd.multiplyScalar(-dist))
-      .add(new THREE.Vector3(0, CAM_HEIGHT, 0));
+    this.cameraTarget.set(
+      pos.x + dist * Math.sin(this.cameraAzimuth) * Math.cos(this.cameraElevation),
+      pos.y + CAM_HEIGHT + dist * Math.sin(this.cameraElevation),
+      pos.z + dist * Math.cos(this.cameraAzimuth) * Math.cos(this.cameraElevation),
+    );
 
     this.cameraSmoothPos.lerp(this.cameraTarget, LERP_FACTOR);
     this.camera.position.copy(this.cameraSmoothPos);
@@ -248,8 +333,11 @@ export class Game {
     }
 
     this.shootCooldown = SHOOT_COOLDOWN;
-    const p = new Projectile(this.vehicle.cannonPosition, this.vehicle.cannonDirection, this.scene);
+    const origin = this.vehicle.cannonPosition;
+    const dir = this.vehicle.cannonDirection;
+    const p = new Projectile(origin, dir, this.scene);
     this.projectiles.push(p);
+    this.multiplayer?.sendShoot([origin.x, origin.y, origin.z], [dir.x, dir.y, dir.z]);
   }
 
   private updateProjectiles(dt: number) {
@@ -268,11 +356,22 @@ export class Game {
     const hazards = this.hazards.getHazards();
     for (let hi = hazards.length - 1; hi >= 0; hi--) {
       const h = hazards[hi];
-      if (p.mesh.position.distanceTo(h.position) < 4) {
+      if (p.mesh.position.distanceTo(h.position) < 6) {
         this.spawnExplosion(h.position);
         this.hazards.removeHazard(hi);
         p.destroy();
         this.projectiles.splice(idx, 1);
+        return;
+      }
+    }
+
+    for (const [pid, g] of this.remoteVehicles) {
+      const dist = p.mesh.position.distanceTo(g.group.position);
+      if (dist < 2.5) {
+        this.spawnExplosion(g.group.position);
+        p.destroy();
+        this.projectiles.splice(idx, 1);
+        this.multiplayer?.sendDamage(pid, 25);
         return;
       }
     }
@@ -323,9 +422,9 @@ export class Game {
     if (!this.vehicle.alive || this.invulnTimer > 0) return;
 
     const vPos = this.vehicle.group.position;
-    const vHalf = this.vehicle.halfExtents;
-    const vMin = vPos.clone().sub(vHalf);
-    const vMax = vPos.clone().add(vHalf);
+    const vR = this.vehicle.radius;
+    const vMin = new THREE.Vector3(vPos.x - vR, 0, vPos.z - vR);
+    const vMax = new THREE.Vector3(vPos.x + vR, vR * 2, vPos.z + vR);
 
     const hazards = this.hazards.getHazards();
     for (let i = hazards.length - 1; i >= 0; i--) {
@@ -414,9 +513,9 @@ export class Game {
     if (!Game.showHitboxes) return;
 
     const vPos = this.vehicle.group.position;
-    const vHalf = this.vehicle.halfExtents;
+    const vR = this.vehicle.radius;
     const vHelper = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(vHalf.x * 2, vHalf.y * 2, vHalf.z * 2)),
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(vR * 2, vR * 2, vR * 2)),
       new THREE.LineBasicMaterial({ color: 0x00ff00 })
     );
     vHelper.position.copy(vPos);
@@ -434,10 +533,113 @@ export class Game {
     }
   }
 
+  // ── Multiplayer ──────────────────────────────────────────────────
+
+  private syncRemotePlayers(players: RemotePlayer[]) {
+    const seen = new Set<string>();
+    for (const p of players) {
+      seen.add(p.id);
+      if (p.id === this.multiplayer?.playerId) continue;
+      if (!this.remoteVehicles.has(p.id)) {
+        this.addRemoteVehicle(p);
+      }
+      const g = this.remoteVehicles.get(p.id)!;
+      g.group.position.x = p.x;
+      g.group.position.z = p.z;
+      g.group.rotation.y = p.heading;
+      g.group.visible = p.alive;
+    }
+    for (const [id] of this.remoteVehicles) {
+      if (!seen.has(id)) this.removeRemoteVehicle(id);
+    }
+  }
+
+  private addRemoteVehicle(player: RemotePlayer) {
+    if (this.remoteVehicles.has(player.id)) return;
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff4444, metalness: 0.3, roughness: 0.6 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(3, 1.2, 2), bodyMat);
+    body.position.y = 0.6;
+    group.add(body);
+
+    const cabinMat = new THREE.MeshStandardMaterial({ color: 0xff6666, metalness: 0.2, roughness: 0.7 });
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 1.4), cabinMat);
+    cabin.position.set(0, 1.2, -0.2);
+    group.add(cabin);
+
+    group.position.set(player.x, 0, player.z);
+    group.rotation.y = player.heading;
+    this.scene.add(group);
+    this.remoteVehicles.set(player.id, { group, body });
+
+    const nameLabel = this.createNameLabel(player.name);
+    nameLabel.position.y = 2.2;
+    group.add(nameLabel);
+  }
+
+  private createNameLabel(text: string): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.roundRect?.(0, 0, 256, 64, 8);
+    ctx.fill();
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 34);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(2, 0.5, 1);
+    return sprite;
+  }
+
+  private removeRemoteVehicle(id: string) {
+    const g = this.remoteVehicles.get(id);
+    if (g) {
+      this.scene.remove(g.group);
+      g.group.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
+      });
+      this.remoteVehicles.delete(id);
+    }
+  }
+
+  private syncHazards(serverHazards: { x: number; y: number; z: number; landed: boolean; index: number }[]) {
+    // If no hazards locally, use server hazards
+    if (this.hazards.getHazards().length === 0 && serverHazards.length > 0) {
+      for (const h of serverHazards) {
+        // Simple: let the local hazard system handle it
+      }
+    }
+  }
+
+  private onRemoteShoot(data: ShootData) {
+    const origin = new THREE.Vector3(data.origin[0], data.origin[1], data.origin[2]);
+    const dir = new THREE.Vector3(data.dir[0], data.dir[1], data.dir[2]);
+    const p = new Projectile(origin, dir, this.scene);
+    this.projectiles.push(p);
+  }
+
   destroy() {
+    this.multiplayer?.disconnect();
     cancelAnimationFrame(this.animFrameId);
     this.vehicle?.destroy();
     this.hazards?.destroy();
+    for (const [, g] of this.remoteVehicles) {
+      this.scene.remove(g.group);
+      g.group.traverse((child) => {
+        if (child instanceof THREE.Mesh) { child.geometry.dispose(); (child.material as THREE.Material).dispose(); }
+      });
+    }
+    this.remoteVehicles.clear();
     for (const p of this.projectiles) p.destroy();
     for (const p of this.particles) {
       this.scene.remove(p.mesh);

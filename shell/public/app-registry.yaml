@@ -60,7 +60,7 @@ apps:
     route: /busqueda
     src: /docs/search.html
     version: 1.0.0
-    sandbox: "allow-scripts allow-same-origin"
+    sandbox: "allow-scripts allow-same-origin allow-popups allow-top-navigation"
     category: Sistema
     tags:
       - docs

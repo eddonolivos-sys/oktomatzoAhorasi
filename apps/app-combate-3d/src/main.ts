@@ -13,10 +13,12 @@ client.onTheme = (mode) => {
 
 const menu = new Menu({
   onStart() {
+    const nameInput = document.getElementById('name-input') as HTMLInputElement;
+    const playerName = nameInput?.value?.trim() || 'Jugador';
     menu.hide();
     if (game) { game.destroy(); }
     game = new Game();
-    game.start();
+    game.start(playerName);
   },
   onTutorial() {
     menu.showTutorial();

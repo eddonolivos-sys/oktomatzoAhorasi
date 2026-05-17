@@ -13,16 +13,32 @@
     min-height: 100vh;
     padding: 20px;
   }
-  .container { max-width: 900px; margin: 0 auto; }
+  .container { max-width: 960px; margin: 0 auto; }
   h1 {
     font-size: 28px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     background: linear-gradient(90deg, #4facfe, #00f2fe);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 16px; }
+  .path-info {
+    background: #1a1a2e;
+    border: 1px solid #2a2a4f;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #b388ff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .path-info .label { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .path-info .path { font-family: 'Consolas', monospace; color: #ce93d8; }
+
   .search-box {
     width: 100%;
     padding: 14px 18px;
@@ -33,83 +49,122 @@
     font-size: 16px;
     outline: none;
     transition: border-color 0.2s;
-    margin-bottom: 8px;
   }
   .search-box:focus { border-color: #4facfe; }
-  .stats { font-size: 13px; color: #666; margin-bottom: 20px; min-height: 20px; }
+
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 10px 0 16px;
+  }
+  .stats { font-size: 13px; color: #666; flex: 1; }
+  .path-error {
+    font-size: 12px;
+    color: #ff6b6b;
+    padding: 6px 10px;
+    background: #2a1515;
+    border-radius: 6px;
+    margin-top: 4px;
+    width: 100%;
+    display: none;
+  }
+
   .result {
     background: #16161f;
     border: 1px solid #24242f;
     border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    overflow: hidden;
     transition: border-color 0.2s;
   }
   .result:hover { border-color: #4facfe40; }
-  .result-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #4facfe;
-    margin-bottom: 4px;
+  .result-header {
+    padding: 14px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
   }
+  .result-header:hover { background: rgba(255,255,255,0.02); }
+  .result-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; width: 24px; text-align: center; }
+  .result-body { flex: 1; min-width: 0; }
+  .result-title { font-size: 15px; font-weight: 600; color: #4facfe; }
+  .result-meta {
+    font-size: 11px; color: #666; margin-top: 2px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .result-meta span { background: #1a1a2a; padding: 1px 6px; border-radius: 3px; }
   .result-excerpt {
-    font-size: 13px;
-    color: #999;
-    line-height: 1.5;
-    margin-bottom: 8px;
+    font-size: 13px; color: #999; line-height: 1.5; margin-top: 6px; word-break: break-word;
   }
   .result-excerpt em { color: #ffd700; font-style: normal; }
-  .result-links {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+
+  .result-detail {
+    border-top: 1px solid #24242f;
+    padding: 16px;
+    background: #111118;
+    display: none;
   }
-  .result-links a {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
+  .result-detail.open { display: block; }
+  .result-detail pre {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #ccc;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #0a0a12;
+    border-radius: 6px;
+    border: 1px solid #1a1a2a;
+  }
+  .result-detail .detail-actions {
+    display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .detail-btn {
+    padding: 6px 12px;
+    border: 1px solid #2a2a3f;
     border-radius: 6px;
     font-size: 12px;
-    text-decoration: none;
-    transition: opacity 0.2s;
+    cursor: pointer;
+    background: #16161f;
+    color: #ccc;
+    font-family: inherit;
+    transition: border-color 0.2s;
   }
-  .result-links a:hover { opacity: 0.8; }
-  .link-web { background: #1a3a5c; color: #4facfe; }
-  .link-file { background: #2a1a3c; color: #b388ff; }
-  .result-score {
-    font-size: 11px;
-    color: #555;
-    margin-top: 6px;
-  }
-  .no-results {
-    text-align: center;
-    padding: 40px;
-    color: #555;
-  }
-  .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    margin-left: 8px;
-  }
-  .badge-section { background: #2a3a2a; color: #8bc34a; }
-  .badge-file { background: #3a2a3a; color: #ce93d8; }
+  .detail-btn:hover { border-color: #888; }
+
+  .no-results { text-align: center; padding: 40px; color: #555; }
+  .copied-msg { font-size: 11px; color: #8bc34a; margin-left: 4px; transition: opacity 0.3s; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>🔍 Búsqueda inteligente</h1>
-  <p class="subtitle">Busca en toda la documentación del proyecto. Resultados con enlaces al explorador de Windows.</p>
+  <p class="subtitle">Busca en la documentación. Haz clic en cualquier resultado para ver su contenido completo aquí mismo.</p>
+  <div class="path-info">
+    <span class="label">Ruta del proyecto:</span>
+    <span class="path" id="projectPathDisplay"></span>
+    <button class="detail-btn" id="copyPathBtn" style="margin-left:auto;font-size:11px;padding:3px 8px;">📋 Copiar ruta</button>
+  </div>
+  <div class="path-error" id="pathError"></div>
   <input class="search-box" id="searchInput" type="text" placeholder="Ej: integración, docker, app, protocolo..." autofocus />
-  <div class="stats" id="stats"></div>
+  <div class="toolbar">
+    <span class="stats" id="stats"></span>
+  </div>
   <div id="results"></div>
 </div>
 
 <script>
-// ── Search Engine: tokenizer + TF scoring ──────────────────────────────
+// ── RUTA FIJA DEL PROYECTO (cambiar si se mueve el repositorio) ───────
 const PROJECT_ROOT = 'C:\\Users\\victo\\OneDrive\\Documentos\\GitHub\\oktomatzoAhorasi';
+
+// ── Search Engine ──────────────────────────────────────────────────────
+const stopWords = new Set(['el','la','los','las','de','del','en','un','una','y','e','o','a','al','con','por','para','es','se','su','que','no','lo','como','más','pero','sus','le','ya','este','entre','todo','esta','dos','muy','sin']);
 
 function tokenize(text) {
   return text.toLowerCase()
@@ -123,43 +178,38 @@ function buildIndex(docs) {
   for (const doc of docs) {
     const tokens = tokenize(doc.content);
     const tf = new Map();
-    for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+    for (const t of tokens) if (!stopWords.has(t)) tf.set(t, (tf.get(t) || 0) + 1);
     const maxFreq = Math.max(...tf.values(), 1);
-    index.push({
-      ...doc,
-      tokens,
-      tf,
-      maxFreq,
-      length: tokens.length,
-    });
+    index.push({ ...doc, tokens: [...tf.keys()], tf, maxFreq });
+  }
+  const totalDocs = index.length;
+  const df = new Map();
+  for (const doc of index) {
+    for (const t of new Set(doc.tokens)) df.set(t, (df.get(t) || 0) + 1);
+  }
+  for (const doc of index) {
+    doc.idf = new Map();
+    for (const t of doc.tokens) doc.idf.set(t, Math.log((totalDocs + 1) / ((df.get(t) || 0) + 1)) + 1);
   }
   return index;
 }
 
 function search(query, index) {
-  const qTokens = tokenize(query);
+  const qTokens = tokenize(query).filter(t => !stopWords.has(t));
   if (qTokens.length === 0) return [];
-  const idf = new Map();
-  for (const qt of new Set(qTokens)) {
-    let count = 0;
-    for (const doc of index) if (doc.tokens.includes(qt)) count++;
-    idf.set(qt, Math.log((index.length + 1) / (count + 1)) + 1);
-  }
   const results = [];
   for (const doc of index) {
     let score = 0;
     for (const qt of qTokens) {
       const freq = (doc.tf.get(qt) || 0) / doc.maxFreq;
-      score += freq * (idf.get(qt) || 1);
+      score += freq * (doc.idf.get(qt) || 1);
     }
-    const exactBonus = query.length > 2 && doc.content.toLowerCase().includes(query.toLowerCase()) ? 2 : 0;
+    const exactBonus = query.length > 2 && doc.content.toLowerCase().includes(query.toLowerCase()) ? 3 : 0;
     score += exactBonus;
-    if (score > 0) {
-      results.push({ ...doc, score: Math.round(score * 1000) / 1000 });
-    }
+    if (score > 0) results.push({ ...doc, score: Math.round(score * 1000) / 1000 });
   }
   results.sort((a, b) => b.score - a.score);
-  return results.slice(0, 25);
+  return results.slice(0, 30);
 }
 
 function getExcerpt(content, query) {
@@ -169,114 +219,95 @@ function getExcerpt(content, query) {
   const start = Math.max(0, idx - 80);
   const end = Math.min(content.length, idx + q.length + 120);
   let excerpt = (start > 0 ? '…' : '') + content.slice(start, end) + (end < content.length ? '…' : '');
-  const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-  excerpt = excerpt.replace(regex, m => `<em>${m}</em>`);
+  excerpt = excerpt.replace(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<em>${m}</em>`);
   return excerpt;
 }
 
-function filePathToWebUrl(fp) {
-  return fp.replace(/\\/g, '/').replace(PROJECT_ROOT.replace(/\\/g, '/'), '');
+const DOCS = [
+  { id:'architecture', title:'Arquitectura del sistema', section:'docs/architecture.md', file:'docs/architecture.md',
+    content:`Plataforma Orquestadora — Arquitectura.\n\n5 principios de diseño:\n1. Máximo aislamiento entre sub-aplicaciones\n2. Agnóstico al stack tecnológico\n3. Comunicación mínima (solo postMessage)\n4. Despliegue independiente por app\n5. Simplicidad operacional\n\nDiagrama de arquitectura:\nCaddy (proxy reverso) -> Shell SPA + Sub-apps (iframes) -> Backend API (Go) -> SQLite\n\nFlujo de autenticación:\nUsuario -> Shell -> Backend (JWT) -> Shell almacena token -> reenvía a iframe via postMessage\n\nDecisiones técnicas:\n- Shell: Lit + Web Components (<10KB JS)\n- Backend: Go + SQLite (binario único)\n- Proxy: Caddy (auto HTTPS)\n- Aislamiento: iframes con postMessage\n- Base de datos: SQLite con migraciones automáticas y seed de apps` },
+  { id:'protocol', title:'Protocolo de comunicación (postMessage)', section:'docs/protocol.md', file:'docs/protocol.md',
+    content:`Protocolo de comunicación entre Shell y sub-aplicaciones via postMessage.\n\nMensajes Shell -> App:\n- auth:token — Envía token JWT y datos del usuario\n- auth:clear — Limpia la sesión (logout)\n- theme — Cambia entre tema claro/oscuro\n- navigate — Navega a otra ruta\n- shell:ready — Indica que la shell está lista\n\nMensajes App -> Shell:\n- app:ready — La app terminó de cargar\n- auth:request — Solicita el token de autenticación\n- navigate — Solicita navegar a otra app\n- resize — Reporta altura dinámica del iframe\n- notify — Muestra una notificación en la shell\n\nComunicación cross-app: via shell como intermediario.` },
+  { id:'adding-new-app', title:'Guía para añadir nueva sub-app', section:'docs/adding-new-app.md', file:'docs/adding-new-app.md',
+    content:`Guía completa para integrar nuevas aplicaciones al ecosistema.\n\nContexto: Monorepo con pnpm workspaces. El build context SIEMPRE debe ser la raíz del repo.\n\nPasos:\n1. Crear estructura: apps/mi-app/ (package.json, tsconfig, vite.config)\n2. Integrar protocolo: importar ShellClient de @plataforma/shell-protocol\n3. Crear Dockerfile (sin COPY shell/)\n4. Añadir a docker-compose.yml y docker-compose.dev.yml\n5. Configurar ruta en Caddyfile (handle_path /apps/mi-app/*)\n6. Registrar en la base de datos vía API o en app-registry.yaml\n\nChecklist de 10 pasos incluido en la documentación.` },
+  { id:'deployment', title:'Despliegue y Cloudflare Tunnel', section:'docs/deployment.md', file:'docs/deployment.md',
+    content:`Tres opciones de despliegue:\n\n1. LOCAL (desarrollo): docker-compose.dev.yml, hot-reload sin Docker\n   URL: http://localhost:8080\n\n2. VPS (producción): Hetzner CX22 (~5 EUR/mes)\n   Requiere Docker, clonar repo, configurar .env, docker-compose up\n\n3. CLOUDFLARE TUNNEL (gratuito, desde casa)\n   - Rápido: docker compose -f deploy/docker-compose.dev.yml -f deploy/docker-compose.internet.yml up\n   - Permanente: cloudflared tunnel login + create + route dns\n\nPuertos: Caddy 8080, Backend 8081, Dashboard 8082, Visor 3D 8083,\nTest Uno 8084, Test Dos 8085, Shell 8086, Mundo 3D 8087,\nCombate 3D 8088, Oktomatzo2 API 8089, Oktomatzo2 App 8090.\n\nVariables de entorno: DOMAIN, JWT_SECRET, DB_PATH, PORT.` },
+  { id:'combate-3d', title:'Combate 3D — Juego vehicular', section:'apps/app-combate-3d/', file:'apps/app-combate-3d/src/Game.ts',
+    content:`Juego de combate vehicular en 3D con Three.js.\n\nVehículo: cuerpo azul con geometrías regulares, cañón superior.\nControles: WASD para movimiento, ESPACIO para disparar.\n\nObjetos peligrosos: cubos rojos brillantes de 5x5m que caen cada 5 segundos (10 por oleada).\n- Si caen directamente sobre el vehículo: muerte instantánea.\n- Si chocas contra ellos: pierdes 25 de vida.\n- Aparecen a una distancia mínima de 25m del vehículo.\n\nSistema de vida: barra dinámica (verde -> naranja -> rojo).\nAl llegar a 0: el vehículo se detiene, colisiones desactivadas.\n\nCámara: tercera persona con lerp suave. Tecla C alterna distancia.\nCooldown de disparo: 0.6s con indicador visual de recarga.\n\nEfectos: explosiones de partículas, rastro en proyectiles, parpadeo al recibir daño.\n\nReinicio: tecla R o botón. 3 segundos de invulnerabilidad al reaparecer.` },
+  { id:'mundo-3d', title:'Mundo 3D — CesiumJS Globe', section:'apps/app-mundo-3d/', file:'apps/app-mundo-3d/src/main.ts',
+    content:`Visualización de globo terráqueo con CesiumJS.\n\nCapas de mapa:\n- Satélite (Cesium Ion asset 2)\n- Callejero (OpenStreetMap)\n- Topográfico (ArcGIS)\n\nSistema de clima: despejado, nublado, cubierto.\nCiclo día/noche con aceleración temporal 60x.\n\nVehículos: coche, avión, barco con física ENU, colisión contra terreno.\nCámara: modo follow y free (tecla V).\n\nHUD: latitud, longitud, altitud, velocidad, heading.\nRequiere token de Cesium Ion (VITE_CESIUM_ION_TOKEN).` },
+  { id:'viewer-3d', title:'Visor 3D — Three.js', section:'apps/app-b-viewer-3d/', file:'apps/app-b-viewer-3d/src/main.ts',
+    content:`Visualizador 3D simple con Three.js.\n\nEscena con icosaedro metálico azul, OrbitControls para interacción,\nsistema de partículas flotantes, plano de suelo con soporte de sombras.\n\nIntegración con protocolo ShellClient para:\n- Autenticación (auth:token)\n- Tema claro/oscuro\n- Reporte de altura del iframe` },
+  { id:'tattooar', title:'TattooAR — Previsualización 3D de Tatuajes', section:'apps/oktomatzo2/', file:'apps/oktomatzo2/tattoo-preview/frontend/src/app/page.tsx',
+    content:`TattooAR: Aplicación para previsualizar tatuajes en modelos 3D.\n\nFrontend: Next.js 14 + Three.js + Tailwind CSS\nBackend: FastAPI (Python) con rembg para eliminación de fondo\n\nFuncionalidades:\n- Selecciona zonas corporales (cabeza, torso, brazos, piernas)\n- Sube diseños PNG, SVG, JPG, WebP (máx 10 MB)\n- Los JPG/WebP eliminan fondo automáticamente vía IA\n- Coloca tatuajes en el modelo 3D haciendo clic\n- Editor: posición, rotación, escala, opacidad, brillo, saturación, tono\n- 5 presets de iluminación\n- Modelo corporal procedimental con 18 partes\n\nEndpoints API:\n- POST /api/process-texture (PNG/SVG)\n- POST /api/remove-background (JPG/WebP)\n- GET /health` },
+  { id:'backend-api', title:'Backend API — Go', section:'backend/', file:'backend/cmd/api/main.go',
+    content:`API backend en Go con arquitectura hexagonal.\n\nEndpoints:\n- POST /api/auth/register — Registro de usuario\n- POST /api/auth/login — Inicio de sesión (JWT)\n- GET /api/auth/me — Datos del usuario actual\n- GET /api/apps — Listar aplicaciones\n- GET /api/apps/{id} — Detalle de app\n- POST /api/apps — Crear app\n- PUT /api/apps/{id} — Actualizar app\n- DELETE /api/apps/{id} — Eliminar app\n- GET /api/users — Listar usuarios (admin)\n- PUT /api/users/{id} — Actualizar usuario\n- DELETE /api/users/{id} — Eliminar usuario\n\nBase de datos: SQLite con migraciones automáticas.\nSeed de apps al arrancar si la tabla está vacía.\nAutenticación: JWT con bcrypt.\nMiddleware: CORS, logging, autenticación.` },
+  { id:'shell', title:'Shell SPA — Lit + Web Components', section:'shell/', file:'shell/src/components/shell-app.ts',
+    content:`Shell orquestadora construida con Lit y Web Components.\n\nComponentes:\n- shell-app: componente raíz que gestiona el layout completo\n- shell-topbar: barra superior con menú, marca, tema y usuario\n- shell-sidebar: barra lateral con apps agrupadas por categoría\n- shell-app-container: contenedor iframe para las sub-apps\n- shell-login: formulario de inicio de sesión y registro\n\nTemas: claro/oscuro con CSS variables, persistido en localStorage.\nCarga de apps: desde API /api/apps con fallback a app-registry.yaml.\nComunicación con sub-apps: postMessage.` },
+  { id:'env-setup', title:'Variables de entorno', section:'deploy/.env.example', file:'deploy/.env.example',
+    content:`Variables de entorno del sistema:\n\nDOMAIN — Dominio para Caddy (auto HTTPS)\nJWT_SECRET — Secreto para firmar tokens JWT\nDEBUG — Modo debug (true/false)\nVITE_CESIUM_ION_TOKEN — Token de Cesium Ion para Mundo 3D\nVITE_MODEL_CAR_URL — URL del modelo 3D del coche\nVITE_MODEL_PLANE_URL — URL del modelo 3D del avión\nVITE_MODEL_BOAT_URL — URL del modelo 3D del barco\nNEXT_PUBLIC_API_URL — URL de la API para Oktomatzo2\nMAX_UPLOAD_MB — Tamaño máximo de subida (MB)` },
+  { id:'docker-setup', title:'Docker Compose y servicios', section:'deploy/', file:'deploy/docker-compose.yml',
+    content:`11 servicios Docker:\n\n- caddy: proxy reverso con auto HTTPS\n- backend: API Go con SQLite\n- shell: SPA Lit + Web Components\n- app-dashboard: Dashboard React + Recharts\n- app-viewer-3d: Visor Three.js\n- app-mundo-3d: Globo CesiumJS\n- app-combate-3d: Juego Three.js\n- oktomatzo2-app: TattooAR Next.js\n- oktomatzo2-api: FastAPI Python\n- test-uno: App de prueba 1\n- test-dos: App de prueba 2\n\nBuild context: siempre desde la raíz del repo.\nCloudflare Tunnel: cloudflared sidecar para exposición a internet.` },
+  { id:'system-guide', title:'Guía del Sistema', section:'docs/system-guide.md', file:'docs/system-guide.md',
+    content:`Guía completa del sistema.\n\nIncluye:\n- Comandos de limpieza Docker (down -v, prune, rm)\n- Tabla completa de apps integradas con IDs, rutas y puertos\n- Instrucciones de búsqueda inteligente\n- Configuración de Cloudflare Tunnel para internet\n- Reconstrucción desde cero` },
+  { id:'search', title:'Búsqueda inteligente', section:'docs/search.html', file:'docs/search.html',
+    content:`Motor de búsqueda integrado en la plataforma.\n\nAlgoritmo: TF-IDF con tokenización en español, filtrado de stop words,\nnormalización de términos, ranking por relevancia y bonus por coincidencia exacta.\n\nDocumentos indexados: arquitectura, protocolo, despliegue, todas las apps,\nvariables de entorno, guías.\n\nInteracción: haz clic en cualquier resultado para ver el contenido completo\nen el mismo panel. Botón para seleccionar carpeta local y obtener rutas\npara el explorador de Windows.` }
+];
+
+// ── Fixed project root ─────────────────────────────────────────────────
+function formatFileUrl(relativePath) {
+  const normalized = PROJECT_ROOT.replace(/\\/g, '/') + '/' + relativePath.replace(/\\/g, '/');
+  return 'file:///' + normalized.replace(/^file:\/\/\//, 'file:///');
 }
 
-// ── Document Corpus ────────────────────────────────────────────────────
-const DOCS = [
-  {
-    id: 'architecture',
-    title: 'Arquitectura del sistema',
-    section: 'docs/architecture.md',
-    file: PROJECT_ROOT + '\\docs\\architecture.md',
-    content: `Plataforma Orquestadora — Arquitectura. 5 principios de diseño: máximo aislamiento, agnóstico al stack, comunicación mínima (postMessage), despliegue independiente, simplicidad operacional. Diagrama de arquitectura: Caddy -> Shell SPA + Sub-apps -> Backend -> SQLite. Flujo de autenticación: Usuario -> Shell -> Backend (JWT) -> Shell almacena token -> reenvía a iframe via postMessage. Decisiones técnicas: Lit/WC para shell (<10KB JS), Go+SQLite para backend (binario único), Caddy como proxy (auto HTTPS), iframes para aislamiento. Estructura hexagonal del backend.`
-  },
-  {
-    id: 'protocol',
-    title: 'Protocolo de comunicación (postMessage)',
-    section: 'docs/protocol.md',
-    file: PROJECT_ROOT + '\\docs\\protocol.md',
-    content: `Protocolo de comunicación postMessage. Shell -> App: auth:token, auth:clear, theme, navigate, shell:ready. App -> Shell: app:ready, auth:request, navigate, resize, notify. Comunicación cross-app via shell como intermediario. Ejemplos de implementación para sub-apps y shell.`
-  },
-  {
-    id: 'adding-new-app',
-    title: 'Guía para añadir una nueva sub-app',
-    section: 'docs/adding-new-app.md',
-    file: PROJECT_ROOT + '\\docs\\adding-new-app.md',
-    content: `Guía completa para integrar nuevas aplicaciones al ecosistema. Monorepo con pnpm workspaces. El build context siempre debe ser la raíz del repo. Pasos: crear estructura de la app (package.json, vite.config, tsconfig), integrar protocolo ShellClient, crear Dockerfile (sin COPY shell/), añadir a docker-compose, configurar ruta en Caddyfile, registrar en la base de datos vía API o en app-registry.yaml. Checklist de integración de 10 pasos.`
-  },
-  {
-    id: 'deployment',
-    title: 'Despliegue',
-    section: 'docs/deployment.md',
-    file: PROJECT_ROOT + '\\docs\\deployment.md',
-    content: `Tres opciones de despliegue: Local/Desarrollo (docker-compose.dev.yml, hot-reload sin Docker), VPS económico (Hetzner CX22 ~5 EUR/mes), Cloudflare Tunnel gratuito para hosting desde casa. Variables de entorno: DOMAIN, JWT_SECRET, DB_PATH, PORT. Puertos en modo desarrollo: Caddy 8080, Backend 8081, Dashboard 8082, Visor 3D 8083, Test Uno 8084, Test Dos 8085, Shell 8086, Mundo 3D 8087, Combate 3D 8088. Respaldo manual y automático de SQLite. Monitoreo con logs y health check. CI/CD con GitHub Actions.`
-  },
-  {
-    id: 'combate-3d',
-    title: 'Combate 3D — Juego vehicular',
-    section: 'apps/app-combate-3d/',
-    file: PROJECT_ROOT + '\\apps\\app-combate-3d\\src\\Game.ts',
-    content: `Juego de combate vehicular en 3D con Three.js. Vehículo azul con controles WASD, cañón que dispara balas con espacio, objetos peligrosos rojos que caen cada 5 segundos. Barra de vida con color dinámico verde-naranja-rojo. Cámara en tercera persona con lerp suave, tecla C para alternar distancia. Cooldown de disparo con indicador visual. Muerte instantánea si objeto cae sobre el vehículo. Sistema de reinicio con 3 segundos de invulnerabilidad. Detección de frustración (3 muertes en 30s muestra consejo). Efectos de partículas en explosiones. Sin localStorage ni persistencia.`
-  },
-  {
-    id: 'mundo-3d',
-    title: 'Mundo 3D — CesiumJS Globe',
-    section: 'apps/app-mundo-3d/',
-    file: PROJECT_ROOT + '\\apps\\app-mundo-3d\\src\\main.ts',
-    content: `Visualización de globo terráqueo con CesiumJS. Capas de mapa: satélite (Ion), calle (OSM), topo (ArcGIS). Sistema de clima: despejado, nublado, cubierto. Modelos de vehículos: coche, avión, barco. Física de movimiento con colisión contra terreno. Cámara en tercera persona modo follow/free. HUD con coordenadas, altitud, velocidad. Requiere token de Cesium Ion.`
-  },
-  {
-    id: 'viewer-3d',
-    title: 'Visor 3D — Three.js',
-    section: 'apps/app-b-viewer-3d/',
-    file: PROJECT_ROOT + '\\apps\\app-b-viewer-3d\\src\\main.ts',
-    content: `Visualizador 3D simple con Three.js. Escena con icosaedro metálico azul, OrbitControls, partículas flotantes, plano de suelo con sombras. Integración con protocolo ShellClient para autenticación, tema y reporte de altura del iframe.`
-  },
-  {
-    id: 'tattooar',
-    title: 'TattooAR — Previsualización 3D de Tatuajes',
-    section: 'apps/oktomatzo2/',
-    file: PROJECT_ROOT + '\\apps\\oktomatzo2\\tattoo-preview\\frontend\\src\\app\\page.tsx',
-    content: `Aplicación TattooAR para previsualizar tatuajes en modelos 3D. Next.js + Three.js + FastAPI. Selecciona zonas corporales (cabeza, torso, brazos, piernas). Sube diseños PNG, SVG, JPG, WebP. Los JPG/WebP eliminan fondo automáticamente vía IA (rembg). Coloca tatuajes en el modelo 3D haciendo clic. Editor de tatuajes: posición, rotación, escala, opacidad, brillo, saturación, tono. 5 presets de iluminación. Modelo corporal procedimental con 18 partes. API backend en Python/FastAPI.`
-  },
-  {
-    id: 'backend-api',
-    title: 'Backend API — Go',
-    section: 'backend/',
-    file: PROJECT_ROOT + '\\backend\\cmd\\api\\main.go',
-    content: `API backend en Go con arquitectura hexagonal. Endpoints: POST /api/auth/register, POST /api/auth/login, GET /api/auth/me, GET /api/apps, POST /api/apps, PUT /api/apps/{id}, DELETE /api/apps/{id}, GET /api/users, PUT /api/users/{id}, DELETE /api/users/{id}. Base de datos SQLite con migraciones automáticas. Seed de apps al arrancar. JWT con bcrypt. Middleware de CORS, logging, autenticación.`
-  },
-  {
-    id: 'shell',
-    title: 'Shell SPA — Lit + Web Components',
-    section: 'shell/',
-    file: PROJECT_ROOT + '\\shell\\src\\components\\shell-app.ts',
-    content: `Shell orquestadora construida con Lit y Web Components. Componentes: shell-app (raíz), shell-topbar (menú superior), shell-sidebar (barra lateral con categorías), shell-app-container (iframe), shell-login (login/registro). Temas claro/oscuro con CSS variables. Carga de apps desde API o YAML estático. Comunicación con sub-apps via postMessage. Sin framework de estado externo.`
-  },
-  {
-    id: 'env-setup',
-    title: 'Variables de entorno y configuración',
-    section: 'deploy/.env.example',
-    file: PROJECT_ROOT + '\\deploy\\.env.example',
-    content: `Variables de entorno del sistema: DOMAIN (dominio para Caddy), JWT_SECRET (secreto JWT), DEBUG (modo debug), VITE_CESIUM_ION_TOKEN (token Cesium Ion para Mundo 3D), VITE_MODEL_CAR_URL, VITE_MODEL_PLANE_URL, VITE_MODEL_BOAT_URL (URLs de modelos 3D). Variables para Oktomatzo2: NEXT_PUBLIC_API_URL, MAX_UPLOAD_MB.`
-  },
-  {
-    id: 'docker-setup',
-    title: 'Docker Compose y servicios',
-    section: 'deploy/',
-    file: PROJECT_ROOT + '\\deploy\\docker-compose.yml',
-    content: `Servicios Docker: caddy (proxy reverso), backend (Go API), shell (SPA), app-dashboard (React), app-viewer-3d (Three.js), app-mundo-3d (CesiumJS), app-combate-3d (Three.js game), oktomatzo2-app (Next.js TattooAR), oktomatzo2-api (FastAPI), test-uno, test-dos. Cloudflare Tunnel con cloudflared para exponer a internet. Build context siempre desde raíz del repo.`
-  }
-];
+function validateStructure() {
+  // Check from the docs corpus that common directories exist in the path string
+  // (client-side validation is limited, so we just display the path)
+  return true;
+}
+
+const pathErrorEl = document.getElementById('pathError');
+if (!validateStructure()) {
+  pathErrorEl.textContent = '⚠️ La ruta del proyecto no contiene las carpetas esperadas. Revisa PROJECT_ROOT en search.html.';
+  pathErrorEl.style.display = 'block';
+} else {
+  document.getElementById('projectPathDisplay').textContent = PROJECT_ROOT;
+}
+
+document.getElementById('copyPathBtn').addEventListener('click', () => {
+  copyToClipboard(PROJECT_ROOT);
+  document.getElementById('copyPathBtn').textContent = '✓ Copiado';
+  setTimeout(() => { document.getElementById('copyPathBtn').textContent = '📋 Copiar ruta'; }, 2000);
+});
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  });
+}
 
 // ── Init ───────────────────────────────────────────────────────────────
 const index = buildIndex(DOCS);
 const input = document.getElementById('searchInput');
 const resultsDiv = document.getElementById('results');
 const statsDiv = document.getElementById('stats');
+let openDetailId = null;
+
+function toggleDetail(id) {
+  openDetailId = (openDetailId === id) ? null : id;
+  render();
+}
 
 function render() {
   const q = input.value.trim();
   if (!q) {
-    resultsDiv.innerHTML = '<div class="no-results">Escribe algo para buscar en la documentación</div>';
-    statsDiv.textContent = `${DOCS.length} documentos indexados`;
+    resultsDiv.innerHTML = '<div class="no-results">🔍 Escribe algo para buscar en la documentación</div>';
+    statsDiv.textContent = `${DOCS.length} documentos indexados | Ruta fija activa`;
     return;
   }
   const res = search(q, index);
@@ -285,17 +316,39 @@ function render() {
     resultsDiv.innerHTML = '<div class="no-results">Sin resultados. Intenta con otras palabras.</div>';
     return;
   }
-  resultsDiv.innerHTML = res.map(r => `
+
+  resultsDiv.innerHTML = res.map(r => {
+    const isOpen = openDetailId === r.id;
+    const fullPath = PROJECT_ROOT.replace(/\\/g, '/') + '/' + r.file.replace(/\\/g, '/');
+    const fileUrl = 'file:///' + fullPath;
+    const icons = { architecture:'🏛️', protocol:'📡', 'adding-new-app':'📖', deployment:'🚀', 'combate-3d':'🎮', 'mundo-3d':'🌍', 'viewer-3d':'🥽', tattooar:'💉', 'backend-api':'⚙️', shell:'🖥️', 'env-setup':'🔐', 'docker-setup':'🐳', 'system-guide':'📋', search:'🔍' };
+    const icon = icons[r.id] || '📄';
+
+    return `
     <div class="result">
-      <div class="result-title">${r.title} <span class="badge badge-section">${r.section}</span></div>
-      <div class="result-excerpt">${getExcerpt(r.content, q)}</div>
-      <div class="result-links">
-        <a class="link-web" href="${filePathToWebUrl(r.file)}" target="_blank" title="Abrir en el navegador">🌐 Ver en web</a>
-        <a class="link-file" href="file:///${r.file.replace(/\\/g, '/')}" target="_blank" title="Abrir en el explorador de Windows">📂 Abrir en Explorer</a>
+      <div class="result-header" onclick="toggleDetail('${r.id}')">
+        <div class="result-icon">${icon}</div>
+        <div class="result-body">
+          <div class="result-title">${r.title}</div>
+          <div class="result-meta">
+            <span>${r.section}</span>
+            <span>Relevancia: ${r.score}</span>
+          </div>
+          ${!isOpen ? `<div class="result-excerpt">${getExcerpt(r.content, q)}</div>` : ''}
+        </div>
       </div>
-      <div class="result-score">Relevancia: ${r.score}</div>
-    </div>
-  `).join('');
+      <div class="result-detail ${isOpen ? 'open' : ''}">
+        <pre>${r.content}</pre>
+        <div class="detail-actions">
+          <button class="detail-btn" onclick="copyToClipboard(\`${r.content.replace(/`/g, '\\`')}\`);this.nextElementSibling.textContent='✓ Copiado';setTimeout(()=>this.nextElementSibling.textContent='',2000)">📋 Copiar contenido</button>
+          <button class="detail-btn" onclick="copyToClipboard('${fullPath}');this.nextElementSibling.textContent='✓ Ruta copiada';setTimeout(()=>this.nextElementSibling.textContent='',2000)">📋 Copiar ruta completa</button>
+          <button class="detail-btn" onclick="window.open('${fileUrl}','_blank');this.nextElementSibling.textContent='✓ Abierto';setTimeout(()=>this.nextElementSibling.textContent='',2000)">📂 Abrir en Explorer</button>
+          <span class="copied-msg"></span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#666;">${fullPath}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 input.addEventListener('input', render);
