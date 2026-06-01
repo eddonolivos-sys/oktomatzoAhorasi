@@ -2,8 +2,12 @@ import * as THREE from 'three';
 import { Vehicle } from './Vehicle';
 import { Projectile } from './Projectile';
 import { Hazards } from './Hazards';
+import { IrregularObjects } from './IrregularObject';
+import { GoalManager } from './Goal';
 import { HUD } from './HUD';
 import { Menu } from './Menu';
+import { Powers } from './Powers';
+import { Terrain, getTerrainHeight } from './Terrain';
 import { MultiplayerClient, type RemotePlayer, type ShootData } from './MultiplayerClient';
 
 function generateId(): string {
@@ -40,8 +44,16 @@ export class Game {
 
   private vehicle!: Vehicle;
   private hazards!: Hazards;
+  private irregulars!: IrregularObjects;
+  private goals!: GoalManager;
   private hud!: HUD;
   private menu!: Menu;
+  private terrain!: Terrain;
+  private powers!: Powers;
+  private score = 0;
+  private carriedObjectId: number | null = null;
+  private raycaster = new THREE.Raycaster();
+  private mouse = new THREE.Vector2();
 
   private state: GameState = 'playing';
   private health = MAX_HEALTH;
@@ -61,7 +73,7 @@ export class Game {
   private cameraSmoothPos = new THREE.Vector3();
 
   private cameraAzimuth = Math.PI;
-  private cameraElevation = 0.4;
+  private cameraElevation = 0.6;
   private isOrbiting = false;
   private orbitLastX = 0;
   private orbitLastY = 0;
@@ -90,7 +102,7 @@ export class Game {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 200, 500);
+    this.scene.fog = new THREE.Fog(0x1a1a2e, 100, 350);
 
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, CAM_HEIGHT, FAR_DIST);
@@ -104,34 +116,25 @@ export class Game {
   }
 
   private setupScene() {
-    const ambient = new THREE.AmbientLight(0x404060, 0.5);
+    const ambient = new THREE.AmbientLight(0x404060, 0.4);
     this.scene.add(ambient);
 
-    const sun = new THREE.DirectionalLight(0xffeedd, 1.2);
-    sun.position.set(50, 80, 30);
+    const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
+    sun.position.set(80, 120, 60);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 200;
-    sun.shadow.camera.left = -100;
-    sun.shadow.camera.right = 100;
-    sun.shadow.camera.top = 100;
-    sun.shadow.camera.bottom = -100;
+    sun.shadow.camera.far = 300;
+    sun.shadow.camera.left = -150;
+    sun.shadow.camera.right = 150;
+    sun.shadow.camera.top = 150;
+    sun.shadow.camera.bottom = -150;
     this.scene.add(sun);
 
-    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a3a5c, 0.6);
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a3a5c, 0.5);
     this.scene.add(hemi);
 
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3d5a3d, roughness: 0.95, metalness: 0 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-
-    const grid = new THREE.GridHelper(1000, 20, 0x555555, 0x333333);
-    grid.position.y = 0.05;
-    this.scene.add(grid);
+    this.terrain = new Terrain(this.scene);
   }
 
   private setupControls() {
@@ -143,12 +146,71 @@ export class Game {
       if (e.key.toLowerCase() === 'c') { this.toggleCamera(); }
       if (e.key.toLowerCase() === 'r' && this.state === 'dead') { this.restart(); }
       if (e.key === 'Escape') { this.togglePause(); }
+      if (e.key.toLowerCase() === 'x') { this.vehicle.jump(); }
+
+      // Powers
+      const key = e.key.toLowerCase();
+      if (key === 'q') this.usePower('dash');
+      else if (key === 'f') this.usePower('shield');
+      else if (key === 'v') this.usePower('repel');
+      else if (key === 'z') this.usePower('invis');
+      else if (key === 'e') this.usePower('teleport');
+
+      // Shift: grab hovered object if any, otherwise jump
+      if (e.key === 'Shift') {
+        const hovered = this.irregulars?.hoveredId;
+        if (hovered !== null && hovered !== undefined && this.carriedObjectId === null) {
+          if (this.irregulars.pickupHovered() !== null) {
+            this.carriedObjectId = hovered;
+          }
+        } else if (this.carriedObjectId === null) {
+          this.vehicle.jump();
+        }
+      }
     });
 
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.key.toLowerCase());
       this.updateInput();
+
+      // Release Shift: drop object and check goal scoring
+      if (e.key === 'Shift' && this.carriedObjectId !== null) {
+        this.dropCarried();
+      }
     });
+
+    // Mouse move: hover detection for irregular objects
+    const canvas = this.renderer.domElement;
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      if (this.carriedObjectId !== null) return;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const meshes = this.irregulars?.getAllMeshes() || [];
+      const hits = this.raycaster.intersectObjects(meshes, false);
+      const hitId = hits.length > 0 ? (hits[0].object.userData.pickupId as number) ?? null : null;
+      this.irregulars?.highlight(hitId);
+    });
+  }
+
+  private dropCarried() {
+    if (this.carriedObjectId === null) return;
+    const obj = this.irregulars.getObjectById(this.carriedObjectId);
+    if (obj) {
+      obj.pos.copy(this.vehicle.group.position);
+      obj.pos.x += 2;
+      obj.pos.z += 2;
+      obj.pos.y = getTerrainHeight(obj.pos.x, obj.pos.z) + 0.5;
+      this.irregulars.drop(this.carriedObjectId);
+      // Check goal scoring
+      this.goals.update(0.016, obj.pos, this.carriedObjectId, () => {
+        this.score += 10;
+        this.hud.showMessage('+10 puntos!', 'info', 1.5);
+      });
+    }
+    this.carriedObjectId = null;
   }
 
   private setupMouseOrbit() {
@@ -208,6 +270,9 @@ export class Game {
     this.playerName = playerName || 'Jugador';
     this.vehicle = new Vehicle(this.scene);
     this.hazards = new Hazards(this.scene);
+    this.irregulars = new IrregularObjects(this.scene);
+    this.goals = new GoalManager(this.scene);
+    this.powers = new Powers();
     this.hud = new HUD(() => this.togglePause());
     this.menu = new Menu({
       onStart: () => {},
@@ -277,11 +342,55 @@ export class Game {
     }
 
     const targetHeading = this.computeTargetHeading();
-    this.vehicle.update(safeDt, this.input, targetHeading);
+    const strafeInput = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);
+    this.vehicle.update(safeDt, this.input, targetHeading, strafeInput);
     this.hazards.update(safeDt, this.vehicle.group.position);
+    this.irregulars.update(safeDt, this.vehicle.group.position);
+    this.powers.update(safeDt);
     this.updateProjectiles(safeDt);
     this.updateCamera(safeDt);
     this.checkCollisions();
+
+    // Attract objects if power active
+    if (this.powers.attractActive) {
+      const vp = this.vehicle.group.position;
+      for (const o of this.irregulars.getObjects()) {
+        if (o.landed && !o.held) {
+          const d = o.pos.distanceTo(vp);
+          if (d < 12) {
+            const dir = new THREE.Vector3(vp.x - o.pos.x, 0, vp.z - o.pos.z).normalize();
+            o.pos.add(dir.multiplyScalar(8 * safeDt));
+            const th = getTerrainHeight(o.pos.x, o.pos.z);
+            if (o.pos.y < th) o.pos.y = th;
+          }
+        }
+      }
+    }
+
+    // Shield visual
+    if (this.powers.shieldActive) {
+      this.spawnEffect(this.vehicle.group.position.clone().add(new THREE.Vector3(0, 1, 0)), 0x44ff88);
+    }
+
+    // Invisibility ended
+    if (!this.powers.invisActive && !this.vehicle.group.visible) {
+      this.vehicle.group.visible = true;
+    }
+
+    // Carry object follows vehicle smoothly
+    if (this.carriedObjectId !== null) {
+      const obj = this.irregulars.getObjectById(this.carriedObjectId);
+      if (obj) {
+        const targetX = this.vehicle.group.position.x + 2;
+        const targetZ = this.vehicle.group.position.z + 2;
+        obj.pos.x += (targetX - obj.pos.x) * 0.1;
+        obj.pos.z += (targetZ - obj.pos.z) * 0.1;
+        obj.pos.y = getTerrainHeight(obj.pos.x, obj.pos.z) + 1.5;
+        obj.mesh.position.copy(obj.pos);
+      } else {
+        this.carriedObjectId = null;
+      }
+    }
 
     if (this.shootCooldown > 0) this.shootCooldown -= safeDt;
 
@@ -304,6 +413,12 @@ export class Game {
     this.hud.updateCooldown(this.shootCooldown <= 0, this.shootCooldown / SHOOT_COOLDOWN);
     this.hud.updateMessageTimer(safeDt);
     this.hud.updateDebugLabel();
+    this.hud.updateScore(this.score);
+    this.hud.updatePickupHint(this.carriedObjectId !== null);
+    this.hud.updatePowerCooldowns(
+      { dash: this.powers.getCooldown('dash'), shield: this.powers.getCooldown('shield'), attract: this.powers.getCooldown('attract'), repel: this.powers.getCooldown('repel'), invis: this.powers.getCooldown('invis'), teleport: this.powers.getCooldown('teleport') },
+      { dash: this.powers.getCooldownFraction('dash'), shield: this.powers.getCooldownFraction('shield'), attract: this.powers.getCooldownFraction('attract'), repel: this.powers.getCooldownFraction('repel'), invis: this.powers.getCooldownFraction('invis'), teleport: this.powers.getCooldownFraction('teleport') }
+    );
 
     this.updateHitboxHelpers();
   }
@@ -333,11 +448,18 @@ export class Game {
     }
 
     this.shootCooldown = SHOOT_COOLDOWN;
-    const origin = this.vehicle.cannonPosition;
-    const dir = this.vehicle.cannonDirection;
-    const p = new Projectile(origin, dir, this.scene);
+
+    const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    camDir.y = 0;
+    camDir.normalize();
+
+    const pos = this.vehicle.group.position.clone();
+    const heightOffset = 1.5;
+    const origin = new THREE.Vector3(pos.x, getTerrainHeight(pos.x, pos.z) + heightOffset, pos.z);
+
+    const p = new Projectile(origin, camDir, this.scene, heightOffset);
     this.projectiles.push(p);
-    this.multiplayer?.sendShoot([origin.x, origin.y, origin.z], [dir.x, dir.y, dir.z]);
+    this.multiplayer?.sendShoot([origin.x, origin.y, origin.z], [camDir.x, camDir.y, camDir.z]);
   }
 
   private updateProjectiles(dt: number) {
@@ -356,7 +478,7 @@ export class Game {
     const hazards = this.hazards.getHazards();
     for (let hi = hazards.length - 1; hi >= 0; hi--) {
       const h = hazards[hi];
-      if (p.mesh.position.distanceTo(h.position) < 6) {
+      if (p.mesh.position.distanceTo(h.position) < 8) {
         this.spawnExplosion(h.position);
         this.hazards.removeHazard(hi);
         p.destroy();
@@ -429,14 +551,14 @@ export class Game {
     const hazards = this.hazards.getHazards();
     for (let i = hazards.length - 1; i >= 0; i--) {
       const h = hazards[i];
-      const hMin = h.position.clone().subScalar(2.5);
-      const hMax = h.position.clone().addScalar(2.5);
+      const hMin = h.position.clone().subScalar(5);
+      const hMax = h.position.clone().addScalar(5);
 
       if (vMin.x <= hMax.x && vMax.x >= hMin.x &&
           vMin.y <= hMax.y && vMax.y >= hMin.y &&
           vMin.z <= hMax.z && vMax.z >= hMin.z) {
 
-        if (!h.landed && h.position.y > 2.5) {
+            if (!h.landed && h.position.y > 5 && this.vehicle.onGround) {
           this.die(true);
           this.hazards.removeHazard(i);
           return;
@@ -479,6 +601,12 @@ export class Game {
     this.shootCooldown = 0;
 
     this.vehicle.respawn();
+    this.irregulars.releaseAll();
+    this.carriedObjectId = null;
+    this.score = 0;
+    this.cameraAzimuth = Math.PI;
+    this.cameraElevation = 0.6;
+    this.cameraSmoothPos.copy(new THREE.Vector3(0, 6, FAR_DIST));
     this.hazards.removeAll();
     this.hazards.resetTimer();
 
@@ -530,6 +658,93 @@ export class Game {
       helper.position.copy(h.position);
       this.scene.add(helper);
       this.hitboxHelpers.push(helper);
+    }
+  }
+
+  // ── Powers ───────────────────────────────────────────────────────
+
+  private usePower(key: Parameters<Powers['use']>[0]) {
+    if (!this.powers.canUse(key) || this.state === 'dead' || this.state === 'respawning') {
+      this.hud.showMessage('Poder en recarga', 'warning', 1);
+      return;
+    }
+
+    if (key === 'dash') {
+      if (this.carriedObjectId !== null) {
+        const obj = this.irregulars.getObjectById(this.carriedObjectId);
+        if (obj?.heavy) { this.hud.showMessage('Objeto demasiado pesado para dash', 'warning', 1.5); return; }
+        this.dropCarried();
+      }
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      dir.y = 0; dir.normalize();
+      this.vehicle.group.position.add(dir.multiplyScalar(8));
+      const th = getTerrainHeight(this.vehicle.group.position.x, this.vehicle.group.position.z);
+      this.vehicle.group.position.y = th + this.vehicle.radius;
+      this.spawnEffect(this.vehicle.group.position.clone(), 0x44aaff);
+      this.powers.use('dash');
+      this.hud.showMessage('💨 Dash!', 'info', 0.8);
+      return;
+    }
+
+    if (key === 'repel') {
+      this.powers.use('repel');
+      this.hud.showMessage('💥 Repulsión!', 'info', 0.8);
+      const vp = this.vehicle.group.position;
+      // Push nearby objects away
+      for (const o of this.irregulars.getObjects()) {
+        const d = o.pos.distanceTo(vp);
+        if (d < 12 && d > 0.5) {
+          const dir = new THREE.Vector3(o.pos.x - vp.x, 0, o.pos.z - vp.z).normalize();
+          const force = Math.min(20, 20 * (1 - d / 12));
+          o.pos.x += dir.x * force;
+          o.pos.z += dir.z * force;
+          if (o.held) { this.irregulars.drop(o.id); if (this.carriedObjectId === o.id) this.carriedObjectId = null; }
+        }
+      }
+      this.spawnEffect(vp.clone().add(new THREE.Vector3(0, 1, 0)), 0xff8844);
+      return;
+    }
+
+    if (key === 'teleport') {
+      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      dir.y = 0; dir.normalize();
+      const dest = this.vehicle.group.position.clone().add(dir.multiplyScalar(10));
+      const th = getTerrainHeight(dest.x, dest.z);
+      dest.y = th + this.vehicle.radius;
+      // Simple check: terrain height difference < 15 means no wall
+      const curTh = getTerrainHeight(this.vehicle.group.position.x, this.vehicle.group.position.z);
+      if (Math.abs(th - curTh) > 15) {
+        this.hud.showMessage('Obstáculo en el camino', 'warning', 1);
+        return;
+      }
+      this.vehicle.group.position.copy(dest);
+      this.spawnEffect(this.vehicle.group.position.clone(), 0xaa44ff);
+      this.powers.use('teleport');
+      this.hud.showMessage('⚡ Teletransporte!', 'info', 0.8);
+      return;
+    }
+
+    // Shield, attract, invis — state-based, handled in update
+    this.powers.use(key);
+    if (key === 'shield') this.hud.showMessage('🛡️ Escudo activado!', 'info', 1.5);
+    if (key === 'attract') this.hud.showMessage('🧲 Atrayendo objetos...', 'info', 1.5);
+    if (key === 'invis') {
+      this.hud.showMessage('👻 Invisible!', 'info', 1.5);
+      this.vehicle.group.visible = false;
+    }
+  }
+
+  private spawnEffect(pos: THREE.Vector3, color: number) {
+    if (!Game.effectsEnabled) return;
+    for (let i = 0; i < 12 && this.particles.length < 40; i++) {
+      const s = 0.05 + Math.random() * 0.15;
+      const geo = new THREE.SphereGeometry(s, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.copy(pos);
+      const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+      this.scene.add(m);
+      this.particles.push({ mesh: m, dir, speed: 3 + Math.random() * 5, life: 1 });
     }
   }
 
@@ -624,7 +839,8 @@ export class Game {
   private onRemoteShoot(data: ShootData) {
     const origin = new THREE.Vector3(data.origin[0], data.origin[1], data.origin[2]);
     const dir = new THREE.Vector3(data.dir[0], data.dir[1], data.dir[2]);
-    const p = new Projectile(origin, dir, this.scene);
+    const heightOffset = data.origin[1] - getTerrainHeight(data.origin[0], data.origin[2]);
+    const p = new Projectile(origin, dir, this.scene, heightOffset);
     this.projectiles.push(p);
   }
 
@@ -633,6 +849,9 @@ export class Game {
     cancelAnimationFrame(this.animFrameId);
     this.vehicle?.destroy();
     this.hazards?.destroy();
+    this.irregulars?.destroy();
+    this.goals?.destroy();
+    this.terrain?.destroy();
     for (const [, g] of this.remoteVehicles) {
       this.scene.remove(g.group);
       g.group.traverse((child) => {

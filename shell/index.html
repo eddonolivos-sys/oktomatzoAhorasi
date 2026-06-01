@@ -4,24 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Plataforma Orquestadora</title>
+    <title>Ramatzo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       /* Critical path: prevent FOUC */
+      html {
+        scroll-behavior: smooth;
+      }
       html, body {
         margin: 0;
         padding: 0;
         height: 100%;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       }
       body {
-        --shell-bg: #f5f5f7;
-        --shell-text: #1d1d1f;
-        transition: background 0.2s, color 0.2s;
+        --shell-bg: #f4f6fa;
+        --shell-text: #0f172a;
+        transition: background 0.25s ease, color 0.25s ease;
       }
       @media (prefers-color-scheme: dark) {
         body {
-          --shell-bg: #1c1c1e;
-          --shell-text: #f5f5f7;
+          --shell-bg: #0f172a;
+          --shell-text: #f1f5f9;
         }
       }
     </style>

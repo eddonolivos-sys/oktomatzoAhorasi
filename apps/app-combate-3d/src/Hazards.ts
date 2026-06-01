@@ -20,7 +20,7 @@ export class Hazards {
   private spawnTimer = 0;
   private readonly SPAWN_INTERVAL = 5;
   private readonly WAVE_COUNT = 20;
-  private readonly WORLD_HALF = 480;
+  private readonly WORLD_HALF = 280;
   private readonly MIN_VEHICLE_DIST = 25;
 
   activeCount = 0;

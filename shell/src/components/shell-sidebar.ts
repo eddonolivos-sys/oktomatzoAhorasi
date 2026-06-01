@@ -4,11 +4,16 @@ import type { AppInfo } from '../services/protocol';
 
 export class ShellSidebar extends LitElement {
   static styles = css`
-    :host {
-      display: block;
-      flex-shrink: 0;
-      transition: width var(--shell-transition);
+    @keyframes slideInItem {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
     }
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 12px var(--shell-accent-glow); }
+      50%       { box-shadow: 0 0 22px var(--shell-accent-glow), 0 0 40px var(--shell-accent-shadow); }
+    }
+
+    :host { display: block; flex-shrink: 0; }
 
     .sidebar {
       width: var(--shell-sidebar-width);
@@ -16,99 +21,178 @@ export class ShellSidebar extends LitElement {
       background: var(--shell-sidebar-bg);
       border-right: 1px solid var(--shell-border);
       overflow-y: auto;
+      overflow-x: hidden;
       display: flex;
       flex-direction: column;
-      transition: width var(--shell-transition), margin var(--shell-transition);
+      transition: width var(--shell-transition-smooth), opacity var(--shell-transition);
+      scrollbar-width: thin;
+      scrollbar-color: var(--shell-border-bright) transparent;
     }
+    .sidebar::-webkit-scrollbar { width: 3px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--shell-border-bright); border-radius: 2px; }
 
     .sidebar.collapsed {
       width: 0;
       overflow: hidden;
       border-right: none;
+      opacity: 0;
     }
 
-    .section-title {
-      padding: 16px 16px 8px;
-      font-size: 11px;
-      font-weight: 600;
+    /* Header */
+    .sidebar-header {
+      padding: 20px 16px 16px;
+      border-bottom: 1px solid var(--shell-border);
+      flex-shrink: 0;
+    }
+    .sidebar-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
       color: var(--shell-text-secondary);
     }
 
+    /* Section */
+    .section-title {
+      padding: 14px 16px 5px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--shell-text-secondary);
+      opacity: 0.55;
+    }
     .app-list {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 0 8px 16px;
+      gap: 1px;
+      padding: 4px 10px 10px;
     }
 
+    /* Items */
     .app-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
+      gap: 11px;
+      padding: 9px 10px;
       border: none;
       background: transparent;
-      color: var(--shell-text);
+      color: var(--shell-text-secondary);
       cursor: pointer;
-      border-radius: 6px;
-      font-size: 14px;
+      border-radius: 10px;
       text-align: left;
-      transition: background var(--shell-transition);
       width: 100%;
+      position: relative;
+      border-left: 2px solid transparent;
+      transition:
+        background var(--shell-transition),
+        color var(--shell-transition),
+        border-color var(--shell-transition),
+        box-shadow var(--shell-transition),
+        transform 0.16s ease;
+      animation: slideInItem 0.3s ease both;
     }
-
     .app-item:hover {
       background: var(--shell-surface-hover);
+      color: var(--shell-text);
+      border-left-color: var(--shell-border-bright);
     }
+    .app-item:active { transform: scale(0.985); }
 
     .app-item.active {
-      background: var(--shell-accent);
-      color: white;
+      background: linear-gradient(
+        135deg,
+        rgba(99, 102, 241, 0.18) 0%,
+        rgba(167, 139, 250, 0.08) 100%
+      );
+      color: var(--shell-text);
+      border-left-color: var(--shell-accent);
+      animation: glowPulse 3s ease-in-out infinite;
     }
 
+    /* Active dot */
+    .app-item.active::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--shell-accent);
+      box-shadow: 0 0 8px var(--shell-accent-glow);
+    }
+
+    /* Icon */
     .app-icon {
       width: 32px;
       height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 6px;
-      background: var(--shell-surface);
-      font-size: 16px;
+      border-radius: 9px;
+      background: var(--shell-surface-hover);
+      font-size: 15px;
       flex-shrink: 0;
+      border: 1px solid var(--shell-border);
+      transition:
+        background var(--shell-transition),
+        border-color var(--shell-transition),
+        box-shadow var(--shell-transition);
     }
-
     .app-item.active .app-icon {
-      background: rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(167,139,250,0.15));
+      border-color: var(--shell-accent-shadow);
+      box-shadow: 0 0 12px var(--shell-accent-shadow);
+    }
+    .app-item:hover .app-icon {
+      background: var(--shell-surface);
+      border-color: var(--shell-border-bright);
     }
 
-    .app-info {
-      flex: 1;
-      min-width: 0;
-    }
-
+    /* Info */
+    .app-info { flex: 1; min-width: 0; }
     .app-name {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.35;
     }
-
     .app-version {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--shell-text-secondary);
       margin-top: 1px;
+      font-weight: 400;
     }
+    .app-item.active .app-name { color: var(--shell-text); font-weight: 600; }
+    .app-item.active .app-version { color: var(--shell-accent); opacity: 0.8; }
 
-    .app-item.active .app-version {
-      color: rgba(255, 255, 255, 0.7);
+    .categories { flex: 1; }
+
+    /* Footer */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--shell-border);
+      flex-shrink: 0;
+      margin-top: auto;
     }
-
-    .categories {
-      flex: 1;
+    .footer-brand {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--shell-text-secondary);
+      opacity: 0.4;
+    }
+    .footer-version {
+      font-size: 10px;
+      color: var(--shell-text-secondary);
+      opacity: 0.3;
+      margin-top: 2px;
     }
 
     @media (max-width: 767px) {
@@ -119,32 +203,21 @@ export class ShellSidebar extends LitElement {
         bottom: 0;
         z-index: 100;
         width: var(--shell-sidebar-width);
-        box-shadow: 2px 0 12px var(--shell-shadow);
+        box-shadow: 8px 0 32px var(--shell-shadow-lg);
       }
-
-      .sidebar.collapsed {
-        width: 0;
-        box-shadow: none;
-      }
+      .sidebar.collapsed { width: 0; box-shadow: none; opacity: 0; }
     }
   `;
 
-  @property({ type: Array })
-  apps: AppInfo[] = [];
-
-  @property({ type: String })
-  currentApp: string | null = null;
-
-  @property({ type: Boolean })
-  open = true;
+  @property({ type: Array }) apps: AppInfo[] = [];
+  @property({ type: String }) currentApp: string | null = null;
+  @property({ type: Boolean }) open = true;
 
   private getCategories(): Map<string, AppInfo[]> {
     const categories = new Map<string, AppInfo[]>();
     for (const app of this.apps) {
       const cat = app.category || 'General';
-      if (!categories.has(cat)) {
-        categories.set(cat, []);
-      }
+      if (!categories.has(cat)) categories.set(cat, []);
       categories.get(cat)!.push(app);
     }
     return categories;
@@ -152,43 +225,50 @@ export class ShellSidebar extends LitElement {
 
   private getIconChar(icon: string): string {
     const icons: Record<string, string> = {
-      'bar-chart': '📊',
-      cube: '🧊',
-      users: '👥',
-      settings: '⚙️',
-      home: '🏠',
+      'bar-chart': '📊', cube: '🧊', users: '👥', settings: '⚙️', home: '🏠',
     };
     return icons[icon] || '📄';
   }
 
   render() {
     const categories = this.getCategories();
+    const multi = categories.size > 1;
+    let itemIndex = 0;
 
     return html`
       <div class="sidebar ${this.open ? '' : 'collapsed'}">
-        ${Array.from(categories.entries()).map(
-          ([category, apps]) => html`
-            <div class="categories">
-              <div class="section-title">${category}</div>
-              <div class="app-list">
-                ${apps.map(
-                  (app) => html`
-                    <button
-                      class="app-item ${this.currentApp === app.id ? 'active' : ''}"
-                      @click=${() => this.dispatchEvent(new CustomEvent('app-select', { detail: app, bubbles: true, composed: true }))}
-                    >
-                      <div class="app-icon">${this.getIconChar(app.icon)}</div>
-                      <div class="app-info">
-                        <div class="app-name">${app.name}</div>
-                        <div class="app-version">v${app.version}</div>
-                      </div>
-                    </button>
-                  `,
-                )}
-              </div>
+        <div class="sidebar-header">
+          <div class="sidebar-label">Aplicaciones</div>
+        </div>
+
+        ${Array.from(categories.entries()).map(([category, apps]) => html`
+          <div class="categories">
+            ${multi ? html`<div class="section-title">${category}</div>` : ''}
+            <div class="app-list">
+              ${apps.map((app) => {
+                const delay = itemIndex++ * 55;
+                return html`
+                  <button
+                    class="app-item ${this.currentApp === app.id ? 'active' : ''}"
+                    style="animation-delay: ${delay}ms"
+                    @click=${() => this.dispatchEvent(new CustomEvent('app-select', { detail: app, bubbles: true, composed: true }))}
+                  >
+                    <div class="app-icon">${this.getIconChar(app.icon)}</div>
+                    <div class="app-info">
+                      <div class="app-name">${app.name}</div>
+                      <div class="app-version">v${app.version}</div>
+                    </div>
+                  </button>
+                `;
+              })}
             </div>
-          `,
-        )}
+          </div>
+        `)}
+
+        <div class="sidebar-footer">
+          <div class="footer-brand">Ramatzo</div>
+          <div class="footer-version">Platform v1.0</div>
+        </div>
       </div>
     `;
   }
