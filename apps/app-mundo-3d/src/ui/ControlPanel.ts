@@ -13,77 +13,83 @@ const CSS = `
   position: fixed;
   top: 12px;
   right: 12px;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 10px;
+  background: rgba(2,6,18,0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
   padding: 14px 16px;
-  color: #e8f4ff;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #eef2ff;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   min-width: 200px;
   z-index: 1000;
   user-select: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
 }
 #ctrl-panel h3 {
   margin: 0 0 10px;
-  font-size: 11px;
-  letter-spacing: 1px;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #88aacc;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #8892a4;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
   padding-bottom: 6px;
 }
 #ctrl-panel .ctrl-section { margin-bottom: 12px; }
 #ctrl-panel .ctrl-label {
   font-size: 10px;
-  color: #88aacc;
+  color: #8892a4;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 5px;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
 }
-#ctrl-panel .btn-group { display: flex; gap: 4px; flex-wrap: wrap; }
+#ctrl-panel .btn-group { display: flex; gap: 5px; flex-wrap: wrap; }
 #ctrl-panel button {
   flex: 1;
-  padding: 5px 8px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  background: rgba(255,255,255,0.06);
-  color: #cce4ff;
+  padding: 6px 9px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  color: #cdd6e8;
   font-size: 12px;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.18s, color 0.18s;
   white-space: nowrap;
 }
-#ctrl-panel button:hover { background: rgba(255,255,255,0.14); }
+#ctrl-panel button:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.24); }
 #ctrl-panel button.active {
-  background: rgba(0,120,255,0.35);
-  border-color: rgba(0,160,255,0.6);
+  background: rgba(99,102,241,0.32);
+  border-color: rgba(99,102,241,0.6);
   color: #fff;
 }
 #ctrl-panel select {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  background: rgba(255,255,255,0.06);
-  color: #cce4ff;
+  padding: 7px 9px;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  color: #cdd6e8;
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
+  outline: none;
 }
+#ctrl-panel select:focus { border-color: rgba(99,102,241,0.6); }
 #ctrl-panel .ctrl-keys {
-  font-size: 10px;
-  color: #667799;
-  line-height: 1.8;
+  font-size: 10.5px;
+  color: #8892a4;
+  line-height: 1.9;
   margin-top: 4px;
 }
 #ctrl-panel .ctrl-keys kbd {
   display: inline-block;
-  padding: 1px 5px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 3px;
-  background: rgba(255,255,255,0.08);
-  font-family: monospace;
+  padding: 1px 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.07);
+  font-family: ui-monospace, monospace;
   font-size: 10px;
 }
 `;
@@ -112,7 +118,7 @@ export class ControlPanel {
     const panel = document.createElement('div');
     panel.id = 'ctrl-panel';
 
-    panel.innerHTML = '<h3>⚙ Panel de Control</h3>';
+    panel.innerHTML = '<h3>Panel de Control</h3>';
 
     // — Map layer —
     panel.appendChild(this.buildSection('Mapa base', this.buildLayerButtons()));
@@ -145,9 +151,9 @@ export class ControlPanel {
     group.className = 'btn-group';
 
     const layers: [MapLayer, string][] = [
-      ['satellite', '🛰 Satélite'],
-      ['street',    '🗺 Callejero'],
-      ['topo',      '🏔 Topo'],
+      ['satellite', 'Satélite'],
+      ['street',    'Callejero'],
+      ['topo',      'Topo'],
     ];
 
     for (const [id, label] of layers) {
@@ -187,9 +193,9 @@ export class ControlPanel {
     group.className = 'btn-group';
 
     const modes: [WeatherMode, string][] = [
-      ['clear',   '☀ Despejado'],
-      ['cloudy',  '⛅ Nublado'],
-      ['overcast','🌧 Cubierto'],
+      ['clear',   'Despejado'],
+      ['cloudy',  'Nublado'],
+      ['overcast','Cubierto'],
     ];
 
     for (const [id, label] of modes) {

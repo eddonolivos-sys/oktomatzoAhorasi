@@ -101,8 +101,8 @@ export class Game {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 100, 350);
+    this.scene.background = new THREE.Color(0x0a0f1e);
+    this.scene.fog = new THREE.Fog(0x0a0f1e, 100, 350);
 
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(0, CAM_HEIGHT, FAR_DIST);
@@ -682,13 +682,13 @@ export class Game {
       this.vehicle.group.position.y = th + this.vehicle.radius;
       this.spawnEffect(this.vehicle.group.position.clone(), 0x44aaff);
       this.powers.use('dash');
-      this.hud.showMessage('💨 Dash!', 'info', 0.8);
+      this.hud.showMessage('Dash', 'info', 0.8);
       return;
     }
 
     if (key === 'repel') {
       this.powers.use('repel');
-      this.hud.showMessage('💥 Repulsión!', 'info', 0.8);
+      this.hud.showMessage('Repulsión', 'info', 0.8);
       const vp = this.vehicle.group.position;
       // Push nearby objects away
       for (const o of this.irregulars.getObjects()) {
@@ -720,16 +720,16 @@ export class Game {
       this.vehicle.group.position.copy(dest);
       this.spawnEffect(this.vehicle.group.position.clone(), 0xaa44ff);
       this.powers.use('teleport');
-      this.hud.showMessage('⚡ Teletransporte!', 'info', 0.8);
+      this.hud.showMessage('Teletransporte', 'info', 0.8);
       return;
     }
 
     // Shield, attract, invis — state-based, handled in update
     this.powers.use(key);
-    if (key === 'shield') this.hud.showMessage('🛡️ Escudo activado!', 'info', 1.5);
-    if (key === 'attract') this.hud.showMessage('🧲 Atrayendo objetos...', 'info', 1.5);
+    if (key === 'shield') this.hud.showMessage('Escudo activado', 'info', 1.5);
+    if (key === 'attract') this.hud.showMessage('Atrayendo objetos', 'info', 1.5);
     if (key === 'invis') {
-      this.hud.showMessage('👻 Invisible!', 'info', 1.5);
+      this.hud.showMessage('Invisible', 'info', 1.5);
       this.vehicle.group.visible = false;
     }
   }

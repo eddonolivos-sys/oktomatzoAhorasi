@@ -4,33 +4,15 @@ import type { AppInfo } from '../services/protocol';
 
 export class ShellAppContainer extends LitElement {
   static styles = css`
-    /* ── Keyframes ── */
-    @keyframes pulseRing {
-      0%   { transform: scale(0.7); opacity: 0.9; }
-      100% { transform: scale(1.7); opacity: 0; }
-    }
     @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
+      from { opacity: 0; transform: translateY(14px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    @keyframes moduleIn {
-      from { opacity: 0; transform: translateX(18px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes gridFloat {
-      0%   { background-position: 0 0; }
-      100% { background-position: 48px 48px; }
-    }
-    @keyframes orbDrift {
-      0%, 100% { transform: translate(0,0) scale(1); }
-      50%       { transform: translate(30px,-30px) scale(1.05); }
-    }
-    @keyframes shimmerText {
-      0%   { background-position: 0% center; }
-      100% { background-position: 200% center; }
+    @keyframes barIndeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(420%); }
     }
 
-    /* ── Base ── */
     :host { display: block; height: 100%; width: 100%; }
 
     /* ── Empty state ── */
@@ -42,88 +24,37 @@ export class ShellAppContainer extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--shell-bg);
+      background:
+        radial-gradient(120% 70% at 50% -10%, var(--shell-surface-2), transparent 60%),
+        var(--shell-bg);
     }
-
-    /* 3D perspective grid floor */
-    .grid-3d {
-      position: absolute;
-      bottom: -10px;
-      left: -15%;
-      right: -15%;
-      height: 55%;
-      background-image:
-        linear-gradient(rgba(99,102,241,0.22) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(99,102,241,0.22) 1px, transparent 1px);
-      background-size: 48px 48px;
-      animation: gridFloat 6s linear infinite;
-      transform: perspective(700px) rotateX(72deg);
-      transform-origin: bottom center;
-      mask-image: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 45%, transparent 100%);
-      -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 45%, transparent 100%);
-      pointer-events: none;
-    }
-
-    /* Top vignette */
-    .welcome-vignette {
+    .welcome-texture {
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 30%, transparent 30%, var(--shell-bg) 90%);
+      background-image: radial-gradient(var(--shell-grain) 1px, transparent 1px);
+      background-size: 4px 4px;
       pointer-events: none;
     }
-
-    /* Orbs */
-    .w-orb {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(60px);
-      pointer-events: none;
-    }
-    .w-orb-1 {
-      width: 320px; height: 320px;
-      background: radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%);
-      top: 5%; left: 5%;
-      animation: orbDrift 10s ease-in-out infinite;
-    }
-    .w-orb-2 {
-      width: 250px; height: 250px;
-      background: radial-gradient(circle, rgba(167,139,250,0.16), transparent 70%);
-      bottom: 15%; right: 8%;
-      animation: orbDrift 13s ease-in-out infinite reverse;
-    }
-
-    /* Content */
     .welcome-content {
       position: relative;
       z-index: 10;
       text-align: center;
       padding: 40px;
-      animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: fadeInUp 0.5s var(--ease-out) both;
     }
     .welcome-wordmark {
-      font-size: 68px;
-      font-weight: 800;
-      letter-spacing: 0.02em;
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
       line-height: 1;
-      margin-bottom: 24px;
-      background: linear-gradient(
-        135deg,
-        var(--shell-text) 0%,
-        var(--shell-accent-2) 38%,
-        var(--shell-accent) 62%,
-        var(--shell-text) 100%
-      );
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: shimmerText 5s linear infinite;
+      margin-bottom: 20px;
+      color: var(--shell-text);
       user-select: none;
     }
     .welcome-wordmark-dot { color: var(--shell-accent); }
 
     .welcome-content h2 {
-      font-size: 21px;
+      font-size: 20px;
       font-weight: 600;
       margin: 0 0 10px;
       color: var(--shell-text);
@@ -133,28 +64,27 @@ export class ShellAppContainer extends LitElement {
       font-size: 14px;
       color: var(--shell-text-secondary);
       margin: 0 auto;
-      max-width: 260px;
+      max-width: 280px;
       line-height: 1.7;
     }
 
-    /* Kbd hint */
     .welcome-hint {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 28px;
+      gap: 8px;
+      margin-top: 26px;
       padding: 7px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--shell-border-bright);
+      border-radius: var(--shell-radius);
+      border: 1px solid var(--shell-border);
       background: var(--shell-surface);
+      box-shadow: var(--shell-elev-1);
       font-size: 12px;
       color: var(--shell-text-secondary);
     }
     .hint-dot {
-      width: 6px; height: 6px;
+      width: 5px; height: 5px;
       border-radius: 50%;
       background: var(--shell-accent);
-      box-shadow: 0 0 8px var(--shell-accent-glow);
     }
 
     /* ── Module wrapper (iframe) ── */
@@ -164,25 +94,25 @@ export class ShellAppContainer extends LitElement {
       position: relative;
       overflow: hidden;
       opacity: 0;
-      transform: translateX(18px);
-      transition: opacity 0.38s ease, transform 0.38s ease;
+      transform: translateY(8px);
+      transition: opacity var(--shell-transition-smooth), transform var(--shell-transition-smooth);
     }
     .module-wrapper.visible {
       opacity: 1;
-      transform: translateX(0);
+      transform: translateY(0);
     }
 
     iframe {
       width: 100%;
       height: 100%;
       border: none;
-      background: white;
+      background: #fff;
       opacity: 0;
-      transition: opacity 0.4s ease;
+      transition: opacity var(--dur-slow) var(--ease-out);
     }
     iframe.loaded { opacity: 1; }
 
-    /* Loading overlay */
+    /* Velo de carga */
     .loading-overlay {
       position: absolute;
       inset: 0;
@@ -190,41 +120,35 @@ export class ShellAppContainer extends LitElement {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
+      gap: 18px;
       background: var(--shell-bg);
       z-index: 5;
-      transition: opacity 0.3s ease;
+      transition: opacity var(--dur-slow) var(--ease-out);
     }
     .loading-overlay.hidden { opacity: 0; pointer-events: none; }
 
-    /* Pulsing rings loader */
-    .loader {
-      position: relative;
-      width: 44px;
-      height: 44px;
-    }
-    .loader-ring {
+    /* Barra de progreso indeterminada (minimalista) */
+    .progress {
       position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      border: 2px solid var(--shell-accent);
-      opacity: 0;
-      animation: pulseRing 1.4s ease-out infinite;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      overflow: hidden;
+      background: var(--shell-border);
     }
-    .loader-ring:nth-child(2) { animation-delay: 0.45s; }
-    .loader-ring:nth-child(3) { animation-delay: 0.90s; }
-    .loader-core {
+    .progress::before {
+      content: '';
       position: absolute;
-      inset: 30%;
-      border-radius: 50%;
+      top: 0; left: 0;
+      height: 100%;
+      width: 24%;
       background: var(--shell-accent);
-      box-shadow: 0 0 14px var(--shell-accent-glow);
+      animation: barIndeterminate 1.1s var(--ease-inout) infinite;
     }
     .loading-text {
       font-size: 13px;
       font-weight: 500;
       color: var(--shell-text-secondary);
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
     }
 
     /* Error */
@@ -234,11 +158,12 @@ export class ShellAppContainer extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
+      background: var(--shell-bg);
     }
     .error-box {
       text-align: center;
       padding: 50px 40px;
-      animation: fadeInUp 0.35s ease forwards;
+      animation: fadeInUp 0.4s var(--ease-out) both;
     }
     .error-box h3 {
       font-size: 18px; font-weight: 600;
@@ -253,16 +178,16 @@ export class ShellAppContainer extends LitElement {
       background: var(--shell-accent);
       color: #fff;
       border: none;
-      border-radius: 10px;
+      border-radius: var(--shell-radius);
       font-size: 13.5px;
       font-family: inherit;
       font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 4px 16px var(--shell-accent-shadow);
-      transition: transform 0.16s ease, box-shadow var(--shell-transition);
+      box-shadow: var(--shell-elev-1);
+      transition: transform var(--dur-fast) var(--ease-out), background var(--shell-transition), box-shadow var(--shell-transition);
     }
-    .retry-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shell-accent-shadow); }
-    .retry-btn:active { transform: translateY(0); }
+    .retry-btn:hover { background: var(--shell-accent-hover); transform: translateY(-1px); box-shadow: var(--shell-elev-2); }
+    .retry-btn:active { transform: translateY(0) scale(0.99); }
   `;
 
   @property({ type: Object }) app: AppInfo | null = null;
@@ -279,7 +204,6 @@ export class ShellAppContainer extends LitElement {
       this.error = false;
       this.iframeLoaded = false;
       this.moduleVisible = false;
-      // Slight delay before sliding in the wrapper
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { this.moduleVisible = true; });
       });
@@ -311,10 +235,7 @@ export class ShellAppContainer extends LitElement {
     if (!this.app) {
       return html`
         <div class="welcome">
-          <div class="grid-3d"></div>
-          <div class="welcome-vignette"></div>
-          <div class="w-orb w-orb-1"></div>
-          <div class="w-orb w-orb-2"></div>
+          <div class="welcome-texture"></div>
           <div class="welcome-content">
             <div class="welcome-wordmark">Ramatzo<span class="welcome-wordmark-dot">.</span></div>
             <h2>Bienvenido</h2>
@@ -343,12 +264,7 @@ export class ShellAppContainer extends LitElement {
     return html`
       <div class="module-wrapper ${this.moduleVisible ? 'visible' : ''}">
         <div class="loading-overlay ${this.loading ? '' : 'hidden'}">
-          <div class="loader">
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
-            <div class="loader-ring"></div>
-            <div class="loader-core"></div>
-          </div>
+          <div class="progress"></div>
           <span class="loading-text">Cargando ${this.app.name}…</span>
         </div>
         <iframe

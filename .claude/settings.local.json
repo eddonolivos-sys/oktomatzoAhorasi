@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @plataforma/shell run lint)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter @plataforma/app-a-dashboard run lint)",
+      "Bash(pnpm --filter @plataforma/test-uno run lint)",
+      "Bash(pnpm --filter @plataforma/test-dos run lint)",
+      "Bash(pnpm --filter @plataforma/app-b-viewer-3d run lint)",
+      "Bash(pnpm --filter @plataforma/app-combate-3d run lint)",
+      "Bash(pnpm --filter @plataforma/app-combate-3d exec tsc --noEmit)",
+      "Bash(pnpm --filter @plataforma/app-combate-3d run build)",
+      "Bash(pnpm --filter @plataforma/app-mundo-3d run build)",
+      "Bash(pnpm --recursive run lint)",
+      "Bash(pnpm run *)"
+    ]
+  }
+}

@@ -4,15 +4,6 @@ import type { User } from '../services/auth-client';
 
 export class ShellTopbar extends LitElement {
   static styles = css`
-    @keyframes shimmer {
-      0%   { background-position: 0% center; }
-      100% { background-position: 200% center; }
-    }
-    @keyframes pulseDot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.5; transform: scale(0.75); }
-    }
-
     :host {
       display: block;
       height: var(--shell-topbar-height);
@@ -28,8 +19,8 @@ export class ShellTopbar extends LitElement {
       padding: 0 20px;
       background: var(--shell-topbar-bg);
       border-bottom: 1px solid var(--shell-border);
-      backdrop-filter: blur(24px) saturate(180%);
-      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(120%);
+      -webkit-backdrop-filter: blur(20px) saturate(120%);
       gap: 10px;
       user-select: none;
     }
@@ -68,33 +59,20 @@ export class ShellTopbar extends LitElement {
     }
     .brand {
       font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.15em;
+      font-weight: 700;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      background: linear-gradient(
-        135deg,
-        var(--shell-text) 0%,
-        var(--shell-accent-2) 40%,
-        var(--shell-accent) 65%,
-        var(--shell-text) 100%
-      );
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: shimmer 5s linear infinite;
+      color: var(--shell-text);
       line-height: 1;
     }
     .brand-dot {
       display: inline-block;
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
       background: var(--shell-accent);
-      box-shadow: 0 0 8px var(--shell-accent-glow);
-      animation: pulseDot 2.4s ease-in-out infinite;
       flex-shrink: 0;
-      margin-left: 2px;
+      margin-left: 3px;
     }
 
     /* Actions */
@@ -151,8 +129,8 @@ export class ShellTopbar extends LitElement {
     }
     .user-pill:hover {
       background: var(--shell-surface-hover);
-      border-color: var(--shell-accent);
-      box-shadow: 0 0 0 3px var(--shell-accent-shadow);
+      border-color: var(--shell-border-bright);
+      box-shadow: var(--shell-elev-1);
     }
 
     .user-avatar {
@@ -168,7 +146,6 @@ export class ShellTopbar extends LitElement {
       font-weight: 700;
       letter-spacing: 0.04em;
       flex-shrink: 0;
-      box-shadow: 0 0 10px var(--shell-accent-shadow);
     }
 
     .user-name {

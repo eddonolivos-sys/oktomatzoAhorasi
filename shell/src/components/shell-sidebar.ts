@@ -1,16 +1,13 @@
 import { LitElement, html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 import type { AppInfo } from '../services/protocol';
+import { appIcon } from '../icons/app-icons';
 
 export class ShellSidebar extends LitElement {
   static styles = css`
     @keyframes slideInItem {
-      from { opacity: 0; transform: translateX(-12px); }
+      from { opacity: 0; transform: translateX(-8px); }
       to   { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes glowPulse {
-      0%, 100% { box-shadow: 0 0 12px var(--shell-accent-glow); }
-      50%       { box-shadow: 0 0 22px var(--shell-accent-glow), 0 0 40px var(--shell-accent-shadow); }
     }
 
     :host { display: block; flex-shrink: 0; }
@@ -101,28 +98,22 @@ export class ShellSidebar extends LitElement {
     .app-item:active { transform: scale(0.985); }
 
     .app-item.active {
-      background: linear-gradient(
-        135deg,
-        rgba(99, 102, 241, 0.18) 0%,
-        rgba(167, 139, 250, 0.08) 100%
-      );
+      background: var(--shell-surface-hover);
       color: var(--shell-text);
       border-left-color: var(--shell-accent);
-      animation: glowPulse 3s ease-in-out infinite;
     }
 
-    /* Active dot */
+    /* Active dot — sólido, sin glow */
     .app-item.active::after {
       content: '';
       position: absolute;
-      right: 10px;
+      right: 11px;
       top: 50%;
       transform: translateY(-50%);
       width: 5px;
       height: 5px;
       border-radius: 50%;
       background: var(--shell-accent);
-      box-shadow: 0 0 8px var(--shell-accent-glow);
     }
 
     /* Icon */
@@ -133,23 +124,25 @@ export class ShellSidebar extends LitElement {
       align-items: center;
       justify-content: center;
       border-radius: 9px;
-      background: var(--shell-surface-hover);
-      font-size: 15px;
+      background: var(--shell-surface-2);
+      color: var(--shell-text-secondary);
       flex-shrink: 0;
       border: 1px solid var(--shell-border);
       transition:
         background var(--shell-transition),
         border-color var(--shell-transition),
-        box-shadow var(--shell-transition);
+        color var(--shell-transition);
     }
+    .app-icon svg { width: 17px; height: 17px; display: block; }
     .app-item.active .app-icon {
-      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(167,139,250,0.15));
-      border-color: var(--shell-accent-shadow);
-      box-shadow: 0 0 12px var(--shell-accent-shadow);
+      background: var(--shell-surface);
+      border-color: var(--shell-border-bright);
+      color: var(--shell-accent);
     }
     .app-item:hover .app-icon {
       background: var(--shell-surface);
       border-color: var(--shell-border-bright);
+      color: var(--shell-text);
     }
 
     /* Info */
@@ -223,13 +216,6 @@ export class ShellSidebar extends LitElement {
     return categories;
   }
 
-  private getIconChar(icon: string): string {
-    const icons: Record<string, string> = {
-      'bar-chart': '📊', cube: '🧊', users: '👥', settings: '⚙️', home: '🏠',
-    };
-    return icons[icon] || '📄';
-  }
-
   render() {
     const categories = this.getCategories();
     const multi = categories.size > 1;
@@ -253,7 +239,7 @@ export class ShellSidebar extends LitElement {
                     style="animation-delay: ${delay}ms"
                     @click=${() => this.dispatchEvent(new CustomEvent('app-select', { detail: app, bubbles: true, composed: true }))}
                   >
-                    <div class="app-icon">${this.getIconChar(app.icon)}</div>
+                    <div class="app-icon">${appIcon(app.icon)}</div>
                     <div class="app-info">
                       <div class="app-name">${app.name}</div>
                       <div class="app-version">v${app.version}</div>

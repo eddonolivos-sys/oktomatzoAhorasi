@@ -3,11 +3,23 @@
   --shell-topbar-height: 60px;
   --shell-sidebar-width: 256px;
   --shell-sidebar-collapsed-width: 0px;
+  --shell-radius-sm: 8px;
+  --shell-radius: 12px;
+  --shell-radius-lg: 18px;
+  --shell-radius-xl: 24px;
   --shell-border-radius: 12px;
   --shell-border-radius-lg: 20px;
-  --shell-transition: 0.22s ease;
-  --shell-transition-smooth: 0.38s cubic-bezier(0.4, 0, 0.2, 1);
-  --shell-transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Motion scale — sobrio, físico, sin rebote exagerado */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 130ms;
+  --dur-base: 210ms;
+  --dur-slow: 360ms;
+  --shell-transition: var(--dur-base) var(--ease-inout);
+  --shell-transition-smooth: var(--dur-slow) var(--ease-inout);
+  --shell-transition-spring: 420ms var(--ease-spring);
 
   /* Light theme */
   --shell-bg: #f4f7fc;
@@ -21,8 +33,8 @@
   --shell-accent: #4f46e5;
   --shell-accent-2: #7c3aed;
   --shell-accent-hover: #4338ca;
-  --shell-accent-glow: rgba(79, 70, 229, 0.28);
-  --shell-accent-shadow: rgba(79, 70, 229, 0.2);
+  --shell-accent-glow: rgba(79, 70, 229, 0.12);
+  --shell-accent-shadow: rgba(79, 70, 229, 0.1);
   --shell-error: #e11d48;
   --shell-success: #16a34a;
   --shell-warning: #d97706;
@@ -34,6 +46,14 @@
   --shell-sidebar-bg: #ffffff;
   --shell-input-bg: #ffffff;
   --shell-input-border: #d1d5db;
+
+  /* Elevación física multicapa (luz) */
+  --shell-elev-1: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 1px rgba(16, 24, 40, 0.03);
+  --shell-elev-2: 0 2px 6px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shell-elev-3: 0 8px 20px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.05);
+  --shell-elev-4: 0 18px 40px rgba(16, 24, 40, 0.12), 0 6px 14px rgba(16, 24, 40, 0.07);
+  --shell-ring: 0 0 0 3px rgba(79, 70, 229, 0.16);
+  --shell-grain: rgba(16, 24, 40, 0.015);
 }
 
 [data-theme='dark'] {
@@ -48,8 +68,8 @@
   --shell-accent: #6366f1;
   --shell-accent-2: #a78bfa;
   --shell-accent-hover: #818cf8;
-  --shell-accent-glow: rgba(99, 102, 241, 0.45);
-  --shell-accent-shadow: rgba(99, 102, 241, 0.28);
+  --shell-accent-glow: rgba(99, 102, 241, 0.2);
+  --shell-accent-shadow: rgba(99, 102, 241, 0.16);
   --shell-error: #f43f5e;
   --shell-success: #22c55e;
   --shell-warning: #f59e0b;
@@ -61,6 +81,14 @@
   --shell-sidebar-bg: #070d1a;
   --shell-input-bg: #111827;
   --shell-input-border: rgba(255, 255, 255, 0.09);
+
+  /* Elevación física multicapa (oscuro) */
+  --shell-elev-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.4);
+  --shell-elev-2: 0 2px 6px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shell-elev-3: 0 10px 24px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shell-elev-4: 0 22px 48px rgba(0, 0, 0, 0.7), 0 8px 18px rgba(0, 0, 0, 0.5);
+  --shell-ring: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  --shell-grain: rgba(255, 255, 255, 0.012);
 }
 
 /* Base */
@@ -80,3 +108,21 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--shell-border-bright); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--shell-text-secondary); }
+
+/* Selección de texto */
+::selection { background: var(--shell-accent); color: #fff; }
+
+/* Foco visible coherente */
+:focus-visible { outline: none; box-shadow: var(--shell-ring); border-radius: var(--shell-radius-sm); }
+
+/* Accesibilidad: respetar reducción de movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
