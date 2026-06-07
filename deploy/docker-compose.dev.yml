@@ -1,6 +1,7 @@
 services:
   caddy:
     image: caddy:2-alpine
+    restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
@@ -15,7 +16,6 @@ services:
       - app-mundo-3d
       - app-combate-3d
       - game-server
-      - oktomatzo2-app
       - test-uno
       - test-dos
 
@@ -23,6 +23,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "8081:8080"
     volumes:
@@ -36,6 +37,7 @@ services:
     build:
       context: ..
       dockerfile: shell/Dockerfile
+    restart: unless-stopped
     ports:
       - "8086:80"
 
@@ -43,6 +45,7 @@ services:
     build:
       context: ..
       dockerfile: apps/app-a-dashboard/Dockerfile
+    restart: unless-stopped
     ports:
       - "8082:80"
 
@@ -50,6 +53,7 @@ services:
     build:
       context: ..
       dockerfile: apps/app-b-viewer-3d/Dockerfile
+    restart: unless-stopped
     ports:
       - "8083:80"
 
@@ -62,6 +66,7 @@ services:
         VITE_MODEL_CAR_URL: ${VITE_MODEL_CAR_URL:-}
         VITE_MODEL_PLANE_URL: ${VITE_MODEL_PLANE_URL:-}
         VITE_MODEL_BOAT_URL: ${VITE_MODEL_BOAT_URL:-}
+    restart: unless-stopped
     ports:
       - "8087:80"
 
@@ -69,6 +74,7 @@ services:
     build:
       context: ..
       dockerfile: apps/app-combate-3d/Dockerfile
+    restart: unless-stopped
     ports:
       - "8088:80"
 
@@ -76,34 +82,15 @@ services:
     build:
       context: ../services/game-server
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8091:8080"
-
-  oktomatzo2-api:
-    build:
-      context: ../apps/oktomatzo2/tattoo-preview/backend
-      dockerfile: Dockerfile
-    ports:
-      - "127.0.0.1:8089:8000"
-    environment:
-      - MAX_UPLOAD_MB=10
-
-  oktomatzo2-app:
-    build:
-      context: ../apps/oktomatzo2/tattoo-preview/frontend
-      dockerfile: Dockerfile
-    ports:
-      - "127.0.0.1:8090:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost/oktomatzo2-api
-      - NEXT_TELEMETRY_DISABLED=1
-    depends_on:
-      - oktomatzo2-api
 
   test-uno:
     build:
       context: ..
       dockerfile: apps/test-uno/Dockerfile
+    restart: unless-stopped
     ports:
       - "8084:80"
 
@@ -111,6 +98,7 @@ services:
     build:
       context: ..
       dockerfile: apps/test-dos/Dockerfile
+    restart: unless-stopped
     ports:
       - "8085:80"
 
