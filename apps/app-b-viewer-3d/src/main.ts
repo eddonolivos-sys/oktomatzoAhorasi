@@ -6,8 +6,14 @@ const client = new ShellClient('viewer-3d');
 
 const container = document.getElementById('app')!;
 
+const PALETTE = {
+  light: { bg: 0xf4f7fc, ground: 0xe2e8f0, ambient: 0x9aa6c2 },
+  dark:  { bg: 0x020817, ground: 0x0b1120, ambient: 0x3a4660 },
+} as const;
+
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
+scene.background = new THREE.Color(PALETTE.light.bg);
+scene.fog = new THREE.Fog(PALETTE.light.bg, 18, 46);
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(5, 5, 10);
@@ -52,13 +58,13 @@ scene.add(ground);
 // Main object: Icosahedron with wireframe
 const geometry = new THREE.IcosahedronGeometry(2, 0);
 const material = new THREE.MeshPhysicalMaterial({
-  color: 0x0071e3,
+  color: 0x4f46e5,
   metalness: 0.3,
   roughness: 0.4,
   clearcoat: 0.8,
   clearcoatRoughness: 0.3,
-  emissive: 0x002244,
-  emissiveIntensity: 0.2,
+  emissive: 0x1e1b4e,
+  emissiveIntensity: 0.15,
 });
 const mesh = new THREE.Mesh(geometry, material);
 mesh.castShadow = true;
@@ -68,10 +74,10 @@ scene.add(mesh);
 // Wireframe overlay
 const wireGeo = new THREE.IcosahedronGeometry(2.05, 0);
 const wireMat = new THREE.MeshBasicMaterial({
-  color: 0x00aaff,
+  color: 0x6366f1,
   wireframe: true,
   transparent: true,
-  opacity: 0.3,
+  opacity: 0.22,
 });
 const wireframe = new THREE.Mesh(wireGeo, wireMat);
 wireframe.position.y = 1;
@@ -86,10 +92,10 @@ for (let i = 0; i < particleCount * 3; i++) {
 }
 particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 const particlesMat = new THREE.PointsMaterial({
-  color: 0x4488ff,
+  color: 0x6366f1,
   size: 0.05,
   transparent: true,
-  opacity: 0.6,
+  opacity: 0.5,
 });
 const particles = new THREE.Points(particlesGeo, particlesMat);
 scene.add(particles);
@@ -139,13 +145,14 @@ client.onToken = (token, user) => {
 };
 
 // Theme handling
-client.onTheme = (mode) => {
-  if (mode === 'dark') {
-    scene.background = new THREE.Color(0x1a1a2e);
-  } else {
-    scene.background = new THREE.Color(0xf0f0f5);
-  }
-};
+function applyTheme(mode: 'light' | 'dark') {
+  const p = PALETTE[mode];
+  (scene.background as THREE.Color).set(p.bg);
+  (scene.fog as THREE.Fog).color.set(p.bg);
+  groundMaterial.color.set(p.ground);
+  ambientLight.color.set(p.ambient);
+}
+client.onTheme = (mode) => applyTheme(mode === 'dark' ? 'dark' : 'light');
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {

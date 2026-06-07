@@ -60,7 +60,7 @@ export class Menu {
     overlay.className = 'tutorial-overlay';
     overlay.innerHTML = `
       <div class="tutorial-card">
-        <h2>🎮 Tutorial rápido</h2>
+        <h2>Tutorial rápido</h2>
         <ul>
           <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — Moverse (adelante, girar, atrás)</li>
           <li><kbd>Espacio</kbd> — Disparar (cooldown breve)</li>
@@ -69,7 +69,7 @@ export class Menu {
           <li><kbd>ESC</kbd> — Menú de pausa</li>
         </ul>
         <br />
-        <p style="color:#ff6b6b;font-size:14px;">⚠️ ¡Cuidado con los objetos rojos! Si caen sobre ti, muerte instantánea. Si los tocas, pierdes vida.</p>
+        <p style="color:#f59e0b;font-size:14px;line-height:1.5;">Cuidado con los objetos rojos: si caen sobre ti, muerte instantánea. Si los tocas, pierdes vida.</p>
         <br />
         <button class="menu-btn primary" id="btn-back-menu">Volver al menú</button>
       </div>
@@ -104,7 +104,7 @@ export class Menu {
     this.root.innerHTML = `
       <div class="menu-overlay" id="death-screen">
         <div class="menu-card">
-          <h1 style="color:#ff4757">☠️ HAS MUERTO</h1>
+          <h1 style="color:#f43f5e">HAS MUERTO</h1>
           <p>Tu vehículo fue destruido.</p>
           <button class="menu-btn danger" id="btn-respawn">REAPARECER</button>
           <button class="menu-btn secondary" id="btn-quit-death">SALIR AL MENÚ</button>

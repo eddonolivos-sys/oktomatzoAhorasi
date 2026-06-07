@@ -2,18 +2,16 @@ import { ShellClient } from '@plataforma/shell-protocol';
 
 const client = new ShellClient('test-uno');
 const statusEl = document.getElementById('status')!;
+const statusText = document.getElementById('status-text')!;
 
-client.onToken = (token, user) => {
-  statusEl.textContent = `✅ Autenticado como ${user.name} (${user.email})`;
-  statusEl.style.background = 'rgba(52,199,89,0.2)';
+client.onToken = (_token, user) => {
+  statusText.textContent = `Autenticado como ${user.name}`;
+  statusEl.classList.remove('running');
+  statusEl.classList.add('ok');
 };
 
 client.onTheme = (mode) => {
-  if (mode === 'dark') {
-    document.body.style.background = 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
-  } else {
-    document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-  }
+  document.documentElement.setAttribute('data-theme', mode);
 };
 
 // Report height for iframe sizing
@@ -24,11 +22,12 @@ reportHeight();
 window.addEventListener('resize', reportHeight);
 new ResizeObserver(reportHeight).observe(document.body);
 
-// Update status periodically to show it's alive
+// Heartbeat de actividad mientras no haya sesión
 let count = 0;
 setInterval(() => {
   count++;
-  if (!statusEl.textContent?.startsWith('✅')) {
-    statusEl.textContent = `⏳ Ejecutándose... (${count}s)`;
+  if (!statusEl.classList.contains('ok')) {
+    statusText.textContent = `Ejecutándose · ${count}s`;
+    statusEl.classList.add('running');
   }
 }, 1000);

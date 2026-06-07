@@ -28,7 +28,7 @@ apps:
   - id: combate-3d
     name: Combate 3D
     description: Juego de combate vehicular en 3D
-    icon: cube
+    icon: target
     route: /combate-3d
     src: /apps/combate-3d/
     version: 1.0.0
@@ -42,7 +42,7 @@ apps:
   - id: oktomatzo2
     name: TattooAR
     description: Previsualización 3D de tatuajes
-    icon: home
+    icon: layers
     route: /oktomatzo2
     src: /apps/oktomatzo2/
     version: 1.0.0
@@ -56,7 +56,7 @@ apps:
   - id: busqueda
     name: Búsqueda
     description: Búsqueda inteligente en la documentación del proyecto
-    icon: home
+    icon: search
     route: /busqueda
     src: /docs/search.html
     version: 1.0.0
