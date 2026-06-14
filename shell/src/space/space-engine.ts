@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { FlightController, type FlightState } from './flight';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -37,6 +38,9 @@ export class SpaceEngine {
 
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
+
+  private flight!: FlightController;
+  private lastFlight?: FlightState;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -86,6 +90,10 @@ export class SpaceEngine {
       new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.15),
     );
 
+    // Control de vuelo (WASD + pointer lock + nitro)
+    this.flight = new FlightController(this.camera, this.canvas);
+    this.flight.attach();
+
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -104,6 +112,7 @@ export class SpaceEngine {
     this.trackFps(delta);
 
     // ── Actualización de subsistemas (se amplía en tareas posteriores) ──
+    this.lastFlight = this.flight.update(delta);
 
     this.composer.render();
   };
@@ -153,6 +162,7 @@ export class SpaceEngine {
 
   dispose() {
     this.pause();
+    this.flight?.detach();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
