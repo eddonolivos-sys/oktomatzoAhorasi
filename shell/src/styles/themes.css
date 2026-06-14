@@ -54,6 +54,17 @@
   --shell-elev-4: 0 18px 40px rgba(16, 24, 40, 0.12), 0 6px 14px rgba(16, 24, 40, 0.07);
   --shell-ring: 0 0 0 3px rgba(79, 70, 229, 0.16);
   --shell-grain: rgba(16, 24, 40, 0.015);
+
+  /* ── Constellation OS (espacio) ── */
+  --space-deep: #0A0503;   --space-dark: #1A0E08;   --space-surface: #2A1A10;
+  --orange-burnt: #C84B31; --orange-rust: #8B3A1A;  --orange-amber: #E6A817;
+  --orange-gold: #D4A84B;  --orange-ember: #FF6B35; --orange-warm: #FF8C42;
+  --metal-iron: #3A2A20;   --metal-steel: #5A4A3A;  --metal-brass: #8B7A5A; --metal-copper: #B86A3A;
+  --space-text: #C8B898;   --space-text-2: #8A7A6A; --space-text-dim: #5A4A3A;
+  --space-success: #6B8A3A; --space-warning: #D4A017;
+  --font-display: 'Cinzel Decorative', serif;
+  --font-serif: 'Cinzel', serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 [data-theme='dark'] {
