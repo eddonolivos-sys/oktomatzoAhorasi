@@ -32,10 +32,10 @@ export class FlightController {
 
   yaw = 0;
   pitch = 0;
-  maxSpeed = 70;
-  acceleration = 55;
+  maxSpeed = 90;
+  acceleration = 95;
   damping = 0.96;
-  nitroMultiplier = 3.5;
+  nitroMultiplier = 10;
   lookSpeed = 1.9; // rad/s al borde de la pantalla
   deadZone = 0.14; // fracción central sin rotación
   pitchLimit = 1.3;

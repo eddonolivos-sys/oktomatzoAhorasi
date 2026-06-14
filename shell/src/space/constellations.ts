@@ -22,6 +22,8 @@ interface PlanetOrbit {
 export class ConstellationManager {
   private groups: THREE.Group[] = [];
   private points: THREE.Points[] = [];
+  /** Objetos raycasteables: estrellas + planetas en órbita (siguen su posición). */
+  private pickables: THREE.Object3D[] = [];
   private raycaster = new THREE.Raycaster();
 
   constructor(
@@ -41,7 +43,9 @@ export class ConstellationManager {
       );
       scene.add(group);
       this.groups.push(group);
-      this.points.push((group.userData as ConstellationUserData).points);
+      const ud = group.userData as ConstellationUserData;
+      this.points.push(ud.points);
+      this.pickables.push(ud.points, ...ud.planets);
     });
   }
 
@@ -65,7 +69,9 @@ export class ConstellationManager {
 
   private raycastGroup(camera: THREE.Camera, ndc: THREE.Vector2): THREE.Group | null {
     this.raycaster.setFromCamera(ndc, camera);
-    const hits = this.raycaster.intersectObjects(this.points, false);
+    // Estrellas (points) y planetas en órbita: el planeta se intersecta en su
+    // posición actual porque su matrixWorld se actualiza cada frame.
+    const hits = this.raycaster.intersectObjects(this.pickables, false);
     const first = hits[0];
     return first ? (first.object.parent as THREE.Group | null) : null;
   }
@@ -108,5 +114,6 @@ export class ConstellationManager {
     }
     this.groups = [];
     this.points = [];
+    this.pickables = [];
   }
 }

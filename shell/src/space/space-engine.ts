@@ -223,6 +223,7 @@ export class SpaceEngine {
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
       -(((e.clientY - rect.top) / rect.height) * 2 - 1),
     );
+    this.scene.updateMatrixWorld(); // posiciones de planetas en órbita al día para el raycast
     const app = this.constellations.pickApp(this.camera, ndc);
     if (app) this.overlay.show(app);
   };
