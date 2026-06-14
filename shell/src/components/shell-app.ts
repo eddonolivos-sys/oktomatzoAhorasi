@@ -312,32 +312,12 @@ export class ShellApp extends LitElement {
     }
 
     return html`
-      <shell-topbar
+      <shell-space
+        .apps=${this.apps}
         .theme=${this.theme}
-        .user=${this.authState.user}
-        .sidebarOpen=${this.sidebarOpen}
-        @toggle-sidebar=${this.toggleSidebar}
-        @toggle-theme=${this.toggleTheme}
+        @enter-app=${(e: CustomEvent) => { this.currentApp = (e.detail as AppInfo).id; }}
         @logout=${this.handleLogout}
-      ></shell-topbar>
-
-      <div class="shell-layout">
-        <shell-sidebar
-          .apps=${this.apps}
-          .currentApp=${this.currentApp}
-          .open=${this.sidebarOpen}
-          @app-select=${(e: CustomEvent) => this.handleAppSelect(e.detail)}
-        ></shell-sidebar>
-
-        <div class="shell-main">
-          <div class="shell-content">
-            <shell-app-container
-              .app=${this.apps.find((a) => a.id === this.currentApp) ?? null}
-              .theme=${this.theme}
-            ></shell-app-container>
-          </div>
-        </div>
-      </div>
+      ></shell-space>
     `;
   }
 }
