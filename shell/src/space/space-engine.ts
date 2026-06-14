@@ -8,6 +8,7 @@ import { createGalaxy, type Galaxy } from './galaxy';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import { ConstellationManager } from './constellations';
+import { Radar } from './radar';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -50,6 +51,7 @@ export class SpaceEngine {
   private galaxy!: Galaxy;
   private chunks!: ChunkManager;
   private constellations!: ConstellationManager;
+  private radar!: Radar;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -115,6 +117,7 @@ export class SpaceEngine {
 
     this.chunks = new ChunkManager(this.scene, this.renderer);
     this.constellations = new ConstellationManager(this.scene, opts.apps, this.renderer);
+    this.radar = new Radar(host);
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -148,6 +151,7 @@ export class SpaceEngine {
     setStarGasTime(this.elapsed);
     this.chunks.update(this.camera.position.clone().add(this.worldOffset));
     this.constellations.update(this.elapsed, delta);
+    this.radar.draw(this.camera.position, flight.yaw, this.constellations.getRadarBlips());
 
     this.composer.render();
   };
@@ -189,10 +193,13 @@ export class SpaceEngine {
   pause() {
     this.running = false;
     cancelAnimationFrame(this.rafId);
+    this.radar?.hide();
   }
 
   resume() {
-    if (!document.hidden) this.start();
+    if (document.hidden) return;
+    this.radar?.show();
+    this.start();
   }
 
   dispose() {
@@ -203,6 +210,7 @@ export class SpaceEngine {
     this.chunks?.dispose();
     disposeStarGasMaterial();
     this.constellations?.dispose();
+    this.radar?.dispose();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
