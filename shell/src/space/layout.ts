@@ -66,10 +66,18 @@ export function colorForCategory(category: string | undefined): number {
   return FALLBACK_COLORS[h % 4]!;
 }
 
-/** Posición de la constelación N en el pasillo -Z, con X alternada e Y variada. */
+/**
+ * Posición de la constelación N: dispersa en 3D hacia -Z (frente al spawn) y
+ * progresivamente más lejana, para una galaxia amplia que se recorre volando.
+ * Distribución por ángulo áureo para que no se alineen.
+ */
 export function constellationPosition(index: number): { x: number; y: number; z: number } {
-  const z = -50 - index * 45;
-  const x = (index % 2 === 0 ? 1 : -1) * (25 + ((index * 13) % 35));
-  const y = ((index * 7) % 8) - 3;
-  return { x, y, z };
+  const golden = 2.399963267; // ángulo áureo (rad)
+  const a = index * golden;
+  const dist = 350 + index * 230;
+  return {
+    x: Math.cos(a) * dist * 0.6,
+    y: Math.sin(a * 0.7) * dist * 0.18,
+    z: -120 - dist,
+  };
 }

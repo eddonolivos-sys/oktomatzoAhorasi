@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FlightController, type FlightState } from './flight';
 import { Hud } from './hud';
 import { createGalaxy, type Galaxy } from './galaxy';
+import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import { ConstellationManager } from './constellations';
@@ -52,6 +53,7 @@ export class SpaceEngine {
   private lastFlight?: FlightState;
   private hud!: Hud;
   private galaxy!: Galaxy;
+  private ramatzoSun!: RamatzoSun;
   private chunks!: ChunkManager;
   private constellations!: ConstellationManager;
   private radar!: Radar;
@@ -81,10 +83,10 @@ export class SpaceEngine {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0503);
-    this.scene.fog = new THREE.Fog(0x0a0503, 200, 600);
+    this.scene.fog = new THREE.Fog(0x0a0503, 3000, 18000);
 
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1200);
-    this.camera.position.set(0, 3, 8);
+    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 22000);
+    this.camera.position.set(0, 4, 60);
 
     // Iluminación cálida
     this.scene.add(new THREE.AmbientLight(0x3a2a20, 0.4));
@@ -118,6 +120,9 @@ export class SpaceEngine {
     // ── Mundo ──
     this.galaxy = createGalaxy(this.renderer);
     this.scene.add(this.galaxy.object);
+
+    this.ramatzoSun = createRamatzoSun();
+    this.scene.add(this.ramatzoSun.object);
 
     this.chunks = new ChunkManager(this.scene, this.renderer);
     this.constellations = new ConstellationManager(this.scene, opts.apps, this.renderer);
@@ -164,6 +169,7 @@ export class SpaceEngine {
     );
 
     this.galaxy.update(this.elapsed, delta, this.camera.position);
+    this.ramatzoSun.update(this.elapsed);
 
     setStarGasTime(this.elapsed);
     this.chunks.update(this.camera.position.clone().add(this.worldOffset));
@@ -259,6 +265,7 @@ export class SpaceEngine {
     this.worldOffset.add(delta);
     this.chunks.rebase(delta);
     this.constellations.rebase(delta);
+    this.ramatzoSun.object.position.sub(delta);
     for (const s of this.ships) s.position.sub(delta);
   }
 
@@ -286,6 +293,7 @@ export class SpaceEngine {
     this.flight?.detach();
     this.hud?.dispose();
     this.galaxy?.dispose();
+    this.ramatzoSun?.dispose();
     this.chunks?.dispose();
     disposeStarGasMaterial();
     this.constellations?.dispose();
