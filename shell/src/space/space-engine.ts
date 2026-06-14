@@ -7,6 +7,7 @@ import { Hud } from './hud';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
+import { ConstellationManager } from './constellations';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -48,6 +49,7 @@ export class SpaceEngine {
   private hud!: Hud;
   private galaxy!: Galaxy;
   private chunks!: ChunkManager;
+  private constellations!: ConstellationManager;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -112,6 +114,7 @@ export class SpaceEngine {
     this.scene.add(this.galaxy.object);
 
     this.chunks = new ChunkManager(this.scene, this.renderer);
+    this.constellations = new ConstellationManager(this.scene, opts.apps, this.renderer);
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -144,6 +147,7 @@ export class SpaceEngine {
 
     setStarGasTime(this.elapsed);
     this.chunks.update(this.camera.position.clone().add(this.worldOffset));
+    this.constellations.update(this.elapsed, delta);
 
     this.composer.render();
   };
@@ -198,6 +202,7 @@ export class SpaceEngine {
     this.galaxy?.dispose();
     this.chunks?.dispose();
     disposeStarGasMaterial();
+    this.constellations?.dispose();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {

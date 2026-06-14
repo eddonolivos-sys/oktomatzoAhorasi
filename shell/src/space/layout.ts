@@ -45,3 +45,31 @@ export function neededChunkKeys(cx: number, cy: number, cz: number, r: number): 
       for (let dz = -r; dz <= r; dz++) keys.push(chunkKey(cx + dx, cy + dy, cz + dz));
   return keys;
 }
+
+// ── Layout de constelaciones (derivado del app-registry) ──
+
+const CATEGORY_COLORS: Record<string, number> = {
+  Analítica: 0xd4a84b,
+  Herramientas: 0xc84b31,
+  Juegos: 0xd43a1a,
+  Sistema: 0x6b8a3a,
+  Pruebas: 0x5a4a3a,
+};
+
+const FALLBACK_COLORS = [0xe6a817, 0xff6b35, 0x8b7a5a, 0xb86a3a] as const;
+
+/** Color cálido por categoría; determinista para categorías nuevas. */
+export function colorForCategory(category: string | undefined): number {
+  if (category && CATEGORY_COLORS[category] !== undefined) return CATEGORY_COLORS[category]!;
+  let h = 0;
+  for (const ch of category ?? '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return FALLBACK_COLORS[h % 4]!;
+}
+
+/** Posición de la constelación N en el pasillo -Z, con X alternada e Y variada. */
+export function constellationPosition(index: number): { x: number; y: number; z: number } {
+  const z = -50 - index * 45;
+  const x = (index % 2 === 0 ? 1 : -1) * (25 + ((index * 13) % 35));
+  const y = ((index * 7) % 8) - 3;
+  return { x, y, z };
+}
