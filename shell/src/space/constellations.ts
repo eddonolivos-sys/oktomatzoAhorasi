@@ -82,12 +82,15 @@ export class ConstellationManager {
     return g ? ((g.userData as ConstellationUserData).app ?? null) : null;
   }
 
-  /** Constelación apuntada (app + centro en espacio de escena) para etiqueta flotante. */
+  /** Constelación apuntada (app + posición del objeto apuntado) para etiqueta flotante. */
   pickAimed(camera: THREE.Camera, ndc: THREE.Vector2): { app: AppInfo; center: THREE.Vector3 } | null {
-    const g = this.raycastGroup(camera, ndc);
-    if (!g) return null;
-    const ud = g.userData as ConstellationUserData;
-    return { app: ud.app, center: g.position.clone() };
+    this.raycaster.setFromCamera(ndc, camera);
+    const first = this.raycaster.intersectObjects(this.pickables, false)[0];
+    const group = first ? (first.object.parent as THREE.Group | null) : null;
+    if (!group) return null;
+    const center = new THREE.Vector3();
+    first!.object.getWorldPosition(center); // etiqueta sobre el objeto apuntado (planeta o estrella)
+    return { app: (group.userData as ConstellationUserData).app, center };
   }
 
   getRadarBlips(): RadarBlip[] {

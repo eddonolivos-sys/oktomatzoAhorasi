@@ -170,9 +170,9 @@ export function createConstellation(
   const planetCount = 1 + Math.floor(rng() * 2);
   const planets: THREE.Mesh[] = [];
   for (let i = 0; i < planetCount; i++) {
-    const planet = createPlanet(15 + rng() * 20, seed + i + 1, layout.color);
-    const orbitRadius = 70 + rng() * 90;
-    const orbitSpeed = 0.1 + rng() * 0.15;
+    const planet = createPlanet(900 + rng() * 1300, seed + i + 1, layout.color);
+    const orbitRadius = 2800 + i * 4500 + rng() * 1500;
+    const orbitSpeed = 0.01 + rng() * 0.03;
     const orbitOffset = rng() * Math.PI * 2;
     planet.position.set(orbitRadius * Math.cos(orbitOffset), 0, orbitRadius * Math.sin(orbitOffset));
     planet.userData = { orbitRadius, orbitSpeed, orbitOffset };

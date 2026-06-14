@@ -1,96 +1,91 @@
 import * as THREE from 'three';
-import { seededRng } from './layout';
 
 /**
- * Planeta irregular con shader de magma (negro carbón -> oxidado -> color base -> lava).
- * Esfera deformada por ruido sembrado; LOD por tamaño. El llamador asigna userData
- * de órbita. El uniform `uTime` se anima desde el gestor de constelaciones.
+ * Planeta tipo Tierra: esfera lisa de alto detalle + shader procedural con
+ * continentes (océano azul, tierra verde, montañas marrones), casquetes polares
+ * blancos, nubes y atmósfera (borde fresnel). `seed` varía los continentes.
  */
 export function createPlanet(radius: number, seed: number, baseColor: number): THREE.Mesh {
-  const detail = radius < 4 ? 16 : 32;
-  const geometry = new THREE.SphereGeometry(radius, detail, detail);
-  const positions = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const rng = seededRng(seed);
-
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i);
-    const y = positions.getY(i);
-    const z = positions.getZ(i);
-    const noise = (rng() - 0.5) * radius * 0.3;
-    const len = Math.sqrt(x * x + y * y + z * z) || 1;
-    const scale = 1 + noise / len;
-    positions.setXYZ(i, x * scale, y * scale, z * scale);
-  }
-  geometry.computeVertexNormals();
+  void baseColor;
+  const geometry = new THREE.SphereGeometry(radius, 64, 44);
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uColor1: { value: new THREE.Color(0x1a0a00) },
-      uColor2: { value: new THREE.Color(0x5a2a10) },
-      uColor3: { value: new THREE.Color(baseColor) },
-      uColor4: { value: new THREE.Color(0xd4602a) },
+      uSeed: { value: (Math.abs(seed) % 1000) * 0.137 },
+      uOcean: { value: new THREE.Color(0x1f5fa8) },
+      uOceanDeep: { value: new THREE.Color(0x0a2c55) },
+      uLandLow: { value: new THREE.Color(0x2f7a36) },
+      uLandHigh: { value: new THREE.Color(0x7a5a32) },
+      uIce: { value: new THREE.Color(0xeef4ff) },
+      uAtmo: { value: new THREE.Color(0x3a78c8) },
     },
     vertexShader: `
-      varying vec3 vPosition;
-      varying vec3 vNormal;
+      varying vec3 vPos;
+      varying vec3 vNormalV;
       void main() {
-        vPosition = position;
-        vNormal = normalize(normalMatrix * normal);
+        vPos = position;
+        vNormalV = normalize(normalMatrix * normal);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
-      uniform vec3 uColor1;
-      uniform vec3 uColor2;
-      uniform vec3 uColor3;
-      uniform vec3 uColor4;
       uniform float uTime;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
+      uniform float uSeed;
+      uniform vec3 uOcean;
+      uniform vec3 uOceanDeep;
+      uniform vec3 uLandLow;
+      uniform vec3 uLandHigh;
+      uniform vec3 uIce;
+      uniform vec3 uAtmo;
+      varying vec3 vPos;
+      varying vec3 vNormalV;
 
-      float hash(vec3 p) {
-        return fract(sin(dot(p, vec3(12.9898, 78.233, 45.5432))) * 43758.5453);
-      }
+      float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 45.5432))) * 43758.5453); }
       float noise(vec3 p) {
-        vec3 i = floor(p);
-        vec3 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
+        vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
         return mix(
-          mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x),
-              mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
-          mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x),
-              mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+          mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+          mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
+          f.z);
       }
+      float fbm(vec3 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.02; a *= 0.5; } return v; }
 
       void main() {
-        vec3 pos = vPosition * 0.3;
-        float n = noise(pos + uTime * 0.02);
-        float n2 = noise(pos * 2.0 + uTime * 0.03);
-        float height = n * 0.7 + n2 * 0.3;
+        vec3 dir = normalize(vPos);
+        vec3 sp = dir * 2.2 + uSeed;
+        float cont = fbm(sp);
+        float lat = abs(dir.y);
 
-        vec3 color;
-        if (height < 0.3) color = mix(uColor1, uColor2, height / 0.3);
-        else if (height < 0.6) color = mix(uColor2, uColor3, (height - 0.3) / 0.3);
-        else color = mix(uColor3, uColor4, (height - 0.6) / 0.4);
+        vec3 col;
+        if (cont < 0.5) {
+          col = mix(uOceanDeep, uOcean, smoothstep(0.25, 0.5, cont));
+        } else {
+          float l = (cont - 0.5) / 0.5;
+          col = mix(uLandLow, uLandHigh, smoothstep(0.25, 0.95, l));
+        }
 
-        float fissure = smoothstep(0.65, 0.8, n2);
-        color += fissure * uColor4 * 0.5;
+        // Casquetes polares
+        float ice = smoothstep(0.74, 0.92, lat + cont * 0.08);
+        col = mix(col, uIce, ice);
 
-        vec3 light = normalize(vec3(1.0, 1.0, 0.5));
-        float diff = max(0.0, dot(vNormal, light)) * 0.7 + 0.3;
-        color *= diff;
+        // Nubes (capa de ruido en deriva)
+        float cl = fbm(sp * 1.6 + vec3(uTime * 0.015, 0.0, 0.0));
+        col = mix(col, vec3(1.0), smoothstep(0.55, 0.78, cl) * 0.55);
 
-        float glow = smoothstep(0.7, 0.9, n);
-        color += glow * uColor4 * 0.15;
+        // Iluminación
+        vec3 lightDir = normalize(vec3(0.6, 0.45, 0.7));
+        float diff = max(0.0, dot(vNormalV, lightDir)) * 0.85 + 0.18;
+        col *= diff;
 
-        gl_FragColor = vec4(color, 1.0);
+        // Atmósfera (fresnel en el borde)
+        float rim = pow(1.0 - abs(vNormalV.z), 3.0);
+        col += uAtmo * rim * 0.5;
+
+        gl_FragColor = vec4(col, 1.0);
       }
     `,
   });
 
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
+  return new THREE.Mesh(geometry, material);
 }

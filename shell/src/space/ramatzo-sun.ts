@@ -30,7 +30,7 @@ function createCoronaTexture(): THREE.CanvasTexture {
  */
 export function createRamatzoSun(): RamatzoSun {
   const group = new THREE.Group();
-  const radius = 14;
+  const radius = 700;
 
   const core = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 48, 48),
@@ -65,7 +65,7 @@ export function createRamatzoSun(): RamatzoSun {
   corona.scale.set(radius * 9, radius * 9, 1);
   group.add(corona);
 
-  const light = new THREE.PointLight(0xffb060, 2.2, 700, 2);
+  const light = new THREE.PointLight(0xffb060, 2.6, 15000, 2);
   group.add(light);
 
   return {
