@@ -17,6 +17,7 @@ export class ShellSpace extends LitElement {
   @property({ type: String }) theme: 'light' | 'dark' = 'dark';
 
   @state() private webglOk = true;
+  @state() private cockpitApp: AppInfo | null = null;
 
   private engine: SpaceEngine | null = null;
 
@@ -40,7 +41,10 @@ export class ShellSpace extends LitElement {
     this.engine = new mod.SpaceEngine();
     this.engine.mount(host, {
       apps: this.apps,
-      onEnterApp: (app) => this.dispatchEvent(new CustomEvent('enter-app', { detail: app })),
+      onEnterApp: (app) => {
+        this.cockpitApp = app;
+        this.engine?.pause();
+      },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
     });
   }
@@ -70,8 +74,23 @@ export class ShellSpace extends LitElement {
         </div>
       `;
     }
-    return html`<div id="space-host" style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"></div>`;
+    return html`
+      <div id="space-host" style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"></div>
+      ${this.cockpitApp
+        ? html`<shell-cockpit
+            .app=${this.cockpitApp}
+            .theme=${this.theme}
+            @back=${this.exitCockpit}
+            @logout=${() => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }))}
+          ></shell-cockpit>`
+        : ''}
+    `;
   }
+
+  private exitCockpit = () => {
+    this.cockpitApp = null;
+    this.engine?.resume();
+  };
 }
 
 customElements.define('shell-space', ShellSpace);

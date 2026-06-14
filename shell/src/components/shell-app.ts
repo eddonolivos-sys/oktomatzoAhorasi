@@ -315,7 +315,6 @@ export class ShellApp extends LitElement {
       <shell-space
         .apps=${this.apps}
         .theme=${this.theme}
-        @enter-app=${(e: CustomEvent) => { this.currentApp = (e.detail as AppInfo).id; }}
         @logout=${this.handleLogout}
       ></shell-space>
     `;
