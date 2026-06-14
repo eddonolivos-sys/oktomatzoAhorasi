@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { FlightController, type FlightState } from './flight';
+import { Hud } from './hud';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -41,6 +42,7 @@ export class SpaceEngine {
 
   private flight!: FlightController;
   private lastFlight?: FlightState;
+  private hud!: Hud;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -94,6 +96,12 @@ export class SpaceEngine {
     this.flight = new FlightController(this.camera, this.canvas);
     this.flight.attach();
 
+    // HUD (reticula, velocidad, nitro, coords, vignette)
+    this.hud = new Hud(host);
+    this.flight.onPointerLockChange = (locked) => {
+      if (locked) this.hud.hideStartMessage();
+    };
+
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -112,7 +120,14 @@ export class SpaceEngine {
     this.trackFps(delta);
 
     // ── Actualización de subsistemas (se amplía en tareas posteriores) ──
-    this.lastFlight = this.flight.update(delta);
+    const flight = this.flight.update(delta);
+    this.lastFlight = flight;
+    this.hud.update(
+      flight,
+      this.camera.position.x + this.worldOffset.x,
+      this.camera.position.z + this.worldOffset.z,
+      this.flight.maxSpeed * this.flight.nitroMultiplier,
+    );
 
     this.composer.render();
   };
@@ -163,6 +178,7 @@ export class SpaceEngine {
   dispose() {
     this.pause();
     this.flight?.detach();
+    this.hud?.dispose();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
