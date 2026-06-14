@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { property, state } from 'lit/decorators.js';
+import './shell-cockpit'; // registra <shell-cockpit> (no depender del orden de main.ts)
 import type { AppInfo } from '../services/protocol';
 import type { SpaceEngine } from '../space/space-engine';
 
