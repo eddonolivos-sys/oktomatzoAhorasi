@@ -5,6 +5,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { FlightController, type FlightState } from './flight';
 import { Hud } from './hud';
 import { createGalaxy, type Galaxy } from './galaxy';
+import { ChunkManager } from './chunks';
+import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -45,6 +47,7 @@ export class SpaceEngine {
   private lastFlight?: FlightState;
   private hud!: Hud;
   private galaxy!: Galaxy;
+  private chunks!: ChunkManager;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -108,6 +111,8 @@ export class SpaceEngine {
     this.galaxy = createGalaxy(this.renderer);
     this.scene.add(this.galaxy.object);
 
+    this.chunks = new ChunkManager(this.scene, this.renderer);
+
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -136,6 +141,9 @@ export class SpaceEngine {
     );
 
     this.galaxy.update(this.elapsed, delta, this.camera.position);
+
+    setStarGasTime(this.elapsed);
+    this.chunks.update(this.camera.position.clone().add(this.worldOffset));
 
     this.composer.render();
   };
@@ -188,6 +196,8 @@ export class SpaceEngine {
     this.flight?.detach();
     this.hud?.dispose();
     this.galaxy?.dispose();
+    this.chunks?.dispose();
+    disposeStarGasMaterial();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
