@@ -47,6 +47,7 @@ export function createPlayerShip(): PlayerShip {
   const engineMat = track(new THREE.MeshStandardMaterial({ color: 0xffae5a, emissive: 0xffae5a, emissiveIntensity: 2.5, side: THREE.DoubleSide }));
   const navAmber = track(new THREE.MeshStandardMaterial({ color: 0xffaa33, emissive: 0xffaa33, emissiveIntensity: 3 }));
   const navRed = track(new THREE.MeshStandardMaterial({ color: 0xcc3322, emissive: 0xcc3322, emissiveIntensity: 3 }));
+  const accent = track(new THREE.MeshStandardMaterial({ color: 0xffae5a, emissive: 0xff8c42, emissiveIntensity: 1.8 }));
   const lineMat = track(new THREE.LineBasicMaterial({ color: 0x6a5a48, transparent: true, opacity: 0.5 }));
 
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, cfg: (m: THREE.Mesh) => void): THREE.Mesh => {
@@ -120,11 +121,42 @@ export function createPlayerShip(): PlayerShip {
   }
 
   // Greebles (detalle mecánico) deterministas
-  for (let i = 0; i < 7; i++) {
-    const w = 0.12 + rng() * 0.2;
-    const d = 0.18 + rng() * 0.35;
+  for (let i = 0; i < 12; i++) {
+    const w = 0.1 + rng() * 0.22;
+    const d = 0.16 + rng() * 0.4;
     add(new THREE.BoxGeometry(w, 0.1, d), i % 2 ? brass : hullLight, (m) => {
-      m.position.set((rng() - 0.5) * 0.7, 0.32 + rng() * 0.18, -1.0 + rng() * 2.6);
+      m.position.set((rng() - 0.5) * 1.0, (rng() < 0.5 ? 0.3 : -0.32) + (rng() - 0.5) * 0.2, -1.2 + rng() * 3.0);
+    });
+  }
+
+  // Tiras emisivas (líneas de energía) a lo largo del casco
+  for (const side of [-1, 1] as const) {
+    add(new THREE.BoxGeometry(0.04, 0.04, 2.4), accent, (m) => {
+      m.position.set(side * 0.5, 0.12, 0.1);
+    });
+  }
+  // Tomas laterales con brillo
+  for (const side of [-1, 1] as const) {
+    add(new THREE.BoxGeometry(0.18, 0.22, 0.9), dark, (m) => {
+      m.position.set(side * 0.62, -0.08, 0.8);
+      m.rotation.y = side * 0.08;
+    });
+    add(new THREE.BoxGeometry(0.1, 0.16, 0.7), accent, (m) => {
+      m.position.set(side * 0.66, -0.08, 0.8);
+    });
+  }
+  // Aletas ventrales
+  for (const side of [-1, 1] as const) {
+    add(new THREE.BoxGeometry(0.05, 0.45, 0.7), hullLight, (m) => {
+      m.position.set(side * 0.35, -0.5, 1.4);
+      m.rotation.z = side * -0.35;
+    });
+  }
+  // Anillos de refuerzo del fuselaje
+  for (const z of [-1.4, -0.2, 1.0]) {
+    add(new THREE.TorusGeometry(0.58, 0.035, 8, 20), brass, (m) => {
+      m.rotation.x = Math.PI / 2;
+      m.position.z = z;
     });
   }
 
@@ -163,13 +195,16 @@ export function createPlayerShip(): PlayerShip {
     glows.push(glow);
   }
 
-  // Luz propia: ilumina el casco en el espacio oscuro.
-  const keyLight = new THREE.PointLight(0xffd2a0, 2.0, 60, 2);
-  keyLight.position.set(0.5, 3.2, -1.5);
+  // Luz propia: ilumina el casco en el espacio oscuro (faro de la nave).
+  const keyLight = new THREE.PointLight(0xffd2a0, 3.4, 85, 2);
+  keyLight.position.set(0.5, 3.4, -1.5);
   ship.add(keyLight);
-  const rimLight = new THREE.PointLight(0xff9050, 1.3, 40, 2);
-  rimLight.position.set(-1, -2.2, 2.5);
+  const rimLight = new THREE.PointLight(0xff9050, 2.4, 60, 2);
+  rimLight.position.set(-1.2, -2.4, 2.8);
   ship.add(rimLight);
+  const fillLight = new THREE.PointLight(0xffc070, 1.6, 55, 2);
+  fillLight.position.set(0, 0.6, -3);
+  ship.add(fillLight);
 
   return {
     object: ship,
