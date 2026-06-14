@@ -107,15 +107,13 @@ export class SpaceEngine {
       new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.15),
     );
 
-    // Control de vuelo (WASD + pointer lock + nitro)
+    // Control de vuelo (ratón libre + WASD + nitro)
     this.flight = new FlightController(this.camera, this.canvas);
     this.flight.attach();
 
     // HUD (reticula, velocidad, nitro, coords, vignette)
     this.hud = new Hud(host);
-    this.flight.onPointerLockChange = (locked) => {
-      if (locked) this.hud.hideStartMessage();
-    };
+    this.flight.onFirstInput = () => this.hud.hideStartMessage();
 
     // ── Mundo ──
     this.galaxy = createGalaxy(this.renderer);
@@ -134,7 +132,7 @@ export class SpaceEngine {
       },
       onCancel: () => {},
     });
-    this.canvas.addEventListener('click', this.onCanvasSelect);
+    this.canvas.addEventListener('click', this.onCanvasClick);
     this.buildEscMenu(host);
 
     window.addEventListener('resize', this.onResize);
@@ -203,16 +201,17 @@ export class SpaceEngine {
     else this.resume();
   };
 
-  // Selección con la reticula: solo cuando el puntero está bloqueado (en pleno vuelo)
-  // y no hay overlay abierto. Convive con el click de FlightController (que solo
-  // actúa cuando el puntero NO está bloqueado, para pedir pointer lock).
-  private onCanvasSelect = () => {
-    if (!this.flight.isPointerLocked || this.overlay.visible) return;
-    const app = this.constellations.raycastFromCenter(this.camera);
-    if (app) {
-      document.exitPointerLock();
-      this.overlay.show(app);
-    }
+  // Clic en el canvas: abre el proyecto de la constelación bajo el cursor
+  // (raycast desde la posición del ratón). Sin pointer lock.
+  private onCanvasClick = (e: MouseEvent) => {
+    if (this.overlay.visible) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -(((e.clientY - rect.top) / rect.height) * 2 - 1),
+    );
+    const app = this.constellations.pickApp(this.camera, ndc);
+    if (app) this.overlay.show(app);
   };
 
   private buildEscMenu(host: HTMLElement) {
@@ -234,8 +233,10 @@ export class SpaceEngine {
   // alterna el menú. No interferir mientras hay lock o el overlay de proyecto está abierto.
   private onEscKey = (e: KeyboardEvent) => {
     if (e.code !== 'Escape') return;
-    if (document.pointerLockElement) return;
-    if (this.overlay.visible) return;
+    if (this.overlay.visible) {
+      this.overlay.hide();
+      return;
+    }
     this.toggleEscMenu();
   };
 
@@ -290,7 +291,7 @@ export class SpaceEngine {
     this.constellations?.dispose();
     this.radar?.dispose();
     this.overlay?.dispose();
-    this.canvas?.removeEventListener('click', this.onCanvasSelect);
+    this.canvas?.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('keydown', this.onEscKey);
     this.escMenu?.remove();
     window.removeEventListener('resize', this.onResize);

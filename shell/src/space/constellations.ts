@@ -23,7 +23,6 @@ export class ConstellationManager {
   private groups: THREE.Group[] = [];
   private points: THREE.Points[] = [];
   private raycaster = new THREE.Raycaster();
-  private readonly center = new THREE.Vector2(0, 0);
 
   constructor(
     private scene: THREE.Scene,
@@ -64,14 +63,25 @@ export class ConstellationManager {
     }
   }
 
-  /** App de la constelación bajo la reticula (centro de pantalla), o null. */
-  raycastFromCenter(camera: THREE.Camera): AppInfo | null {
-    this.raycaster.setFromCamera(this.center, camera);
+  private raycastGroup(camera: THREE.Camera, ndc: THREE.Vector2): THREE.Group | null {
+    this.raycaster.setFromCamera(ndc, camera);
     const hits = this.raycaster.intersectObjects(this.points, false);
     const first = hits[0];
-    if (!first) return null;
-    const group = first.object.parent as THREE.Group | null;
-    return group ? ((group.userData as ConstellationUserData).app ?? null) : null;
+    return first ? (first.object.parent as THREE.Group | null) : null;
+  }
+
+  /** App de la constelación bajo el punto NDC dado, o null. */
+  pickApp(camera: THREE.Camera, ndc: THREE.Vector2): AppInfo | null {
+    const g = this.raycastGroup(camera, ndc);
+    return g ? ((g.userData as ConstellationUserData).app ?? null) : null;
+  }
+
+  /** Constelación apuntada (app + centro en espacio de escena) para etiqueta flotante. */
+  pickAimed(camera: THREE.Camera, ndc: THREE.Vector2): { app: AppInfo; center: THREE.Vector3 } | null {
+    const g = this.raycastGroup(camera, ndc);
+    if (!g) return null;
+    const ud = g.userData as ConstellationUserData;
+    return { app: ud.app, center: g.position.clone() };
   }
 
   getRadarBlips(): RadarBlip[] {

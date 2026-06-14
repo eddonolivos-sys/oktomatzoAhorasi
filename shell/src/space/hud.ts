@@ -24,9 +24,11 @@ export class Hud {
       <div id="startMsg">
         <h1>Ramatzo</h1>
         <p>
-          <span class="key">W</span> <span class="key">A</span> <span class="key">S</span> <span class="key">D</span> Navegar &nbsp;&middot;&nbsp;
-          <span class="key">SPACE</span> Nitro &nbsp;&middot;&nbsp; <span class="key">MOUSE</span> Mirar<br/>
-          Haz clic en las constelaciones para explorar
+          <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
+          <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
+          <span class="key">RAT&Oacute;N</span> Mirar &nbsp;&middot;&nbsp;
+          <span class="key">SPACE</span> Nitro<br/>
+          Apunta a una constelaci&oacute;n y haz clic para entrar
         </p>
       </div>
       <div id="hud">
