@@ -15,6 +15,7 @@ export class Hud {
   private zVal: HTMLElement;
   private sysVal: HTMLElement;
   private startMsg: HTMLElement;
+  private strayWarn: HTMLElement;
 
   constructor(host: HTMLElement) {
     this.root = document.createElement('div');
@@ -24,11 +25,11 @@ export class Hud {
       <div id="startMsg">
         <h1>Ramatzo</h1>
         <p>
+          <span class="key">CLIC</span> Mirar &nbsp;&middot;&nbsp;
           <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
           <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
-          <span class="key">RAT&Oacute;N</span> Mirar &nbsp;&middot;&nbsp;
           <span class="key">SPACE</span> Nitro<br/>
-          Apunta a una constelaci&oacute;n y haz clic para entrar
+          Apunta con la mira a una constelaci&oacute;n y haz clic para entrar
         </p>
       </div>
       <div id="hud">
@@ -40,7 +41,8 @@ export class Hud {
         <span class="label">SECTOR</span> <span id="sectorVal">0:0</span><br/>
         <span class="label">Z</span> <span id="zVal">0.00</span> AU<br/>
         <span class="label">SISTEMAS</span> <span id="sysVal">OK</span>
-      </div>`;
+      </div>
+      <div id="strayWarn"></div>`;
     host.appendChild(this.root);
 
     const q = (id: string) => this.root.querySelector('#' + id) as HTMLElement;
@@ -52,6 +54,7 @@ export class Hud {
     this.zVal = q('zVal');
     this.sysVal = q('sysVal');
     this.startMsg = q('startMsg');
+    this.strayWarn = q('strayWarn');
   }
 
   update(state: FlightState, worldX: number, worldZ: number, maxNitroSpeed: number) {
@@ -77,6 +80,19 @@ export class Hud {
 
   hideStartMessage() {
     this.startMsg.classList.add('hidden');
+  }
+
+  /** Aviso de orientación cuando el jugador se aleja de la zona de proyectos. */
+  setStray(straying: boolean, urgent: boolean) {
+    if (straying) {
+      this.strayWarn.textContent = urgent
+        ? 'SIN RUMBO — regresa hacia los proyectos'
+        : 'Te alejas de la zona de proyectos';
+      this.strayWarn.classList.add('visible');
+      this.strayWarn.classList.toggle('urgent', urgent);
+    } else {
+      this.strayWarn.classList.remove('visible');
+    }
   }
 
   dispose() {

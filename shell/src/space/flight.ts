@@ -8,39 +8,35 @@ export interface FlightState {
 }
 
 /**
- * Control de vuelo libre (sin pointer lock):
- *  - Ratón: mirar. La vista rota según el desplazamiento del cursor respecto al
- *    centro (rate-based, con zona muerta central). No hace falta clic.
- *  - W/S: avanzar / retroceder (en la dirección de la vista, navegación 3D).
- *  - A/D: desplazamiento lateral (strafe), no rotación.
- *  - Space: nitro.
- * Previene scroll de página con Space/flechas. Expone el cursor en NDC para
- * raycast de selección y etiquetas.
+ * Control de vuelo estilo demo: mirar DIRECTO con el ratón vía Pointer Lock
+ * (se aplica movementX/Y directamente, sin suavizado). Un clic en el canvas
+ * activa el bloqueo de puntero; Escape lo suelta. W/S avanzar/retroceder, A/D
+ * desplazamiento lateral (strafe, no rotación), Space nitro. setSpeedScale()
+ * aplica la frontera blanda (freno progresivo lejos de los proyectos).
  */
 export class FlightController {
   private keys: Record<string, boolean> = {};
+  private pointerLocked = false;
+  private mouseDX = 0;
+  private mouseDY = 0;
   private velocity = new THREE.Vector3();
   private euler = new THREE.Euler(0, 0, 0, 'YXZ');
   private forward = new THREE.Vector3();
   private right = new THREE.Vector3();
   private readonly up = new THREE.Vector3(0, 1, 0);
 
-  /** Cursor relativo al centro del canvas, en [-1, 1] (y hacia abajo positivo). */
-  private cursorX = 0;
-  private cursorY = 0;
-  hasCursor = false;
-
   yaw = 0;
   pitch = 0;
   maxSpeed = 90;
-  acceleration = 95;
+  acceleration = 120;
   damping = 0.96;
-  nitroMultiplier = 10;
-  lookSpeed = 1.9; // rad/s al borde de la pantalla
-  deadZone = 0.14; // fracción central sin rotación
-  pitchLimit = 1.3;
+  nitroMultiplier = 16;
+  sensitivity = 0.0022;
+  pitchLimit = 1.35;
   enabled = true;
+  private speedScale = 1;
 
+  onPointerLockChange?: (locked: boolean) => void;
   onFirstInput?: () => void;
   private firstInputDone = false;
 
@@ -52,20 +48,26 @@ export class FlightController {
   attach() {
     document.addEventListener('keydown', this.onKeyDown);
     document.addEventListener('keyup', this.onKeyUp);
-    this.canvas.addEventListener('mousemove', this.onMouseMove);
-    this.canvas.addEventListener('mouseleave', this.onMouseLeave);
+    this.canvas.addEventListener('click', this.onCanvasClick);
+    document.addEventListener('pointerlockchange', this.onPLChange);
+    document.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('blur', this.onBlur);
   }
 
   detach() {
     document.removeEventListener('keydown', this.onKeyDown);
     document.removeEventListener('keyup', this.onKeyUp);
-    this.canvas.removeEventListener('mousemove', this.onMouseMove);
-    this.canvas.removeEventListener('mouseleave', this.onMouseLeave);
+    this.canvas.removeEventListener('click', this.onCanvasClick);
+    document.removeEventListener('pointerlockchange', this.onPLChange);
+    document.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('blur', this.onBlur);
+    if (document.pointerLockElement === this.canvas) document.exitPointerLock();
   }
 
-  /** Activa/desactiva el control (overlay de proyecto o cabina abiertos). */
+  get isPointerLocked() {
+    return this.pointerLocked;
+  }
+
   setEnabled(on: boolean) {
     if (this.enabled === on) return;
     this.enabled = on;
@@ -75,9 +77,9 @@ export class FlightController {
     }
   }
 
-  /** Cursor en coordenadas NDC (-1..1, y hacia arriba) para raycast. */
-  get cursorNDC(): THREE.Vector2 {
-    return new THREE.Vector2(this.cursorX, -this.cursorY);
+  /** Escala de velocidad para la frontera blanda (1 = normal, →0.05 lejos de proyectos). */
+  setSpeedScale(s: number) {
+    this.speedScale = Math.max(0.05, Math.min(1, s));
   }
 
   private markInput() {
@@ -97,40 +99,40 @@ export class FlightController {
     this.keys[e.code] = false;
   };
 
+  private onCanvasClick = () => {
+    if (!this.pointerLocked) this.canvas.requestPointerLock();
+  };
+
+  private onPLChange = () => {
+    this.pointerLocked = document.pointerLockElement === this.canvas;
+    if (this.pointerLocked) this.markInput();
+    this.onPointerLockChange?.(this.pointerLocked);
+  };
+
   private onMouseMove = (e: MouseEvent) => {
-    const rect = this.canvas.getBoundingClientRect();
-    this.cursorX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.cursorY = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-    this.hasCursor = true;
-    this.markInput();
+    if (this.pointerLocked) {
+      this.mouseDX += e.movementX;
+      this.mouseDY += e.movementY;
+    }
   };
 
-  private onMouseLeave = () => {
-    this.hasCursor = false;
-  };
-
-  // Al perder foco (alt-tab, foco al iframe de la cabina) soltar todas las teclas
-  // para que la nave no quede acelerando sola.
+  // Al perder foco (alt-tab, foco al iframe de la cabina) soltar todas las teclas.
   private onBlur = () => {
     this.keys = {};
   };
-
-  private applyDeadZone(v: number): number {
-    const a = Math.abs(v);
-    if (a < this.deadZone) return 0;
-    const t = (a - this.deadZone) / (1 - this.deadZone);
-    return Math.sign(v) * t * t; // curva cuadrática: suave cerca del centro
-  }
 
   update(delta: number): FlightState {
     if (!this.enabled) {
       return { speed: 0, isNitro: false, yaw: this.yaw, pitch: this.pitch };
     }
-    // Mirar: rotación proporcional al offset del cursor (sin pointer lock).
-    if (this.hasCursor) {
-      this.yaw -= this.applyDeadZone(this.cursorX) * this.lookSpeed * delta;
-      this.pitch -= this.applyDeadZone(this.cursorY) * this.lookSpeed * delta;
+
+    // Mirar DIRECTO (sin suavizado): aplicar el desplazamiento acumulado del ratón.
+    if (this.pointerLocked && (this.mouseDX !== 0 || this.mouseDY !== 0)) {
+      this.yaw -= this.mouseDX * this.sensitivity;
+      this.pitch -= this.mouseDY * this.sensitivity;
       this.pitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.pitch));
+      this.mouseDX = 0;
+      this.mouseDY = 0;
     }
     this.euler.set(this.pitch, this.yaw, 0);
     this.camera.quaternion.setFromEuler(this.euler);
@@ -139,7 +141,7 @@ export class FlightController {
     this.right.crossVectors(this.forward, this.up).normalize();
 
     const isNitro = !!this.keys['Space'];
-    const mult = isNitro ? this.nitroMultiplier : 1;
+    const mult = (isNitro ? this.nitroMultiplier : 1) * this.speedScale;
     const accel = this.acceleration * delta * mult;
 
     if (this.keys['KeyW'] || this.keys['ArrowUp']) this.velocity.add(this.forward.clone().multiplyScalar(accel));

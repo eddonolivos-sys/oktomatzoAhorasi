@@ -49,6 +49,7 @@ export class SpaceEngine {
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
   private readonly rebaseThreshold = 4000;
+  private readonly centerNDC = new THREE.Vector2(0, 0);
 
   private flight!: FlightController;
   private lastFlight?: FlightState;
@@ -173,6 +174,12 @@ export class SpaceEngine {
     // ── Actualización de subsistemas ──
     // Congela el vuelo (mirar + WASD) mientras hay overlay de proyecto o menú ESC.
     this.flight.setEnabled(!this.overlay.visible && !this.escMenu.classList.contains('visible'));
+    // Frontera blanda: dentro de la esfera poblada (≈ los proyectos) vuelo normal;
+    // al alejarse del origen, freno progresivo hasta un mínimo, con aviso de rumbo.
+    const fromOrigin = this.camera.position.clone().add(this.worldOffset).length();
+    const SOFT = 3400;
+    const HARD = 5800;
+    this.flight.setSpeedScale(fromOrigin <= SOFT ? 1 : Math.max(0.05, 1 - (fromOrigin - SOFT) / (HARD - SOFT)));
     const flight = this.flight.update(delta);
     this.lastFlight = flight;
     this.maybeRebase();
@@ -182,6 +189,7 @@ export class SpaceEngine {
       this.camera.position.z + this.worldOffset.z,
       this.flight.maxSpeed * this.flight.nitroMultiplier,
     );
+    this.hud.setStray(fromOrigin > SOFT, fromOrigin > HARD * 0.85);
 
     this.galaxy.update(this.elapsed, delta, this.camera.position);
     this.ramatzoSun.update(this.elapsed);
@@ -226,17 +234,17 @@ export class SpaceEngine {
 
   // Clic en el canvas: abre el proyecto de la constelación bajo el cursor
   // (raycast desde la posición del ratón). Sin pointer lock.
-  private onCanvasClick = (e: MouseEvent) => {
-    if (this.overlay.visible) return;
-    e.preventDefault();
-    const rect = this.canvas.getBoundingClientRect();
-    const ndc = new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -(((e.clientY - rect.top) / rect.height) * 2 - 1),
-    );
+  // Clic: si el puntero no está bloqueado, FlightController lo bloquea (mirar).
+  // Si ya está bloqueado, selecciona el proyecto bajo la reticula (centro) y suelta
+  // el puntero para poder usar el overlay.
+  private onCanvasClick = () => {
+    if (this.overlay.visible || !this.flight.isPointerLocked) return;
     this.scene.updateMatrixWorld(); // posiciones de planetas en órbita al día para el raycast
-    const app = this.constellations.pickApp(this.camera, ndc);
-    if (app) this.overlay.show(app);
+    const app = this.constellations.pickApp(this.camera, this.centerNDC);
+    if (app) {
+      document.exitPointerLock();
+      this.overlay.show(app);
+    }
   };
 
   private buildEscMenu(host: HTMLElement) {
@@ -295,13 +303,11 @@ export class SpaceEngine {
 
   // Etiqueta flotante de la constelación apuntada (cursor o centro) + etiqueta del sol.
   private updateLabels() {
-    const ndc = this.flight.hasCursor ? this.flight.cursorNDC : new THREE.Vector2(0, 0);
-    const aimed = this.constellations.pickAimed(this.camera, ndc);
-    let aiming = false;
+    // Apuntado desde la reticula central (la vista se controla con el ratón bloqueado).
+    const aimed = this.constellations.pickAimed(this.camera, this.centerNDC);
     if (aimed) {
       const p = this.project(aimed.center);
       if (p.visible) {
-        aiming = true;
         this.aimLabel.textContent = aimed.app.name;
         this.aimLabel.style.left = `${p.x}px`;
         this.aimLabel.style.top = `${p.y}px`;
@@ -312,8 +318,6 @@ export class SpaceEngine {
     } else {
       this.aimLabel.classList.remove('visible');
     }
-    // Affordance: el cursor cambia a "pointer" sobre una constelación clicable.
-    this.canvas.style.cursor = aiming ? 'pointer' : 'crosshair';
 
     const rp = this.project(this.ramatzoSun.position);
     if (rp.visible) {

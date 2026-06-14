@@ -94,6 +94,35 @@
   color: var(--space-text-2);
 }
 
+/* Aviso de orientación (al alejarse de la zona de proyectos) */
+#strayWarn {
+  position: fixed;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 110;
+  pointer-events: none;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--orange-amber);
+  text-shadow: 0 0 14px rgba(230, 168, 23, 0.4), 0 1px 3px #000;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#strayWarn.visible {
+  opacity: 0.9;
+}
+#strayWarn.urgent {
+  color: var(--orange-ember);
+  animation: stray-pulse 1s ease-in-out infinite;
+}
+@keyframes stray-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 /* Reticula */
 #reticle {
   position: fixed;
