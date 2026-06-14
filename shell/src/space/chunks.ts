@@ -39,7 +39,7 @@ export class ChunkManager {
   ) {
     this.chunkSize = new THREE.Vector3(...(opts.chunkSize ?? [100, 100, 50]));
     this.loadRadius = opts.loadRadius ?? 2;
-    this.starsPerChunk = opts.starsPerChunk ?? 500;
+    this.starsPerChunk = opts.starsPerChunk ?? 250;
     this.maxLoaded = opts.maxLoadedChunks ?? 125;
   }
 
@@ -98,7 +98,7 @@ export class ChunkManager {
     const rng = seededRng(hashChunk(cx, cy, cz));
     const geometry = buildStarFieldGeometry({
       count: this.starsPerChunk,
-      sizeBounds: [1, 4],
+      sizeBounds: [0.5, 1.6],
       box: { min: [0, 0, 0], max: [this.chunkSize.x, this.chunkSize.y, this.chunkSize.z] },
       rng,
     });

@@ -12,7 +12,7 @@ export interface Galaxy {
  * se "alcance".
  */
 export function createGalaxy(renderer: THREE.WebGLRenderer): Galaxy {
-  const count = 80000;
+  const count = 40000;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
