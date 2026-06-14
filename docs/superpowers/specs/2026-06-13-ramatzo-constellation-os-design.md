@@ -213,7 +213,7 @@ Versión modesta: al `login-success`, oscurecer desde bordes + vibración CSS br
 ## 8. Estilo, tokens y tipografía
 
 - `themes.css`: añadir bloque `--space-*`, `--orange-*`, `--metal-*`, `--text-*` (valores de §12 del plan). No se rompen los tokens `--shell-*` existentes (el login y otros componentes los usan).
-- `index.html`: `<link>` a Cinzel, Cinzel Decorative, JetBrains Mono (Inter ya/О opcional).
+- `index.html`: `<link>` a Cinzel, Cinzel Decorative, JetBrains Mono (Inter opcional).
 - Fuentes mapeadas: display=Cinzel Decorative, serif=Cinzel, mono=JetBrains Mono.
 
 ---
