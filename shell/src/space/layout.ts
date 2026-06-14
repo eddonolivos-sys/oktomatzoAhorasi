@@ -74,10 +74,10 @@ export function colorForCategory(category: string | undefined): number {
 export function constellationPosition(index: number): { x: number; y: number; z: number } {
   const golden = 2.399963267; // ángulo áureo (rad)
   const a = index * golden;
-  const dist = 350 + index * 230;
+  const dist = 500 + index * 350;
   return {
     x: Math.cos(a) * dist * 0.6,
-    y: Math.sin(a * 0.7) * dist * 0.18,
-    z: -120 - dist,
+    y: Math.sin(a * 0.7) * dist * 0.2,
+    z: -180 - dist,
   };
 }
