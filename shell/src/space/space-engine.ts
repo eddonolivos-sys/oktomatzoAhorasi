@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { FlightController, type FlightState } from './flight';
 import { Hud } from './hud';
+import { createGalaxy, type Galaxy } from './galaxy';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -43,6 +44,7 @@ export class SpaceEngine {
   private flight!: FlightController;
   private lastFlight?: FlightState;
   private hud!: Hud;
+  private galaxy!: Galaxy;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -102,6 +104,10 @@ export class SpaceEngine {
       if (locked) this.hud.hideStartMessage();
     };
 
+    // ── Mundo ──
+    this.galaxy = createGalaxy(this.renderer);
+    this.scene.add(this.galaxy.object);
+
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -128,6 +134,8 @@ export class SpaceEngine {
       this.camera.position.z + this.worldOffset.z,
       this.flight.maxSpeed * this.flight.nitroMultiplier,
     );
+
+    this.galaxy.update(this.elapsed, delta, this.camera.position);
 
     this.composer.render();
   };
@@ -179,6 +187,7 @@ export class SpaceEngine {
     this.pause();
     this.flight?.detach();
     this.hud?.dispose();
+    this.galaxy?.dispose();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
