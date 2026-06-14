@@ -56,6 +56,7 @@ export class SpaceEngine {
   private radar!: Radar;
   private ships: THREE.Group[] = [];
   private overlay!: ProjectOverlay;
+  private escMenu!: HTMLElement;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -133,6 +134,7 @@ export class SpaceEngine {
       onCancel: () => {},
     });
     this.canvas.addEventListener('click', this.onCanvasSelect);
+    this.buildEscMenu(host);
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -211,6 +213,35 @@ export class SpaceEngine {
     }
   };
 
+  private buildEscMenu(host: HTMLElement) {
+    this.escMenu = document.createElement('div');
+    this.escMenu.id = 'escMenu';
+    this.escMenu.innerHTML = `
+      <div class="panel">
+        <h3>Ramatzo</h3>
+        <button data-act="resume">Reanudar</button>
+        <button data-act="logout">Cerrar sesión</button>
+      </div>`;
+    host.appendChild(this.escMenu);
+    this.escMenu.querySelector('[data-act="resume"]')!.addEventListener('click', () => this.toggleEscMenu(false));
+    this.escMenu.querySelector('[data-act="logout"]')!.addEventListener('click', () => this.opts.onLogout());
+    document.addEventListener('keydown', this.onEscKey);
+  }
+
+  // Escape suelta el pointer lock de forma nativa; un segundo Escape (ya sin lock)
+  // alterna el menú. No interferir mientras hay lock o el overlay de proyecto está abierto.
+  private onEscKey = (e: KeyboardEvent) => {
+    if (e.code !== 'Escape') return;
+    if (document.pointerLockElement) return;
+    if (this.overlay.visible) return;
+    this.toggleEscMenu();
+  };
+
+  private toggleEscMenu(force?: boolean) {
+    const show = force ?? !this.escMenu.classList.contains('visible');
+    this.escMenu.classList.toggle('visible', show);
+  }
+
   start() {
     if (this.running) return;
     this.running = true;
@@ -241,6 +272,8 @@ export class SpaceEngine {
     this.radar?.dispose();
     this.overlay?.dispose();
     this.canvas?.removeEventListener('click', this.onCanvasSelect);
+    document.removeEventListener('keydown', this.onEscKey);
+    this.escMenu?.remove();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
