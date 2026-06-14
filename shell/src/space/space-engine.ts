@@ -46,6 +46,7 @@ export class SpaceEngine {
 
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
+  private readonly rebaseThreshold = 4000;
 
   private flight!: FlightController;
   private lastFlight?: FlightState;
@@ -156,6 +157,7 @@ export class SpaceEngine {
     // ── Actualización de subsistemas (se amplía en tareas posteriores) ──
     const flight = this.flight.update(delta);
     this.lastFlight = flight;
+    this.maybeRebase();
     this.hud.update(
       flight,
       this.camera.position.x + this.worldOffset.x,
@@ -240,6 +242,23 @@ export class SpaceEngine {
   private toggleEscMenu(force?: boolean) {
     const show = force ?? !this.escMenu.classList.contains('visible');
     this.escMenu.classList.toggle('visible', show);
+  }
+
+  // Rebase de origen: al alejarse mucho, traslada cámara + mundo de vuelta hacia
+  // el origen para evitar jitter de coma flotante. worldOffset preserva la posición
+  // "real" (HUD/sector). Aditivo y separable: si causara problemas, basta subir el umbral.
+  private maybeRebase() {
+    if (this.camera.position.length() <= this.rebaseThreshold) return;
+    const delta = new THREE.Vector3(
+      Math.round(this.camera.position.x / 100) * 100,
+      Math.round(this.camera.position.y / 100) * 100,
+      Math.round(this.camera.position.z / 50) * 50,
+    );
+    this.camera.position.sub(delta);
+    this.worldOffset.add(delta);
+    this.chunks.rebase(delta);
+    this.constellations.rebase(delta);
+    for (const s of this.ships) s.position.sub(delta);
   }
 
   start() {
