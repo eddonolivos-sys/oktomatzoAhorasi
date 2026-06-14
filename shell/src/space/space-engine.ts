@@ -11,6 +11,7 @@ import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import { ConstellationManager } from './constellations';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
+import { createPlayerShip, type PlayerShip } from './player-ship';
 import { ProjectOverlay } from './project-overlay';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
@@ -58,6 +59,7 @@ export class SpaceEngine {
   private constellations!: ConstellationManager;
   private radar!: Radar;
   private ships: THREE.Group[] = [];
+  private playerShip!: PlayerShip;
   private overlay!: ProjectOverlay;
   private escMenu!: HTMLElement;
   private aimLabel!: HTMLElement;
@@ -131,6 +133,14 @@ export class SpaceEngine {
     this.radar = new Radar(host);
     this.ships = placeShips(this.scene);
 
+    // Nave del jugador visible (vista de persecución): adjunta a la cámara.
+    // La cámara debe estar en la escena para que sus hijos se rendericen.
+    this.scene.add(this.camera);
+    this.playerShip = createPlayerShip();
+    this.playerShip.object.position.set(0, -2.0, -9);
+    this.playerShip.object.scale.setScalar(0.85);
+    this.camera.add(this.playerShip.object);
+
     // Selección de proyecto (reticula + click)
     this.overlay = new ProjectOverlay(host, {
       onEnter: (app) => {
@@ -181,6 +191,7 @@ export class SpaceEngine {
     this.constellations.update(this.elapsed, delta);
     this.radar.draw(this.camera.position, flight.yaw, this.constellations.getRadarBlips(), this.ramatzoSun.position);
     floatShips(this.ships, this.elapsed, delta);
+    this.playerShip.update(this.elapsed);
 
     this.composer.render();
     this.updateLabels();
@@ -358,6 +369,7 @@ export class SpaceEngine {
     this.hud?.dispose();
     this.galaxy?.dispose();
     this.ramatzoSun?.dispose();
+    this.playerShip?.dispose();
     this.chunks?.dispose();
     disposeStarGasMaterial();
     this.constellations?.dispose();
