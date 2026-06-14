@@ -10,6 +10,7 @@ import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import { ConstellationManager } from './constellations';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
+import { ProjectOverlay } from './project-overlay';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -54,6 +55,7 @@ export class SpaceEngine {
   private constellations!: ConstellationManager;
   private radar!: Radar;
   private ships: THREE.Group[] = [];
+  private overlay!: ProjectOverlay;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -122,6 +124,16 @@ export class SpaceEngine {
     this.radar = new Radar(host);
     this.ships = placeShips(this.scene);
 
+    // Selección de proyecto (reticula + click)
+    this.overlay = new ProjectOverlay(host, {
+      onEnter: (app) => {
+        this.overlay.hide();
+        this.opts.onEnterApp(app);
+      },
+      onCancel: () => {},
+    });
+    this.canvas.addEventListener('click', this.onCanvasSelect);
+
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
@@ -187,6 +199,18 @@ export class SpaceEngine {
     else this.resume();
   };
 
+  // Selección con la reticula: solo cuando el puntero está bloqueado (en pleno vuelo)
+  // y no hay overlay abierto. Convive con el click de FlightController (que solo
+  // actúa cuando el puntero NO está bloqueado, para pedir pointer lock).
+  private onCanvasSelect = () => {
+    if (!this.flight.isPointerLocked || this.overlay.visible) return;
+    const app = this.constellations.raycastFromCenter(this.camera);
+    if (app) {
+      document.exitPointerLock();
+      this.overlay.show(app);
+    }
+  };
+
   start() {
     if (this.running) return;
     this.running = true;
@@ -215,6 +239,8 @@ export class SpaceEngine {
     disposeStarGasMaterial();
     this.constellations?.dispose();
     this.radar?.dispose();
+    this.overlay?.dispose();
+    this.canvas?.removeEventListener('click', this.onCanvasSelect);
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
