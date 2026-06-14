@@ -176,6 +176,55 @@ export class ShellLogin extends LitElement {
 
     .name-field { display: none; }
     .name-field.visible { display: block; }
+
+    /* ── Tema espacial (naranja / ámbar / oxidado) ── */
+    :host {
+      background:
+        radial-gradient(125% 85% at 50% -15%, var(--space-surface), transparent 60%),
+        var(--space-deep);
+    }
+    .bg-texture { background-image: radial-gradient(rgba(230, 168, 23, 0.04) 1px, transparent 1px); }
+    .card {
+      background: rgba(26, 14, 8, 0.92);
+      border: 1px solid var(--metal-iron);
+      border-radius: 14px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(139, 58, 26, 0.06);
+    }
+    .brand {
+      font-family: var(--font-display);
+      color: var(--space-text);
+      letter-spacing: 0.06em;
+    }
+    .brand-dot { color: var(--orange-amber); }
+    .subtitle { color: var(--space-text-2); font-family: var(--font-serif); letter-spacing: 0.04em; }
+    .tabs { background: rgba(10, 5, 3, 0.5); border-color: var(--metal-iron); }
+    .tab { color: var(--space-text-2); font-family: var(--font-serif); }
+    .tab:hover { color: var(--space-text); }
+    .tab.active { background: var(--metal-iron); color: var(--orange-amber); box-shadow: none; }
+    label { color: var(--space-text-2); }
+    input {
+      background: rgba(10, 5, 3, 0.6);
+      border: 1px solid var(--metal-iron);
+      color: var(--space-text);
+    }
+    input::placeholder { color: var(--space-text-dim); }
+    input:focus { border-color: var(--orange-amber); box-shadow: 0 0 0 3px rgba(230, 168, 23, 0.15); }
+    .submit-btn {
+      background: var(--orange-burnt);
+      color: #fff;
+      font-family: var(--font-serif);
+      letter-spacing: 0.08em;
+      box-shadow: 0 0 20px rgba(200, 75, 49, 0.25);
+    }
+    .submit-btn:hover:not(:disabled) {
+      background: var(--orange-ember);
+      box-shadow: 0 0 28px rgba(255, 107, 53, 0.35);
+    }
+    .error-msg {
+      background: rgba(204, 51, 51, 0.12);
+      color: #e08a8a;
+      border-color: rgba(204, 51, 51, 0.3);
+    }
   `;
 
   @state() private _mode: 'login' | 'register' = 'login';

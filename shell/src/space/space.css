@@ -313,6 +313,31 @@
   color: var(--orange-burnt);
 }
 
+/* Ignición (transición de entrada al espacio) */
+@keyframes ignition-fade {
+  0% { opacity: 1; }
+  55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes ignition-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(2px, -1px); }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(1px, -2px); }
+}
+#ignition {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.15) 0%, #0a0503 45%, #000 100%);
+  animation: ignition-fade 1.4s ease-out forwards;
+}
+#space-host.igniting {
+  animation: ignition-shake 0.5s ease-in-out 2;
+}
+
 /* Vignette */
 #vignette {
   position: fixed;

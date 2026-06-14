@@ -18,6 +18,7 @@ export class ShellSpace extends LitElement {
 
   @state() private webglOk = true;
   @state() private cockpitApp: AppInfo | null = null;
+  @state() private igniting = true;
 
   private engine: SpaceEngine | null = null;
 
@@ -47,6 +48,10 @@ export class ShellSpace extends LitElement {
       },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
     });
+
+    window.setTimeout(() => {
+      this.igniting = false;
+    }, 1500);
   }
 
   disconnectedCallback() {
@@ -75,7 +80,12 @@ export class ShellSpace extends LitElement {
       `;
     }
     return html`
-      <div id="space-host" style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"></div>
+      <div
+        id="space-host"
+        class=${this.igniting ? 'igniting' : ''}
+        style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
+      ></div>
+      ${this.igniting ? html`<div id="ignition"></div>` : ''}
       ${this.cockpitApp
         ? html`<shell-cockpit
             .app=${this.cockpitApp}
