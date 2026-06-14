@@ -48,7 +48,7 @@ export class SpaceEngine {
 
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
-  private readonly rebaseThreshold = 4000;
+  private readonly rebaseThreshold = 200000;
   private readonly centerNDC = new THREE.Vector2(0, 0);
 
   private flight!: FlightController;
@@ -88,10 +88,10 @@ export class SpaceEngine {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0503);
-    this.scene.fog = new THREE.Fog(0x0a0503, 3000, 18000);
+    this.scene.fog = new THREE.Fog(0x0a0503, 35000, 100000);
 
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 22000);
-    this.camera.position.set(0, 4, 60);
+    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 110000);
+    this.camera.position.set(0, 120, 2600);
 
     // Iluminación cálida
     this.scene.add(new THREE.AmbientLight(0x3a2a20, 0.4));
@@ -177,8 +177,8 @@ export class SpaceEngine {
     // Frontera blanda: dentro de la esfera poblada (≈ los proyectos) vuelo normal;
     // al alejarse del origen, freno progresivo hasta un mínimo, con aviso de rumbo.
     const fromOrigin = this.camera.position.clone().add(this.worldOffset).length();
-    const SOFT = 3400;
-    const HARD = 5800;
+    const SOFT = 70000;
+    const HARD = 100000;
     this.flight.setSpeedScale(fromOrigin <= SOFT ? 1 : Math.max(0.05, 1 - (fromOrigin - SOFT) / (HARD - SOFT)));
     const flight = this.flight.update(delta);
     this.lastFlight = flight;
@@ -238,12 +238,14 @@ export class SpaceEngine {
   // Si ya está bloqueado, selecciona el proyecto bajo la reticula (centro) y suelta
   // el puntero para poder usar el overlay.
   private onCanvasClick = () => {
-    if (this.overlay.visible || !this.flight.isPointerLocked) return;
+    if (this.overlay.visible) return;
     this.scene.updateMatrixWorld(); // posiciones de planetas en órbita al día para el raycast
     const app = this.constellations.pickApp(this.camera, this.centerNDC);
     if (app) {
       document.exitPointerLock();
       this.overlay.show(app);
+    } else if (!this.flight.isPointerLocked) {
+      this.canvas.requestPointerLock(); // clic en vacío: bloquear puntero (giro ilimitado)
     }
   };
 

@@ -8,11 +8,11 @@ export interface FlightState {
 }
 
 /**
- * Control de vuelo estilo demo: mirar DIRECTO con el ratón vía Pointer Lock
- * (se aplica movementX/Y directamente, sin suavizado). Un clic en el canvas
- * activa el bloqueo de puntero; Escape lo suelta. W/S avanzar/retroceder, A/D
- * desplazamiento lateral (strafe, no rotación), Space nitro. setSpeedScale()
- * aplica la frontera blanda (freno progresivo lejos de los proyectos).
+ * Control de vuelo: mirar DIRECTO con el ratón (movementX/Y aplicados sin
+ * suavizado). FUNCIONA SIN clic ni pointer lock — mover el ratón gira la vista de
+ * inmediato. Un clic en vacío activa Pointer Lock (giro ilimitado, cursor oculto);
+ * el motor maneja el clic (seleccionar vs. bloquear). W/S avanzar/retroceder, A/D
+ * strafe lateral, Space nitro. setSpeedScale() aplica la frontera blanda.
  */
 export class FlightController {
   private keys: Record<string, boolean> = {};
@@ -30,7 +30,7 @@ export class FlightController {
   maxSpeed = 90;
   acceleration = 120;
   damping = 0.96;
-  nitroMultiplier = 16;
+  nitroMultiplier = 28;
   sensitivity = 0.0022;
   pitchLimit = 1.35;
   enabled = true;
@@ -48,7 +48,6 @@ export class FlightController {
   attach() {
     document.addEventListener('keydown', this.onKeyDown);
     document.addEventListener('keyup', this.onKeyUp);
-    this.canvas.addEventListener('click', this.onCanvasClick);
     document.addEventListener('pointerlockchange', this.onPLChange);
     document.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('blur', this.onBlur);
@@ -57,7 +56,6 @@ export class FlightController {
   detach() {
     document.removeEventListener('keydown', this.onKeyDown);
     document.removeEventListener('keyup', this.onKeyUp);
-    this.canvas.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('pointerlockchange', this.onPLChange);
     document.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('blur', this.onBlur);
@@ -74,6 +72,8 @@ export class FlightController {
     if (!on) {
       this.keys = {};
       this.velocity.set(0, 0, 0);
+      this.mouseDX = 0;
+      this.mouseDY = 0;
     }
   }
 
@@ -99,21 +99,19 @@ export class FlightController {
     this.keys[e.code] = false;
   };
 
-  private onCanvasClick = () => {
-    if (!this.pointerLocked) this.canvas.requestPointerLock();
-  };
-
   private onPLChange = () => {
     this.pointerLocked = document.pointerLockElement === this.canvas;
     if (this.pointerLocked) this.markInput();
     this.onPointerLockChange?.(this.pointerLocked);
   };
 
+  // Acumula el desplazamiento del ratón SIEMPRE (con o sin pointer lock): así la
+  // cámara responde de inmediato al mover el ratón, sin depender del bloqueo.
   private onMouseMove = (e: MouseEvent) => {
-    if (this.pointerLocked) {
-      this.mouseDX += e.movementX;
-      this.mouseDY += e.movementY;
-    }
+    if (!this.enabled) return;
+    this.mouseDX += e.movementX;
+    this.mouseDY += e.movementY;
+    this.markInput();
   };
 
   // Al perder foco (alt-tab, foco al iframe de la cabina) soltar todas las teclas.
@@ -126,8 +124,9 @@ export class FlightController {
       return { speed: 0, isNitro: false, yaw: this.yaw, pitch: this.pitch };
     }
 
-    // Mirar DIRECTO (sin suavizado): aplicar el desplazamiento acumulado del ratón.
-    if (this.pointerLocked && (this.mouseDX !== 0 || this.mouseDY !== 0)) {
+    // Mirar DIRECTO (sin suavizado): aplicar el desplazamiento acumulado del ratón,
+    // haya o no pointer lock.
+    if (this.mouseDX !== 0 || this.mouseDY !== 0) {
       this.yaw -= this.mouseDX * this.sensitivity;
       this.pitch -= this.mouseDY * this.sensitivity;
       this.pitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.pitch));

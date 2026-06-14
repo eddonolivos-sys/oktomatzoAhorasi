@@ -25,7 +25,7 @@ export class Hud {
       <div id="startMsg">
         <h1>Ramatzo</h1>
         <p>
-          <span class="key">CLIC</span> Mirar &nbsp;&middot;&nbsp;
+          <span class="key">RAT&Oacute;N</span> Mirar &nbsp;&middot;&nbsp;
           <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
           <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
           <span class="key">SPACE</span> Nitro<br/>
