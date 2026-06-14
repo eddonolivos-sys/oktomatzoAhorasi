@@ -5,8 +5,8 @@ import type { SpaceEngine } from '../space/space-engine';
 
 /**
  * Host de la experiencia espacial. Renderiza en light DOM (createRenderRoot → this)
- * para que el canvas y los overlays del motor vivan en el documento (pointer lock +
- * CSS global de space.css). Carga el motor (y Three.js) con import dinámico post-login.
+ * para que el canvas y los overlays del motor vivan en el documento (CSS global de
+ * space.css). Carga el motor (y Three.js) con import dinámico post-login.
  */
 export class ShellSpace extends LitElement {
   protected createRenderRoot() {

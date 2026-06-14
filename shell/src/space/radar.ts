@@ -27,7 +27,12 @@ export class Radar {
   draw(playerPos: THREE.Vector3, yaw: number, blips: RadarBlip[], ramatzoPos?: THREE.Vector3) {
     const ctx = this.ctx;
     const { cx, cy, r } = this;
-    const maxRange = 2500;
+    // Rango dinámico: abarca la constelación más lejana (para que todas aparezcan).
+    let maxRange = 1500;
+    for (const b of blips) {
+      maxRange = Math.max(maxRange, Math.hypot(b.position.x - playerPos.x, b.position.z - playerPos.z));
+    }
+    maxRange *= 1.08;
     ctx.clearRect(0, 0, this.size, this.size);
 
     // Fondo
@@ -82,11 +87,9 @@ export class Radar {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      if (dist < maxRange * 0.45) {
-        ctx.fillStyle = `rgba(200, 184, 152, ${brightness * 0.5})`;
-        ctx.font = '6px "Cinzel", serif';
-        ctx.fillText(blip.name.substring(0, 10), x + 4, y + 2);
-      }
+      ctx.fillStyle = `rgba(210, 196, 168, ${Math.max(0.5, brightness)})`;
+      ctx.font = '7px "Cinzel", serif';
+      ctx.fillText(blip.name.substring(0, 9), x + 4, y + 2);
     }
 
     // Sol Ramatzo (hub) — rombo distintivo

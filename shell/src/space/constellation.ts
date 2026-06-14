@@ -78,7 +78,7 @@ export function createConstellation(
   }
   // Estrella central más grande y brillante.
   const central = stars[0]!;
-  central.size = 1.5;
+  central.size = 3.0;
   central.x = 0;
   central.y = 0;
   central.z = 0;
@@ -159,11 +159,11 @@ export function createConstellation(
     map: createGlowTexture(color),
     blending: THREE.AdditiveBlending,
     transparent: true,
-    opacity: 0.08,
+    opacity: 0.25,
     depthWrite: false,
   });
   const glow = new THREE.Sprite(glowMat);
-  glow.scale.set(12, 8, 1);
+  glow.scale.set(28, 20, 1);
   group.add(glow);
 
   // 1-2 planetas orbitando.

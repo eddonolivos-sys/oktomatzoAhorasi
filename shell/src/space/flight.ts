@@ -39,6 +39,7 @@ export class FlightController {
   lookSpeed = 1.9; // rad/s al borde de la pantalla
   deadZone = 0.14; // fracción central sin rotación
   pitchLimit = 1.3;
+  enabled = true;
 
   onFirstInput?: () => void;
   private firstInputDone = false;
@@ -53,6 +54,7 @@ export class FlightController {
     document.addEventListener('keyup', this.onKeyUp);
     this.canvas.addEventListener('mousemove', this.onMouseMove);
     this.canvas.addEventListener('mouseleave', this.onMouseLeave);
+    window.addEventListener('blur', this.onBlur);
   }
 
   detach() {
@@ -60,6 +62,17 @@ export class FlightController {
     document.removeEventListener('keyup', this.onKeyUp);
     this.canvas.removeEventListener('mousemove', this.onMouseMove);
     this.canvas.removeEventListener('mouseleave', this.onMouseLeave);
+    window.removeEventListener('blur', this.onBlur);
+  }
+
+  /** Activa/desactiva el control (overlay de proyecto o cabina abiertos). */
+  setEnabled(on: boolean) {
+    if (this.enabled === on) return;
+    this.enabled = on;
+    if (!on) {
+      this.keys = {};
+      this.velocity.set(0, 0, 0);
+    }
   }
 
   /** Cursor en coordenadas NDC (-1..1, y hacia arriba) para raycast. */
@@ -96,6 +109,12 @@ export class FlightController {
     this.hasCursor = false;
   };
 
+  // Al perder foco (alt-tab, foco al iframe de la cabina) soltar todas las teclas
+  // para que la nave no quede acelerando sola.
+  private onBlur = () => {
+    this.keys = {};
+  };
+
   private applyDeadZone(v: number): number {
     const a = Math.abs(v);
     if (a < this.deadZone) return 0;
@@ -104,6 +123,9 @@ export class FlightController {
   }
 
   update(delta: number): FlightState {
+    if (!this.enabled) {
+      return { speed: 0, isNitro: false, yaw: this.yaw, pitch: this.pitch };
+    }
     // Mirar: rotación proporcional al offset del cursor (sin pointer lock).
     if (this.hasCursor) {
       this.yaw -= this.applyDeadZone(this.cursorX) * this.lookSpeed * delta;

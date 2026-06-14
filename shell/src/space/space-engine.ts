@@ -160,7 +160,9 @@ export class SpaceEngine {
 
     this.trackFps(delta);
 
-    // ── Actualización de subsistemas (se amplía en tareas posteriores) ──
+    // ── Actualización de subsistemas ──
+    // Congela el vuelo (mirar + WASD) mientras hay overlay de proyecto o menú ESC.
+    this.flight.setEnabled(!this.overlay.visible && !this.escMenu.classList.contains('visible'));
     const flight = this.flight.update(delta);
     this.lastFlight = flight;
     this.maybeRebase();
@@ -215,6 +217,7 @@ export class SpaceEngine {
   // (raycast desde la posición del ratón). Sin pointer lock.
   private onCanvasClick = (e: MouseEvent) => {
     if (this.overlay.visible) return;
+    e.preventDefault();
     const rect = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -230,8 +233,9 @@ export class SpaceEngine {
     this.escMenu.innerHTML = `
       <div class="panel">
         <h3>Ramatzo</h3>
+        <p class="esc-controls">RAT&Oacute;N mirar &middot; W/S avanzar &middot; A/D lateral &middot; SPACE nitro<br/>clic en una constelaci&oacute;n para entrar</p>
         <button data-act="resume">Reanudar</button>
-        <button data-act="logout">Cerrar sesión</button>
+        <button data-act="logout">Cerrar sesi&oacute;n</button>
       </div>`;
     host.appendChild(this.escMenu);
     this.escMenu.querySelector('[data-act="resume"]')!.addEventListener('click', () => this.toggleEscMenu(false));
@@ -239,8 +243,7 @@ export class SpaceEngine {
     document.addEventListener('keydown', this.onEscKey);
   }
 
-  // Escape suelta el pointer lock de forma nativa; un segundo Escape (ya sin lock)
-  // alterna el menú. No interferir mientras hay lock o el overlay de proyecto está abierto.
+  // Escape: cierra el overlay de proyecto si está abierto; si no, alterna el menú.
   private onEscKey = (e: KeyboardEvent) => {
     if (e.code !== 'Escape') return;
     if (this.overlay.visible) {
@@ -282,9 +285,11 @@ export class SpaceEngine {
   private updateLabels() {
     const ndc = this.flight.hasCursor ? this.flight.cursorNDC : new THREE.Vector2(0, 0);
     const aimed = this.constellations.pickAimed(this.camera, ndc);
+    let aiming = false;
     if (aimed) {
       const p = this.project(aimed.center);
       if (p.visible) {
+        aiming = true;
         this.aimLabel.textContent = aimed.app.name;
         this.aimLabel.style.left = `${p.x}px`;
         this.aimLabel.style.top = `${p.y}px`;
@@ -295,6 +300,8 @@ export class SpaceEngine {
     } else {
       this.aimLabel.classList.remove('visible');
     }
+    // Affordance: el cursor cambia a "pointer" sobre una constelación clicable.
+    this.canvas.style.cursor = aiming ? 'pointer' : 'crosshair';
 
     const rp = this.project(this.ramatzoSun.position);
     if (rp.visible) {
@@ -335,6 +342,7 @@ export class SpaceEngine {
     this.running = false;
     cancelAnimationFrame(this.rafId);
     this.radar?.hide();
+    this.flight?.setEnabled(false); // suelta teclas: evita nave acelerando al volver de la cabina
   }
 
   resume() {

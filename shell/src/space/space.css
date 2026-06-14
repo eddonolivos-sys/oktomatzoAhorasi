@@ -14,6 +14,7 @@
 }
 #space-canvas {
   cursor: crosshair;
+  user-select: none;
 }
 
 /* HUD — velocidad */
@@ -289,8 +290,17 @@
   font-family: var(--font-display);
   color: var(--orange-amber);
   letter-spacing: 0.12em;
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   font-size: 16px;
+}
+#escMenu .panel .esc-controls {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--space-text-2);
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  margin: 0 0 16px;
+  max-width: 230px;
 }
 #escMenu .panel button {
   display: block;
