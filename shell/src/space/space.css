@@ -313,6 +313,30 @@
   color: var(--orange-burnt);
 }
 
+/* Etiquetas flotantes (aparecen solo al apuntar a la constelación / hub) */
+.space-label {
+  position: fixed;
+  transform: translate(-50%, -150%);
+  z-index: 90;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--orange-amber);
+  text-shadow: 0 0 12px rgba(230, 168, 23, 0.5), 0 1px 3px #000;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.space-label.visible {
+  opacity: 1;
+}
+.space-label.ramatzo {
+  color: var(--orange-warm);
+  font-size: 15px;
+  text-shadow: 0 0 16px rgba(255, 140, 66, 0.6), 0 1px 3px #000;
+}
+
 /* Ignición (transición de entrada al espacio) */
 @keyframes ignition-fade {
   0% { opacity: 1; }

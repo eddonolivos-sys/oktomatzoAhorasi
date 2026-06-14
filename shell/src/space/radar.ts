@@ -24,9 +24,10 @@ export class Radar {
     this.ctx = this.canvas.getContext('2d')!;
   }
 
-  draw(playerPos: THREE.Vector3, yaw: number, blips: RadarBlip[]) {
+  draw(playerPos: THREE.Vector3, yaw: number, blips: RadarBlip[], ramatzoPos?: THREE.Vector3) {
     const ctx = this.ctx;
     const { cx, cy, r } = this;
+    const maxRange = 2500;
     ctx.clearRect(0, 0, this.size, this.size);
 
     // Fondo
@@ -68,10 +69,10 @@ export class Radar {
       if (dist < 5) continue;
 
       const angle = Math.atan2(dz, dx) - yaw;
-      const rDist = Math.min((dist / 600) * r, r - 10);
+      const rDist = Math.min((dist / maxRange) * r, r - 8);
       const x = cx + Math.cos(angle) * rDist;
       const y = cy + Math.sin(angle) * rDist;
-      const brightness = Math.max(0.15, 1 - dist / 600);
+      const brightness = Math.max(0.2, 1 - dist / maxRange);
 
       ctx.fillStyle = `rgba(230, 168, 23, ${brightness})`;
       ctx.shadowColor = 'rgba(230, 168, 23, 0.2)';
@@ -81,11 +82,31 @@ export class Radar {
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      if (dist < 250) {
+      if (dist < maxRange * 0.45) {
         ctx.fillStyle = `rgba(200, 184, 152, ${brightness * 0.5})`;
         ctx.font = '6px "Cinzel", serif';
         ctx.fillText(blip.name.substring(0, 10), x + 4, y + 2);
       }
+    }
+
+    // Sol Ramatzo (hub) — rombo distintivo
+    if (ramatzoPos) {
+      const dx = ramatzoPos.x - playerPos.x;
+      const dz = ramatzoPos.z - playerPos.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const angle = Math.atan2(dz, dx) - yaw;
+      const rDist = Math.min((dist / maxRange) * r, r - 8);
+      const x = cx + Math.cos(angle) * rDist;
+      const y = cy + Math.sin(angle) * rDist;
+      ctx.fillStyle = '#FF8C42';
+      ctx.shadowColor = '#FF8C42';
+      ctx.shadowBlur = 10;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-3, -3, 6, 6);
+      ctx.restore();
+      ctx.shadowBlur = 0;
     }
 
     // Nave del jugador (centro)

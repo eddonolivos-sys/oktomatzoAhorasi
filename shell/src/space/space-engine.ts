@@ -60,6 +60,8 @@ export class SpaceEngine {
   private ships: THREE.Group[] = [];
   private overlay!: ProjectOverlay;
   private escMenu!: HTMLElement;
+  private aimLabel!: HTMLElement;
+  private ramatzoLabel!: HTMLElement;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -139,6 +141,7 @@ export class SpaceEngine {
     });
     this.canvas.addEventListener('click', this.onCanvasClick);
     this.buildEscMenu(host);
+    this.buildLabels(host);
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -152,7 +155,7 @@ export class SpaceEngine {
 
     let delta = (time - this.lastTime) / 1000;
     this.lastTime = time;
-    if (!delta || delta > 0.1) delta = 0.016;
+    if (!delta || delta < 0 || delta > 0.1) delta = 0.016;
     this.elapsed += delta;
 
     this.trackFps(delta);
@@ -174,10 +177,11 @@ export class SpaceEngine {
     setStarGasTime(this.elapsed);
     this.chunks.update(this.camera.position.clone().add(this.worldOffset));
     this.constellations.update(this.elapsed, delta);
-    this.radar.draw(this.camera.position, flight.yaw, this.constellations.getRadarBlips());
+    this.radar.draw(this.camera.position, flight.yaw, this.constellations.getRadarBlips(), this.ramatzoSun.position);
     floatShips(this.ships, this.elapsed, delta);
 
     this.composer.render();
+    this.updateLabels();
   };
 
   private trackFps(delta: number) {
@@ -251,6 +255,57 @@ export class SpaceEngine {
     this.escMenu.classList.toggle('visible', show);
   }
 
+  private buildLabels(host: HTMLElement) {
+    this.aimLabel = document.createElement('div');
+    this.aimLabel.className = 'space-label';
+    host.appendChild(this.aimLabel);
+
+    this.ramatzoLabel = document.createElement('div');
+    this.ramatzoLabel.className = 'space-label ramatzo';
+    this.ramatzoLabel.textContent = 'Ramatzo';
+    host.appendChild(this.ramatzoLabel);
+  }
+
+  // Proyecta un punto del mundo a píxeles de pantalla; visible=false si está detrás.
+  private project(world: THREE.Vector3): { x: number; y: number; visible: boolean } {
+    const cam = world.clone().applyMatrix4(this.camera.matrixWorldInverse);
+    const ndc = world.clone().project(this.camera);
+    const visible = cam.z < 0 && Math.abs(ndc.x) <= 1.05 && Math.abs(ndc.y) <= 1.05;
+    return {
+      x: (ndc.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-ndc.y * 0.5 + 0.5) * window.innerHeight,
+      visible,
+    };
+  }
+
+  // Etiqueta flotante de la constelación apuntada (cursor o centro) + etiqueta del sol.
+  private updateLabels() {
+    const ndc = this.flight.hasCursor ? this.flight.cursorNDC : new THREE.Vector2(0, 0);
+    const aimed = this.constellations.pickAimed(this.camera, ndc);
+    if (aimed) {
+      const p = this.project(aimed.center);
+      if (p.visible) {
+        this.aimLabel.textContent = aimed.app.name;
+        this.aimLabel.style.left = `${p.x}px`;
+        this.aimLabel.style.top = `${p.y}px`;
+        this.aimLabel.classList.add('visible');
+      } else {
+        this.aimLabel.classList.remove('visible');
+      }
+    } else {
+      this.aimLabel.classList.remove('visible');
+    }
+
+    const rp = this.project(this.ramatzoSun.position);
+    if (rp.visible) {
+      this.ramatzoLabel.style.left = `${rp.x}px`;
+      this.ramatzoLabel.style.top = `${rp.y}px`;
+      this.ramatzoLabel.classList.add('visible');
+    } else {
+      this.ramatzoLabel.classList.remove('visible');
+    }
+  }
+
   // Rebase de origen: al alejarse mucho, traslada cámara + mundo de vuelta hacia
   // el origen para evitar jitter de coma flotante. worldOffset preserva la posición
   // "real" (HUD/sector). Aditivo y separable: si causara problemas, basta subir el umbral.
@@ -302,6 +357,8 @@ export class SpaceEngine {
     this.canvas?.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('keydown', this.onEscKey);
     this.escMenu?.remove();
+    this.aimLabel?.remove();
+    this.ramatzoLabel?.remove();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.scene?.traverse((o) => {
