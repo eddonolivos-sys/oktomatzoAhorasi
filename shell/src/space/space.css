@@ -1,0 +1,335 @@
+/*
+ * Constellation OS — overlays in-space (light DOM, inyectados por el motor).
+ * Tokens (--space-*, --orange-*, --metal-*, --font-*) viven en styles/themes.css.
+ * Las clases de cabina (.cockpit-*) NO están aquí: viven en <shell-cockpit> (Shadow DOM).
+ */
+
+#space-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+#space-canvas:active {
+  cursor: none;
+}
+
+/* HUD — velocidad */
+#hud {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  text-align: center;
+}
+#hud .speed-display {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--space-text);
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 20px rgba(200, 184, 152, 0.1);
+}
+#hud .speed-display .value {
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--orange-amber);
+}
+#hud .speed-unit {
+  font-size: 10px;
+  color: var(--space-text-dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Barra nitro */
+#nitroBar {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
+  width: 200px;
+  height: 3px;
+  background: var(--metal-iron);
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#nitroBar.active {
+  opacity: 1;
+}
+#nitroBar .fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--orange-rust), var(--orange-ember), var(--orange-warm));
+  border-radius: 2px;
+  transition: width 0.05s linear;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+}
+
+/* Coordenadas */
+#coords {
+  position: fixed;
+  bottom: 80px;
+  right: 30px;
+  z-index: 100;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--space-text-dim);
+  text-align: right;
+  line-height: 1.8;
+  letter-spacing: 0.08em;
+}
+#coords .label {
+  color: var(--space-text-2);
+}
+
+/* Reticula */
+#reticle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  pointer-events: none;
+  width: 20px;
+  height: 20px;
+}
+#reticle::before,
+#reticle::after {
+  content: '';
+  position: absolute;
+  background: rgba(200, 184, 152, 0.15);
+}
+#reticle::before {
+  width: 1px;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+#reticle::after {
+  width: 100%;
+  height: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+#reticle .center-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--orange-amber);
+  box-shadow: 0 0 6px rgba(230, 168, 23, 0.3);
+}
+
+/* Mensaje de inicio */
+#startMsg {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 1s;
+}
+#startMsg h1 {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 48px);
+  font-weight: 900;
+  color: var(--orange-amber);
+  text-shadow: 0 0 40px rgba(230, 168, 23, 0.2);
+  letter-spacing: 0.12em;
+  margin: 0 0 12px;
+}
+#startMsg p {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--space-text-2);
+  letter-spacing: 0.08em;
+  line-height: 1.8;
+  margin: 0;
+}
+#startMsg .key {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid var(--metal-brass);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--orange-amber);
+  margin: 0 2px;
+  background: rgba(58, 42, 32, 0.6);
+}
+#startMsg.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Project info overlay */
+#projectInfo {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  z-index: 150;
+  width: 90%;
+  max-width: 500px;
+  background: rgba(10, 5, 3, 0.92);
+  border: 1px solid var(--metal-brass);
+  border-radius: 12px;
+  padding: 36px 32px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), inset 0 0 60px rgba(139, 58, 26, 0.1);
+}
+#projectInfo.visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: translate(-50%, -50%) scale(1);
+}
+#projectInfo .constellation-icon {
+  font-size: 36px;
+  color: var(--orange-amber);
+  margin-bottom: 12px;
+}
+#projectInfo h2 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--orange-amber);
+  letter-spacing: 0.1em;
+  margin: 0 0 8px;
+}
+#projectInfo .category {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  color: var(--metal-brass);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+#projectInfo .desc {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  color: var(--space-text-2);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+#projectInfo .actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+#projectInfo .actions button {
+  padding: 10px 28px;
+  border: 1px solid var(--metal-brass);
+  border-radius: 6px;
+  font-family: var(--font-serif);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  background: transparent;
+  color: var(--space-text);
+}
+#projectInfo .actions button:hover {
+  border-color: var(--orange-amber);
+  color: var(--orange-amber);
+  box-shadow: 0 0 20px rgba(230, 168, 23, 0.15);
+}
+#projectInfo .actions button.primary {
+  background: var(--orange-burnt);
+  border-color: var(--orange-burnt);
+  color: #fff;
+}
+#projectInfo .actions button.primary:hover {
+  background: var(--orange-ember);
+  border-color: var(--orange-ember);
+  box-shadow: 0 0 25px rgba(255, 107, 53, 0.3);
+}
+
+/* ESC menu (Task 18) */
+#escMenu {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 5, 3, 0.6);
+}
+#escMenu.visible {
+  display: flex;
+}
+#escMenu .panel {
+  background: rgba(10, 5, 3, 0.95);
+  border: 1px solid var(--metal-brass);
+  border-radius: 12px;
+  padding: 28px 32px;
+  text-align: center;
+  min-width: 240px;
+}
+#escMenu .panel h3 {
+  font-family: var(--font-display);
+  color: var(--orange-amber);
+  letter-spacing: 0.12em;
+  margin: 0 0 18px;
+  font-size: 16px;
+}
+#escMenu .panel button {
+  display: block;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 10px 20px;
+  border: 1px solid var(--metal-steel);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--space-text);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+#escMenu .panel button:hover {
+  border-color: var(--orange-burnt);
+  color: var(--orange-burnt);
+}
+
+/* Vignette */
+#vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(10, 5, 3, 0.6) 100%);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  #startMsg h1 { font-size: 20px; }
+  #startMsg p { font-size: 11px; }
+  #startMsg .key { font-size: 9px; padding: 1px 6px; }
+  #hud .speed-display { font-size: 18px; }
+  #hud .speed-display .value { font-size: 28px; }
+  #coords { display: none; }
+  #projectInfo { padding: 24px 20px; }
+  #projectInfo h2 { font-size: 16px; }
+}
