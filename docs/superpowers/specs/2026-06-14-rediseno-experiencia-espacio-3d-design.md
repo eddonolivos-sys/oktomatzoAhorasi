@@ -14,6 +14,8 @@ Transformar el vuelo espacial post-login en una experiencia **fluida, legible y 
 
 **Fuera (decisión del usuario):** despliegue y build — `shell/Dockerfile`, `shell/nginx.conf`, `proxy/Caddyfile`, `deploy/docker-compose.yml`, `basePath` de apps Next.js y `sandbox` del `app-registry`. Se documentan como riesgos pero **no se tocan**.
 
+**Las apps de proyecto individuales no se modifican (requisito explícito).** Los proyectos existentes del registry — `dashboard`, `viewer-3d`, `combate-3d`, `oktomatzo2`/TattooAR, `busqueda`, `mundo-3d`, `test-uno`, `test-dos` — se **muestran y se accede a ellos sin cambios**, cargándose tal cual en la cabina (iframe vía `shell-app-container`) exactamente como hoy. El rediseño solo cambia **cómo se navega y se entra** a ellos (sistema solar + permanencia), nunca el contenido de cada proyecto. El motor sigue obteniendo la lista desde el `app-registry` y abre cada app con su `src`/`sandbox` actuales.
+
 > **Implicación operativa:** el `dist` que sirve Docker es un *bind-mount* del host y está desactualizado respecto al código. Ningún cambio de este spec será visible en Docker hasta **recompilar** (`pnpm --filter shell build`). La verificación durante el desarrollo se hace con el dev server (`vite`); el redespliegue queda a cargo del usuario.
 
 ## 3. Decisiones de diseño (acordadas)
@@ -74,7 +76,7 @@ Lógica pura (sin Three.js) se concentra en funciones testeables (patrón de `la
 - Un planeta por app del registry. Órbita heliocéntrica: `radius_i`, `inclination_i` (plano inclinado → uso de las 3 dimensiones), `phase_i`, `speed_i` (lento). Escala **compacta**: radios de órbita ~600–3000 u, radio de planeta ~120–260 u.
 - **Esfera de influencia** por planeta: `influenceRadius ≈ planetRadius * 2.5`. El sol Ramatzo en el centro como faro.
 - **Frenado de aproximación:** dentro de `influenceRadius`, factor de damping extra proporcional a la cercanía (de `1` en el borde a fuerte en el núcleo) → la nave desacelera para entrar con control.
-- **Máquina de estados de dwell** (lógica pura, testeable): `idle → approaching (dentro de la esfera) → dwell timer acumula mientras dentro → enter (≥1s) | cancel (sale)`. Al `enter`: `onEnterApp(app)` (mismo contrato actual hacia `shell-space`/`shell-cockpit`).
+- **Máquina de estados de dwell** (lógica pura, testeable): `idle → approaching (dentro de la esfera) → dwell timer acumula mientras dentro → enter (≥1s) | cancel (sale)`. Al `enter`: `onEnterApp(app)` (**mismo contrato actual** hacia `shell-space`/`shell-cockpit` → la app de proyecto se carga sin cambios en el iframe, igual que hoy).
 - Sustituye el raycast al centro y el `ProjectOverlay` actual por la mecánica de proximidad.
 - Expone blips para el radar con `position` completa (incluida `y`) y marca de objetivo en aproximación.
 
