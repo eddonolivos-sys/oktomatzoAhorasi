@@ -34,3 +34,46 @@ describe('bankFromYawRate', () => {
     expect(bankFromYawRate(100, 6, 0.6)).toBe(-0.6);
   });
 });
+
+import { approachBrakeFactor } from './flight-math';
+
+describe('approachBrakeFactor', () => {
+  const R = 1000;
+  const MIN = 0.2;
+
+  it('vale 1 en el borde de la esfera de influencia', () => {
+    expect(approachBrakeFactor(R, R, MIN)).toBeCloseTo(1, 10);
+  });
+
+  it('vale 1 más allá del borde (sin frenar lejos)', () => {
+    expect(approachBrakeFactor(R * 2, R, MIN)).toBe(1);
+    expect(approachBrakeFactor(R + 1, R, MIN)).toBe(1);
+  });
+
+  it('vale minFactor en el núcleo (distancia 0)', () => {
+    expect(approachBrakeFactor(0, R, MIN)).toBeCloseTo(MIN, 10);
+  });
+
+  it('es monótona creciente del núcleo al borde', () => {
+    const a = approachBrakeFactor(100, R, MIN);
+    const b = approachBrakeFactor(500, R, MIN);
+    const c = approachBrakeFactor(900, R, MIN);
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
+  });
+
+  it('es continua en el borde (no salta al pasar de fuera a dentro)', () => {
+    const inside = approachBrakeFactor(R - 0.001, R, MIN);
+    const outside = approachBrakeFactor(R + 0.001, R, MIN);
+    expect(Math.abs(inside - outside)).toBeLessThan(0.01);
+  });
+
+  it('nunca baja de minFactor', () => {
+    expect(approachBrakeFactor(0, R, MIN)).toBeGreaterThanOrEqual(MIN);
+    expect(approachBrakeFactor(-50, R, MIN)).toBeGreaterThanOrEqual(MIN);
+  });
+
+  it('radio de influencia <= 0 no frena (devuelve 1)', () => {
+    expect(approachBrakeFactor(0, 0, MIN)).toBe(1);
+  });
+});
