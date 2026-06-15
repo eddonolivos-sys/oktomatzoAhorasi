@@ -64,6 +64,11 @@ export function createPlayerShip(): PlayerShip {
   // Registro de luces de navegación: material emisivo + desfase de estrobo.
   const navLights: { mat: THREE.MeshStandardMaterial; phase: number }[] = [];
 
+  // Registros para la animación reactiva.
+  const cores: THREE.Mesh[] = [];
+  const flames: THREE.Mesh[] = [];
+  const FLAME_BASE_LEN = 1.4; // longitud del cono de llama a empuje máximo (z+).
+
   // ── Casco: fuselaje aerodinámico en flecha ──
   // Cuerpo central (cápsula alargada hacia -Z).
   add(new THREE.CapsuleGeometry(0.5, 2.6, 10, 20), hull, (m) => {
@@ -120,6 +125,50 @@ export function createPlayerShip(): PlayerShip {
       m.position.set(side * 2.78, -0.05, 0.3);
     });
     navLights.push({ mat: navMat, phase: side < 0 ? 0 : Math.PI });
+  }
+
+  // ── Toberas: boquilla oscura + núcleo emisivo + cono de llama estirable ──
+  const flameMat = track(
+    new THREE.MeshBasicMaterial({
+      color: 0xffb24d,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  for (const ex of [-0.3, 0.3] as const) {
+    // Boquilla.
+    add(new THREE.CylinderGeometry(0.24, 0.3, 0.5, 18), dark, (m) => {
+      m.rotation.x = Math.PI / 2;
+      m.position.set(ex, 0, 2.0);
+    });
+    // Anillo de boquilla ámbar.
+    add(new THREE.TorusGeometry(0.24, 0.03, 8, 20), amber, (m) => {
+      m.rotation.x = Math.PI / 2;
+      m.position.set(ex, 0, 2.22);
+    });
+    // Núcleo emisivo.
+    const core = add(
+      new THREE.CircleGeometry(0.2, 18),
+      track(new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xffb24d, emissiveIntensity: 2.5, side: THREE.DoubleSide })),
+      (m) => {
+        m.position.set(ex, 0, 2.24);
+        m.rotation.y = Math.PI; // mira hacia +Z (atrás).
+      },
+    );
+    cores.push(core);
+    // Cono de llama (vértice hacia +Z). El pivote queda en la base (z=2.24);
+    // escalando en Z la llama crece hacia atrás. ConeGeometry apunta +Y por
+    // defecto, lo rotamos para que apunte +Z y desplazamos para que la base
+    // quede en la boquilla.
+    const flameGeo = track(new THREE.ConeGeometry(0.18, FLAME_BASE_LEN, 16, 1, true));
+    const flame = new THREE.Mesh(flameGeo, flameMat);
+    flame.rotation.x = -Math.PI / 2; // eje del cono ahora a lo largo de +Z.
+    flame.position.set(ex, 0, 2.24 + FLAME_BASE_LEN / 2);
+    ship.add(flame);
+    flames.push(flame);
   }
 
   return {
