@@ -48,6 +48,10 @@ export function createPlayerShip(): PlayerShip {
     }),
   );
   const trim = track(new THREE.MeshStandardMaterial({ color: 0x8aa0b8, metalness: 0.95, roughness: 0.2 }));
+  // Acento ámbar (costuras de energía) y luces de navegación.
+  const amber = track(new THREE.MeshStandardMaterial({ color: 0xffb24d, emissive: 0xff8c2a, emissiveIntensity: 2.0 }));
+  const navPort = track(new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 3 }));
+  const navStarboard = track(new THREE.MeshStandardMaterial({ color: 0x33e0c0, emissive: 0x33e0c0, emissiveIntensity: 3 }));
 
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, cfg: (m: THREE.Mesh) => void): THREE.Mesh => {
     track(geo);
@@ -56,6 +60,9 @@ export function createPlayerShip(): PlayerShip {
     ship.add(m);
     return m;
   };
+
+  // Registro de luces de navegación: material emisivo + desfase de estrobo.
+  const navLights: { mat: THREE.MeshStandardMaterial; phase: number }[] = [];
 
   // ── Casco: fuselaje aerodinámico en flecha ──
   // Cuerpo central (cápsula alargada hacia -Z).
@@ -88,6 +95,32 @@ export function createPlayerShip(): PlayerShip {
     m.rotation.x = Math.PI / 2;
     m.scale.set(1, 1.8, 1);
   });
+
+  // ── Alas en flecha + pods + luces de navegación ──
+  const wingGeo = new THREE.BoxGeometry(2.2, 0.07, 0.9);
+  for (const side of [-1, 1] as const) {
+    add(wingGeo, hull, (m) => {
+      m.position.set(side * 1.35, -0.05, 0.45);
+      m.rotation.y = side * -0.32;
+      m.rotation.z = side * 0.08;
+    });
+    // Pod en la punta.
+    add(new THREE.CapsuleGeometry(0.09, 0.5, 6, 10), hullLight, (m) => {
+      m.rotation.x = Math.PI / 2;
+      m.position.set(side * 2.5, -0.05, 0.55);
+    });
+    // Borde de fuga ámbar.
+    add(new THREE.BoxGeometry(1.6, 0.03, 0.05), amber, (m) => {
+      m.position.set(side * 1.4, -0.04, 0.92);
+      m.rotation.y = side * -0.32;
+    });
+    // Luz de navegación: roja a babor (-1), cian a estribor (+1).
+    const navMat = side < 0 ? navPort : navStarboard;
+    add(new THREE.SphereGeometry(0.07, 10, 10), navMat, (m) => {
+      m.position.set(side * 2.78, -0.05, 0.3);
+    });
+    navLights.push({ mat: navMat, phase: side < 0 ? 0 : Math.PI });
+  }
 
   return {
     object: ship,
