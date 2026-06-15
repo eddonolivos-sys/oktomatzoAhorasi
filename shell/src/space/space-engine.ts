@@ -212,7 +212,10 @@ export class SpaceEngine {
     if (solar.entered) this.opts.onEnterApp(solar.entered);
     this.radar.draw(ship.position, ship.yaw, this.solarSystem.getRadarBlips(), this.ramatzoSun.position);
     floatShips(this.ships, this.elapsed, delta);
-    this.playerShip.update(this.elapsed);
+    // Animación reactiva de la nave: lee el ShipState del frame (toberas/estela/
+    // estrobos escalan con speed/nitro/braking). El roll lo aplica el pivote de
+    // ShipController, NO player-ship.
+    this.playerShip.update(this.elapsed, ship, delta);
 
     this.composer.render();
     this.updateLabels();
