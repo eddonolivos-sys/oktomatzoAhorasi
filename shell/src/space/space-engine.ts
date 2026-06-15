@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { FlightController, type FlightState } from './flight';
+import { ShipController, type ShipState } from './ship-controller';
+import { ChaseCamera } from './chase-camera';
 import { Hud } from './hud';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
@@ -51,8 +52,10 @@ export class SpaceEngine {
   private readonly rebaseThreshold = 200000;
   private readonly centerNDC = new THREE.Vector2(0, 0);
 
-  private flight!: FlightController;
-  private lastFlight?: FlightState;
+  private ship!: ShipController;
+  private chaseCamera!: ChaseCamera;
+  private lastShip?: ShipState;
+  private controlPrompt!: HTMLElement;
   private hud!: Hud;
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
@@ -114,13 +117,19 @@ export class SpaceEngine {
       new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.15),
     );
 
-    // Control de vuelo (ratón libre + WASD + nitro)
-    this.flight = new FlightController(this.camera, this.canvas);
-    this.flight.attach();
+    // Control de vuelo: la nave es una entidad en el mundo; la cámara la sigue.
+    this.ship = new ShipController(this.canvas);
+    this.ship.attach();
+    this.ship.object.position.set(0, 120, 2600); // spawn mirando al sistema
+    this.scene.add(this.ship.object);
+    this.chaseCamera = new ChaseCamera(this.camera);
 
     // HUD (reticula, velocidad, nitro, coords, vignette)
     this.hud = new Hud(host);
-    this.flight.onFirstInput = () => this.hud.hideStartMessage();
+    this.ship.onLockChange = (locked) => {
+      this.controlPrompt.classList.toggle('visible', !locked);
+      if (locked) this.hud.hideStartMessage();
+    };
 
     // ── Mundo ──
     this.galaxy = createGalaxy(this.renderer);
@@ -134,13 +143,18 @@ export class SpaceEngine {
     this.radar = new Radar(host);
     this.ships = placeShips(this.scene);
 
-    // Nave del jugador visible (vista de persecución): adjunta a la cámara.
-    // La cámara debe estar en la escena para que sus hijos se rendericen.
-    this.scene.add(this.camera);
+    // Nave del jugador visible: cuelga del pivote de roll del ShipController
+    // (se inclina en los giros); el raíz lleva posición + yaw/pitch.
     this.playerShip = createPlayerShip();
-    this.playerShip.object.position.set(0, -2.0, -9);
     this.playerShip.object.scale.setScalar(0.85);
-    this.camera.add(this.playerShip.object);
+    this.ship.attachVisual(this.playerShip.object);
+
+    // Prompt "Clic para tomar control" (visible cuando no hay pointer lock).
+    this.controlPrompt = document.createElement('div');
+    this.controlPrompt.id = 'controlPrompt';
+    this.controlPrompt.className = 'visible';
+    this.controlPrompt.textContent = 'Clic para tomar control';
+    host.appendChild(this.controlPrompt);
 
     // Selección de proyecto (reticula + click)
     this.overlay = new ProjectOverlay(host, {
@@ -173,31 +187,31 @@ export class SpaceEngine {
 
     // ── Actualización de subsistemas ──
     // Congela el vuelo (mirar + WASD) mientras hay overlay de proyecto o menú ESC.
-    this.flight.setEnabled(!this.overlay.visible && !this.escMenu.classList.contains('visible'));
-    // Frontera blanda: dentro de la esfera poblada (≈ los proyectos) vuelo normal;
-    // al alejarse del origen, freno progresivo hasta un mínimo, con aviso de rumbo.
-    const fromOrigin = this.camera.position.clone().add(this.worldOffset).length();
+    this.ship.setEnabled(!this.overlay.visible && !this.escMenu.classList.contains('visible'));
+
+    // Vuelo: la nave se mueve; la cámara la sigue.
+    const ship = this.ship.update(delta);
+    this.lastShip = ship;
+    this.chaseCamera.update(this.ship.object, ship, delta);
+
+    this.maybeRebase();
+
+    const worldX = ship.position.x + this.worldOffset.x;
+    const worldZ = ship.position.z + this.worldOffset.z;
+    this.hud.update(ship, worldX, worldZ, 600);
+
+    const fromOrigin = ship.position.clone().add(this.worldOffset).length();
     const SOFT = 70000;
     const HARD = 100000;
-    this.flight.setSpeedScale(fromOrigin <= SOFT ? 1 : Math.max(0.05, 1 - (fromOrigin - SOFT) / (HARD - SOFT)));
-    const flight = this.flight.update(delta);
-    this.lastFlight = flight;
-    this.maybeRebase();
-    this.hud.update(
-      flight,
-      this.camera.position.x + this.worldOffset.x,
-      this.camera.position.z + this.worldOffset.z,
-      this.flight.maxSpeed * this.flight.nitroMultiplier,
-    );
     this.hud.setStray(fromOrigin > SOFT, fromOrigin > HARD * 0.85);
 
     this.galaxy.update(this.elapsed, delta, this.camera.position);
     this.ramatzoSun.update(this.elapsed);
 
     setStarGasTime(this.elapsed);
-    this.chunks.update(this.camera.position.clone().add(this.worldOffset));
+    this.chunks.update(ship.position.clone().add(this.worldOffset));
     this.constellations.update(this.elapsed, delta);
-    this.radar.draw(this.camera.position, flight.yaw, this.constellations.getRadarBlips(), this.ramatzoSun.position);
+    this.radar.draw(ship.position, ship.yaw, this.constellations.getRadarBlips(), this.ramatzoSun.position);
     floatShips(this.ships, this.elapsed, delta);
     this.playerShip.update(this.elapsed);
 
@@ -232,20 +246,20 @@ export class SpaceEngine {
     else this.resume();
   };
 
-  // Clic en el canvas: abre el proyecto de la constelación bajo el cursor
-  // (raycast desde la posición del ratón). Sin pointer lock.
-  // Clic: si el puntero no está bloqueado, FlightController lo bloquea (mirar).
-  // Si ya está bloqueado, selecciona el proyecto bajo la reticula (centro) y suelta
-  // el puntero para poder usar el overlay.
+  // Clic en el canvas: si no hay pointer lock, tomar control (bloquear el puntero
+  // para mirar con el ratón). Si ya está bloqueado, seleccionar el proyecto bajo la
+  // reticula central y soltar el puntero para usar el overlay.
   private onCanvasClick = () => {
     if (this.overlay.visible) return;
+    if (!this.ship.isLocked) {
+      this.ship.requestControl();
+      return;
+    }
     this.scene.updateMatrixWorld(); // posiciones de planetas en órbita al día para el raycast
     const app = this.constellations.pickApp(this.camera, this.centerNDC);
     if (app) {
       document.exitPointerLock();
       this.overlay.show(app);
-    } else if (!this.flight.isPointerLocked) {
-      this.canvas.requestPointerLock(); // clic en vacío: bloquear puntero (giro ilimitado)
     }
   };
 
@@ -335,12 +349,13 @@ export class SpaceEngine {
   // el origen para evitar jitter de coma flotante. worldOffset preserva la posición
   // "real" (HUD/sector). Aditivo y separable: si causara problemas, basta subir el umbral.
   private maybeRebase() {
-    if (this.camera.position.length() <= this.rebaseThreshold) return;
+    if (this.ship.object.position.length() <= this.rebaseThreshold) return;
     const delta = new THREE.Vector3(
-      Math.round(this.camera.position.x / 100) * 100,
-      Math.round(this.camera.position.y / 100) * 100,
-      Math.round(this.camera.position.z / 50) * 50,
+      Math.round(this.ship.object.position.x / 100) * 100,
+      Math.round(this.ship.object.position.y / 100) * 100,
+      Math.round(this.ship.object.position.z / 50) * 50,
     );
+    this.ship.rebase(delta);
     this.camera.position.sub(delta);
     this.worldOffset.add(delta);
     this.chunks.rebase(delta);
@@ -360,7 +375,7 @@ export class SpaceEngine {
     this.running = false;
     cancelAnimationFrame(this.rafId);
     this.radar?.hide();
-    this.flight?.setEnabled(false); // suelta teclas: evita nave acelerando al volver de la cabina
+    this.ship?.setEnabled(false); // suelta teclas: evita nave acelerando al volver de la cabina
   }
 
   resume() {
@@ -371,7 +386,7 @@ export class SpaceEngine {
 
   dispose() {
     this.pause();
-    this.flight?.detach();
+    this.ship?.detach();
     this.hud?.dispose();
     this.galaxy?.dispose();
     this.ramatzoSun?.dispose();
@@ -384,6 +399,7 @@ export class SpaceEngine {
     this.canvas?.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('keydown', this.onEscKey);
     this.escMenu?.remove();
+    this.controlPrompt?.remove();
     this.aimLabel?.remove();
     this.ramatzoLabel?.remove();
     window.removeEventListener('resize', this.onResize);

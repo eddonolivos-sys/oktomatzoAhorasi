@@ -1,4 +1,4 @@
-import type { FlightState } from './flight';
+import type { ShipState } from './ship-controller';
 import { sectorOf } from './layout';
 
 /**
@@ -57,7 +57,7 @@ export class Hud {
     this.strayWarn = q('strayWarn');
   }
 
-  update(state: FlightState, worldX: number, worldZ: number, maxNitroSpeed: number) {
+  update(state: ShipState, worldX: number, worldZ: number, maxNitroSpeed: number) {
     this.speedValue.textContent = state.speed.toFixed(1);
     this.zVal.textContent = (Math.abs(worldZ) * 0.01).toFixed(2);
 
