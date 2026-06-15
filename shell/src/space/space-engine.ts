@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShipController, type ShipState } from './ship-controller';
-import { ChaseCamera } from './chase-camera';
+import { ChaseCamera, SPEED_FOV_REF } from './chase-camera';
 import { Hud } from './hud';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
@@ -198,7 +198,7 @@ export class SpaceEngine {
 
     const worldX = ship.position.x + this.worldOffset.x;
     const worldZ = ship.position.z + this.worldOffset.z;
-    this.hud.update(ship, worldX, worldZ, 600);
+    this.hud.update(ship, worldX, worldZ, SPEED_FOV_REF);
 
     const fromOrigin = ship.position.clone().add(this.worldOffset).length();
     const SOFT = 70000;

@@ -1,7 +1,6 @@
 /**
  * Lógica pura de vuelo (sin Three.js, testeable con Vitest en entorno node),
- * siguiendo el patrón de layout.ts. Estas funciones se consumen desde
- * ship-controller.ts y solar-system.ts.
+ * siguiendo el patrón de layout.ts.
  */
 
 /**
@@ -20,6 +19,10 @@ export function bankFromYawRate(yawRate: number, kRoll: number, maxRoll: number)
  * 1 en (o más allá de) el borde de influenceRadius → minFactor en el núcleo (distancia 0).
  * Interpolación lineal en la fracción de profundidad dentro de la esfera.
  * Continua en el borde y acotada por minFactor.
+ *
+ * RESERVADA para el plan del sistema solar (plan 02): aún no la consume ningún
+ * llamador. `ShipController.setApproachBrake` se conectará en ese plan; hasta
+ * entonces esta función y su setter quedan deliberadamente por delante de su consumidor.
  */
 export function approachBrakeFactor(distance: number, influenceRadius: number, minFactor: number): number {
   if (influenceRadius <= 0) return 1;

@@ -61,6 +61,8 @@ export class ShipController {
   maxRoll = 0.55;
   acceleration = 140; // empuje continuo (u/s²); SIN maxSpeed
   strafeAccel = 90;
+  // Damping expresado como factor POR FOTOGRAMA A 60FPS; se reescala con `delta`
+  // (ver frameDamp) para que la velocidad terminal/manejo no dependan de los FPS.
   damping = 0.985; // inercia: cerca de 1 = conserva velocidad
   brakeDamping = 0.92; // damping extra al frenar (S/Shift)
   nitroMultiplier = 6;
@@ -99,7 +101,10 @@ export class ShipController {
   setEnabled(on: boolean) {
     if (this.enabled === on) return;
     this.enabled = on;
-    if (!on) this.keys = {};
+    if (!on) {
+      this.keys = {};
+      this.velocity.set(0, 0, 0); // sin momento residual al reanudar
+    }
   }
 
   /** Solicita el pointer lock sobre el canvas (botón "Tomar control" o clic). */
@@ -143,6 +148,15 @@ export class ShipController {
     this.keys = {};
   };
 
+  /**
+   * Reescala un factor de damping "por fotograma a 60fps" a un `delta` arbitrario.
+   * factor^(delta·60): a 60fps (delta≈1/60) devuelve el factor original; a otros
+   * FPS conserva la misma velocidad terminal (independiente del frame rate).
+   */
+  private frameDamp(factor: number, delta: number): number {
+    return Math.pow(factor, delta * 60);
+  }
+
   update(delta: number): ShipState {
     if (this.enabled) {
       // Mirada suavizada hacia el target (sin tirones). Si no hay lock, target no
@@ -168,27 +182,44 @@ export class ShipController {
     this.forward.set(0, 0, -1).applyQuaternion(this.object.quaternion);
     this.right.crossVectors(this.forward, this.up).normalize();
 
+    // Deshabilitada (overlay de proyecto / menú ESC): la nave NO se traslada ni
+    // amortigua. Mantiene su orientación actual; velocidad/estado se reportan a 0
+    // para que el HUD y la cámara no muestren deriva detrás del menú abierto.
+    if (!this.enabled) {
+      return {
+        position: this.object.position,
+        velocity: this.velocity,
+        quaternion: this.object.quaternion,
+        yaw: this.yaw,
+        pitch: this.pitch,
+        roll: this.roll,
+        speed: 0,
+        isNitro: false,
+        isBraking: false,
+      };
+    }
+
     const isNitro = !!this.keys['Space'];
     const isBraking = !!this.keys['KeyS'] || !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'];
 
-    if (this.enabled) {
-      const mult = isNitro ? this.nitroMultiplier : 1;
-      // Empuje continuo SIN tope: mientras se mantiene W, la velocidad crece.
-      if (this.keys['KeyW'] || this.keys['ArrowUp']) {
-        this.velocity.add(this.tmp.copy(this.forward).multiplyScalar(this.acceleration * mult * delta));
-      }
-      // Strafe.
-      if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-        this.velocity.add(this.tmp.copy(this.right).multiplyScalar(this.strafeAccel * delta));
-      }
-      if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-        this.velocity.sub(this.tmp.copy(this.right).multiplyScalar(this.strafeAccel * delta));
-      }
+    const mult = isNitro ? this.nitroMultiplier : 1;
+    // Empuje continuo SIN tope: mientras se mantiene W, la velocidad crece.
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) {
+      this.velocity.add(this.tmp.copy(this.forward).multiplyScalar(this.acceleration * mult * delta));
+    }
+    // Strafe.
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+      this.velocity.add(this.tmp.copy(this.right).multiplyScalar(this.strafeAccel * delta));
+    }
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
+      this.velocity.sub(this.tmp.copy(this.right).multiplyScalar(this.strafeAccel * delta));
     }
 
     // Damping: inercia normal, extra al frenar, y frenado de aproximación.
-    let damp = isBraking ? this.brakeDamping : this.damping;
-    damp *= this.approachBrake; // <1 amortigua cerca de un planeta
+    // Cada factor está calibrado POR FOTOGRAMA A 60FPS y se reescala con `delta`
+    // (frameDamp) → velocidad terminal/manejo independientes del frame rate.
+    const base = isBraking ? this.brakeDamping : this.damping;
+    const damp = this.frameDamp(base, delta) * this.frameDamp(this.approachBrake, delta);
     this.velocity.multiplyScalar(damp);
 
     // Integración de la posición del raíz.

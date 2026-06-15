@@ -54,6 +54,10 @@ describe('approachBrakeFactor', () => {
     expect(approachBrakeFactor(0, R, MIN)).toBeCloseTo(MIN, 10);
   });
 
+  it('es lineal: en distance = R/2 vale minFactor + (1 - minFactor) * 0.5', () => {
+    expect(approachBrakeFactor(R / 2, R, MIN)).toBeCloseTo(MIN + (1 - MIN) * 0.5, 10);
+  });
+
   it('es monótona creciente del núcleo al borde', () => {
     const a = approachBrakeFactor(100, R, MIN);
     const b = approachBrakeFactor(500, R, MIN);
