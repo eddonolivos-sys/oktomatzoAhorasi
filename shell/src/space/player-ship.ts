@@ -2,6 +2,21 @@ import * as THREE from 'three';
 import type { ShipState } from './ship-controller';
 import { thrustGlow } from './thrust-visual';
 
+/** Textura de estela: degradado longitudinal (brillante en la base, se apaga). */
+function trailTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 128;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, 'rgba(255, 210, 140, 0.95)'); // base (boquilla)
+  g.addColorStop(0.35, 'rgba(255, 150, 70, 0.5)');
+  g.addColorStop(1, 'rgba(255, 110, 50, 0)'); // cola desvanecida
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 16, 128);
+  return new THREE.CanvasTexture(c);
+}
+
 export interface PlayerShip {
   object: THREE.Group;
   update(elapsed: number, state: ShipState, delta: number): void;
@@ -68,6 +83,8 @@ export function createPlayerShip(): PlayerShip {
   const cores: THREE.Mesh[] = [];
   const flames: THREE.Mesh[] = [];
   const FLAME_BASE_LEN = 1.4; // longitud del cono de llama a empuje máximo (z+).
+  const trails: THREE.Mesh[] = [];
+  const TRAIL_BASE_LEN = 4.5; // longitud del quad de estela a empuje máximo.
 
   // ── Casco: fuselaje aerodinámico en flecha ──
   // Cuerpo central (cápsula alargada hacia -Z).
@@ -184,6 +201,30 @@ export function createPlayerShip(): PlayerShip {
   tailGlow.position.set(0, 0, 3.0);
   ship.add(tailGlow);
 
+  // ── Estela aditiva: un quad por tobera, anclado en +Z ──
+  const trailTex = track(trailTexture());
+  const trailMat = track(
+    new THREE.MeshBasicMaterial({
+      map: trailTex,
+      color: 0xffb46a,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  );
+  for (const ex of [-0.3, 0.3] as const) {
+    const geo = track(new THREE.PlaneGeometry(0.5, TRAIL_BASE_LEN));
+    const trail = new THREE.Mesh(geo, trailMat);
+    // El plano (alto en Y) se tumba para extenderse a lo largo de +Z; la base
+    // (parte brillante de la textura, v=0) queda en la boquilla.
+    trail.rotation.x = -Math.PI / 2;
+    trail.position.set(ex, 0, 2.24 + TRAIL_BASE_LEN / 2);
+    ship.add(trail);
+    trails.push(trail);
+  }
+
   // Posición base del grupo para el bob en reposo (no toca rotación).
   const baseY = ship.position.y;
 
@@ -206,6 +247,14 @@ export function createPlayerShip(): PlayerShip {
       }
       for (const c of cores) {
         (c.material as THREE.MeshStandardMaterial).emissiveIntensity = (1.5 + 2.5 * t.glow) * flick * brakeCut;
+      }
+
+      // Estela: longitud (escala Y del plano, que apunta a +Z) + opacidad.
+      const trailLen = t.length * brakeCut;
+      for (const tr of trails) {
+        tr.scale.y = trailLen;
+        tr.position.z = 2.24 + (TRAIL_BASE_LEN * trailLen) / 2;
+        (tr.material as THREE.MeshBasicMaterial).opacity = t.trailOpacity * brakeCut;
       }
 
       // Estrobos de navegación (rojo babor / cian estribor, desfasados).
