@@ -12,7 +12,23 @@
       "Bash(pnpm --filter @plataforma/app-combate-3d run build)",
       "Bash(pnpm --filter @plataforma/app-mundo-3d run build)",
       "Bash(pnpm --recursive run lint)",
-      "Bash(pnpm run *)"
+      "Bash(pnpm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm --filter @plataforma/shell lint)",
+      "Bash(node -e \"const e=require\\('three/package.json'\\).exports; console.log\\(JSON.stringify\\({addons:e['./addons'],addonsStar:e['./addons/*'],jsmStar:e['./examples/jsm/*']},null,1\\)\\)\")",
+      "Bash(node -e \"console.log\\(require.resolve\\('three/examples/jsm/postprocessing/UnrealBloomPass.js'\\)\\)\")",
+      "Bash(pnpm --filter @plataforma/shell test)",
+      "Bash(rm shell/src/space/smoke.test.ts)",
+      "Bash(pnpm --filter @plataforma/shell dev)",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { try { Stop-Process -Id $_ -Force -ErrorAction Stop; \"killed PID $_\" } catch {} }; Start-Sleep -Milliseconds 500; if \\(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue\\) { \"still in use\" } else { \"5173 free\" })",
+      "Bash(rm -f shell/space-smoke.html shell/src/space/_smoke-entry.ts)",
+      "Bash(pnpm --filter @plataforma/shell build)",
+      "Bash(cd /c/Users/victo/OneDrive/Documentos/GitHub/oktomatzoAhorasi/shell && cat package.json 2>/dev/null | head -40)",
+      "Bash(git check-ignore *)",
+      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/oktomatzoAhorasi/**)"
     ]
   }
 }
