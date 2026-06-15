@@ -49,7 +49,6 @@ export class SpaceEngine {
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
   private readonly rebaseThreshold = 200000;
-  private readonly centerNDC = new THREE.Vector2(0, 0);
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
@@ -64,7 +63,6 @@ export class SpaceEngine {
   private ships: THREE.Group[] = [];
   private playerShip!: PlayerShip;
   private escMenu!: HTMLElement;
-  private aimLabel!: HTMLElement;
   private ramatzoLabel!: HTMLElement;
 
   mount(host: HTMLElement, opts: MountOpts) {
@@ -111,8 +109,12 @@ export class SpaceEngine {
     // Post-procesado: bloom cálido
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    // Bloom sobrio pero marcado: realza los emisivos de la nave (núcleos,
+    // llamas, costura ámbar, luces nav) sin emborronar el sistema.
+    // (strength, radius, threshold). NOTA: el plan 06 finaliza la iluminación
+    // y el bloom globales; este ajuste es para los acentos de la nave.
     this.composer.addPass(
-      new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.15),
+      new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.45, 0.08),
     );
 
     // Control de vuelo: la nave es una entidad en el mundo; la cámara la sigue.
@@ -284,10 +286,6 @@ export class SpaceEngine {
   }
 
   private buildLabels(host: HTMLElement) {
-    this.aimLabel = document.createElement('div');
-    this.aimLabel.className = 'space-label';
-    host.appendChild(this.aimLabel);
-
     this.ramatzoLabel = document.createElement('div');
     this.ramatzoLabel.className = 'space-label ramatzo';
     this.ramatzoLabel.textContent = 'Ramatzo';
@@ -373,7 +371,6 @@ export class SpaceEngine {
     document.removeEventListener('keydown', this.onEscKey);
     this.escMenu?.remove();
     this.controlPrompt?.remove();
-    this.aimLabel?.remove();
     this.ramatzoLabel?.remove();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);
