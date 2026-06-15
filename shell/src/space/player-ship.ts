@@ -171,6 +171,19 @@ export function createPlayerShip(): PlayerShip {
     flames.push(flame);
   }
 
+  // ── Auto-iluminación: revela el casco SIN iluminar el entorno ──
+  // distance corta + decay 2 => la luz cae a ~0 mucho antes de alcanzar el
+  // mundo (planetas/sol/asteroides están a cientos/miles de unidades).
+  const keyLight = new THREE.PointLight(0xbcd4ff, 6, 14, 2); // frío, cenital
+  keyLight.position.set(0.6, 2.4, -1.2);
+  ship.add(keyLight);
+  const rimLight = new THREE.PointLight(0x7fb0ff, 4, 12, 2); // azul de contorno
+  rimLight.position.set(-1.6, -1.4, 2.2);
+  ship.add(rimLight);
+  const tailGlow = new THREE.PointLight(0xff9a3a, 5, 8, 2); // ámbar de cola
+  tailGlow.position.set(0, 0, 3.0);
+  ship.add(tailGlow);
+
   return {
     object: ship,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
