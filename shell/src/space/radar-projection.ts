@@ -29,3 +29,22 @@ export function bearingToDisc(
     onDisc,
   };
 }
+
+/**
+ * Poste de altitud del radar: traduce la diferencia de altura relativa
+ * `relY = blip.y - ship.y` a la longitud del stem vertical (∝ |relY| * scale,
+ * acotada a maxLen) y al signo del chevron:
+ *   +1 ▲ (encima), -1 ▼ (debajo), 0 (mismo nivel, sin poste).
+ * Banda muerta de 1 unidad de altura para evitar parpadeo del chevron.
+ */
+export function elevationStalk(
+  relY: number,
+  scale: number,
+  maxLen: number,
+): { len: number; sign: -1 | 0 | 1 } {
+  const DEAD_ZONE = 1;
+  if (Math.abs(relY) <= DEAD_ZONE) return { len: 0, sign: 0 };
+  const sign: -1 | 1 = relY > 0 ? 1 : -1;
+  const len = Math.min(Math.abs(relY) * scale, maxLen);
+  return { len, sign };
+}
