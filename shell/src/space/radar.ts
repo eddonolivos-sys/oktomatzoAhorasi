@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { RadarBlip } from './constellations';
+import type { RadarBlip } from './solar-system';
 
 /**
  * Radar 2D (canvas) fijo arriba-izquierda. Proyecta las constelaciones al plano

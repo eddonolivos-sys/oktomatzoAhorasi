@@ -9,11 +9,10 @@ import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
-import { ConstellationManager } from './constellations';
+import { SolarSystem } from './solar-system';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
 import { createPlayerShip, type PlayerShip } from './player-ship';
-import { ProjectOverlay } from './project-overlay';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -60,11 +59,10 @@ export class SpaceEngine {
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
   private chunks!: ChunkManager;
-  private constellations!: ConstellationManager;
+  private solarSystem!: SolarSystem;
   private radar!: Radar;
   private ships: THREE.Group[] = [];
   private playerShip!: PlayerShip;
-  private overlay!: ProjectOverlay;
   private escMenu!: HTMLElement;
   private aimLabel!: HTMLElement;
   private ramatzoLabel!: HTMLElement;
@@ -139,7 +137,7 @@ export class SpaceEngine {
     this.scene.add(this.ramatzoSun.object);
 
     this.chunks = new ChunkManager(this.scene, this.renderer);
-    this.constellations = new ConstellationManager(this.scene, opts.apps, this.renderer);
+    this.solarSystem = new SolarSystem(this.scene, opts.apps, this.renderer);
     this.radar = new Radar(host);
     this.ships = placeShips(this.scene);
 
@@ -156,14 +154,8 @@ export class SpaceEngine {
     this.controlPrompt.textContent = 'Clic para tomar control';
     host.appendChild(this.controlPrompt);
 
-    // Selección de proyecto (reticula + click)
-    this.overlay = new ProjectOverlay(host, {
-      onEnter: (app) => {
-        this.overlay.hide();
-        this.opts.onEnterApp(app);
-      },
-      onCancel: () => {},
-    });
+    // La entrada a proyectos es por permanencia (dwell) dentro de la esfera de
+    // influencia del planeta; no hay pick por clic ni overlay de proyecto.
     this.canvas.addEventListener('click', this.onCanvasClick);
     this.buildEscMenu(host);
     this.buildLabels(host);
@@ -186,8 +178,8 @@ export class SpaceEngine {
     this.trackFps(delta);
 
     // ── Actualización de subsistemas ──
-    // Congela el vuelo (mirar + WASD) mientras hay overlay de proyecto o menú ESC.
-    this.ship.setEnabled(!this.overlay.visible && !this.escMenu.classList.contains('visible'));
+    // Congela el vuelo (mirar + WASD) mientras el menú ESC está abierto.
+    this.ship.setEnabled(!this.escMenu.classList.contains('visible'));
 
     // Vuelo: la nave se mueve; la cámara la sigue.
     const ship = this.ship.update(delta);
@@ -210,8 +202,15 @@ export class SpaceEngine {
 
     setStarGasTime(this.elapsed);
     this.chunks.update(ship.position.clone().add(this.worldOffset));
-    this.constellations.update(this.elapsed, delta);
-    this.radar.draw(ship.position, ship.yaw, this.constellations.getRadarBlips(), this.ramatzoSun.position);
+    // Sistema solar: órbitas + aproximación + permanencia. La nave es una entidad
+    // del mundo (plan 01); su posición de escena es this.ship.object.position,
+    // que coincide con ship.position (misma referencia de Vector3).
+    const solar = this.solarSystem.update(this.elapsed, delta, ship.position);
+    // Frenado de aproximación aplicado a la nave (1 = normal, <1 cerca del núcleo).
+    this.ship.setApproachBrake(this.solarSystem.brakeFactor(solar.approaching));
+    // Entrada confirmada por permanencia: mismo contrato existente, app sin cambios.
+    if (solar.entered) this.opts.onEnterApp(solar.entered);
+    this.radar.draw(ship.position, ship.yaw, this.solarSystem.getRadarBlips(), this.ramatzoSun.position);
     floatShips(this.ships, this.elapsed, delta);
     this.playerShip.update(this.elapsed);
 
@@ -246,21 +245,12 @@ export class SpaceEngine {
     else this.resume();
   };
 
-  // Clic en el canvas: si no hay pointer lock, tomar control (bloquear el puntero
-  // para mirar con el ratón). Si ya está bloqueado, seleccionar el proyecto bajo la
-  // reticula central y soltar el puntero para usar el overlay.
+  // Clic en el canvas: solicita el control de la nave (pointer lock). La entrada
+  // a proyectos ya no es por clic, sino por permanencia dentro de la esfera de
+  // influencia de un planeta.
   private onCanvasClick = () => {
-    if (this.overlay.visible) return;
-    if (!this.ship.isLocked) {
-      this.ship.requestControl();
-      return;
-    }
-    this.scene.updateMatrixWorld(); // posiciones de planetas en órbita al día para el raycast
-    const app = this.constellations.pickApp(this.camera, this.centerNDC);
-    if (app) {
-      document.exitPointerLock();
-      this.overlay.show(app);
-    }
+    if (this.escMenu.classList.contains('visible')) return;
+    if (!this.ship.isLocked) this.ship.requestControl();
   };
 
   private buildEscMenu(host: HTMLElement) {
@@ -279,13 +269,9 @@ export class SpaceEngine {
     document.addEventListener('keydown', this.onEscKey);
   }
 
-  // Escape: cierra el overlay de proyecto si está abierto; si no, alterna el menú.
+  // Escape: alterna el menú de pausa. (Ya no hay overlay de proyecto que cerrar.)
   private onEscKey = (e: KeyboardEvent) => {
     if (e.code !== 'Escape') return;
-    if (this.overlay.visible) {
-      this.overlay.hide();
-      return;
-    }
     this.toggleEscMenu();
   };
 
@@ -317,24 +303,9 @@ export class SpaceEngine {
     };
   }
 
-  // Etiqueta flotante de la constelación apuntada (cursor o centro) + etiqueta del sol.
+  // Etiqueta flotante del sol Ramatzo. (La entrada a proyectos es por permanencia;
+  // ya no hay raycast ni etiqueta de constelación apuntada.)
   private updateLabels() {
-    // Apuntado desde la reticula central (la vista se controla con el ratón bloqueado).
-    const aimed = this.constellations.pickAimed(this.camera, this.centerNDC);
-    if (aimed) {
-      const p = this.project(aimed.center);
-      if (p.visible) {
-        this.aimLabel.textContent = aimed.app.name;
-        this.aimLabel.style.left = `${p.x}px`;
-        this.aimLabel.style.top = `${p.y}px`;
-        this.aimLabel.classList.add('visible');
-      } else {
-        this.aimLabel.classList.remove('visible');
-      }
-    } else {
-      this.aimLabel.classList.remove('visible');
-    }
-
     const rp = this.project(this.ramatzoSun.position);
     if (rp.visible) {
       this.ramatzoLabel.style.left = `${rp.x}px`;
@@ -359,7 +330,7 @@ export class SpaceEngine {
     this.camera.position.sub(delta);
     this.worldOffset.add(delta);
     this.chunks.rebase(delta);
-    this.constellations.rebase(delta);
+    this.solarSystem.rebase(delta);
     this.ramatzoSun.object.position.sub(delta);
     for (const s of this.ships) s.position.sub(delta);
   }
@@ -393,9 +364,8 @@ export class SpaceEngine {
     this.playerShip?.dispose();
     this.chunks?.dispose();
     disposeStarGasMaterial();
-    this.constellations?.dispose();
+    this.solarSystem?.dispose();
     this.radar?.dispose();
-    this.overlay?.dispose();
     this.canvas?.removeEventListener('click', this.onCanvasClick);
     document.removeEventListener('keydown', this.onEscKey);
     this.escMenu?.remove();
