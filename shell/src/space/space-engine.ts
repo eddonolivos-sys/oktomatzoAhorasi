@@ -212,7 +212,14 @@ export class SpaceEngine {
     this.ship.setApproachBrake(this.solarSystem.brakeFactor(solar.approaching));
     // Entrada confirmada por permanencia: mismo contrato existente, app sin cambios.
     if (solar.entered) this.opts.onEnterApp(solar.entered);
-    this.radar.draw(ship.position, ship.yaw, this.solarSystem.getRadarBlips(), this.ramatzoSun.position);
+    this.radar.draw(
+      ship.position,
+      ship.yaw,
+      ship.pitch,
+      this.solarSystem.getRadarBlips(),
+      solar.approaching?.app ?? null,
+      this.ramatzoSun.position,
+    );
     floatShips(this.ships, this.elapsed, delta);
     // Animación reactiva de la nave: lee el ShipState del frame (toberas/estela/
     // estrobos escalan con speed/nitro/braking). El roll lo aplica el pivote de
