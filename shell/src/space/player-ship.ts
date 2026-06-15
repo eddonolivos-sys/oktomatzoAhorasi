@@ -184,12 +184,42 @@ export function createPlayerShip(): PlayerShip {
   tailGlow.position.set(0, 0, 3.0);
   ship.add(tailGlow);
 
+  // Posición base del grupo para el bob en reposo (no toca rotación).
+  const baseY = ship.position.y;
+
   return {
     object: ship,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    update(_elapsed, _state, _delta) {
-      // Las capas reactivas (toberas, estela, luces, bob) se añaden en tareas
-      // posteriores. Nunca aplicar roll aquí.
+    update(elapsed, state, _delta) {
+      const t = thrustGlow(state.speed, state.isNitro);
+      // Parpadeo de alta frecuencia (turbulencia de plasma).
+      const flick = 0.85 + 0.12 * Math.sin(elapsed * 17) + 0.06 * Math.sin(elapsed * 41.3);
+      // Al frenar, recorta las llamas a un mínimo.
+      const brakeCut = state.isBraking ? 0.4 : 1;
+
+      // Toberas: longitud (escala Z del cono) + brillo del núcleo.
+      const lenScale = t.length * brakeCut * flick;
+      for (const f of flames) {
+        f.scale.z = lenScale;
+        // Recoloca la base en la boquilla (z=2.24) al cambiar la longitud.
+        f.position.z = 2.24 + (FLAME_BASE_LEN * lenScale) / 2;
+        (f.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.55 * t.glow * brakeCut;
+      }
+      for (const c of cores) {
+        (c.material as THREE.MeshStandardMaterial).emissiveIntensity = (1.5 + 2.5 * t.glow) * flick * brakeCut;
+      }
+
+      // Estrobos de navegación (rojo babor / cian estribor, desfasados).
+      for (const n of navLights) {
+        const s = 0.5 + 0.5 * Math.sin(elapsed * 4 + n.phase);
+        n.mat.emissiveIntensity = 1.2 + 3.0 * s * s;
+      }
+
+      // Costura ámbar emisiva: pulso lento "respiración" de energía.
+      amber.emissiveIntensity = 1.4 + 0.8 * (0.5 + 0.5 * Math.sin(elapsed * 1.6));
+
+      // Bob en reposo: leve levitación que se desvanece al acelerar.
+      const idle = 1 - Math.min(1, state.speed / 60);
+      ship.position.y = baseY + idle * 0.06 * Math.sin(elapsed * 1.3);
     },
     dispose() {
       for (const d of disposables) d.dispose();
