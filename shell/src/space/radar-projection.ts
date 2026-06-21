@@ -6,7 +6,16 @@
 
 /**
  * Proyecta un offset relativo en el plano XZ (relX, relZ) al disco 2D del radar.
- * El ángulo se rota por `yaw` para que la dirección de la nave quede "arriba".
+ * El radar está ESTABILIZADO AL RUMBO: la proa de la nave queda siempre "arriba"
+ * (disc.y < 0) y estribor a la derecha (disc.x > 0), para cualquier yaw.
+ *
+ * En el motor, `forward = (0,0,-1)` rotado por yaw sobre Y da
+ * `forward = (-sin(yaw), -cos(yaw))` en (X,Z); su rumbo (atan2(z,x)) es
+ * `phi = atan2(-cos(yaw), -sin(yaw))`. Restamos `phi` para llevar la proa al
+ * eje horizontal y luego `-PI/2` para girarla hacia arriba en pantalla (donde
+ * +y es hacia abajo en canvas). Restar solo `yaw` (bug previo) solo coincidía a
+ * 0°/180°: a 90°/270° un blip de frente caía hacia ABAJO.
+ *
  * Devuelve el offset en píxeles {x,y} desde el centro del disco y `onDisc`:
  * - dentro del rango → escala lineal, onDisc=true.
  * - más allá del rango → fijado al borde (radio = discRadius), onDisc=false
@@ -20,7 +29,8 @@ export function bearingToDisc(
   discRadius: number,
 ): { x: number; y: number; onDisc: boolean } {
   const dist = Math.hypot(relX, relZ);
-  const angle = Math.atan2(relZ, relX) - yaw;
+  const phi = Math.atan2(-Math.cos(yaw), -Math.sin(yaw)); // rumbo de la proa en XZ (atan2(z,x))
+  const angle = Math.atan2(relZ, relX) - phi - Math.PI / 2; // proa → arriba en pantalla
   const onDisc = dist <= range;
   const rPix = onDisc ? (dist / range) * discRadius : discRadius;
   return {

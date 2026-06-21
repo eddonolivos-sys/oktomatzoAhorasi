@@ -23,18 +23,53 @@ describe('bearingToDisc', () => {
     expect(Math.hypot(r.x, r.y)).toBeCloseTo(80, 5);
   });
 
-  it('rota el rumbo por yaw: con yaw=0, +X mapea al eje x del disco', () => {
+  it('con yaw=0 (proa hacia -Z): +X (estribor) mapea a la derecha del disco', () => {
+    // A yaw=0 la proa es -Z; un blip en +X está a estribor → derecha (x>0, y≈0).
     const r = bearingToDisc(1000, 0, 0, 1000, 80);
     expect(r.x).toBeCloseTo(80, 5);
     expect(r.y).toBeCloseTo(0, 5);
   });
 
-  it('rota el rumbo por yaw: girar yaw +90° rota el punto -90° en pantalla', () => {
-    // angle = atan2(0, 1000) - yaw = 0 - PI/2 = -PI/2
-    const r = bearingToDisc(1000, 0, Math.PI / 2, 1000, 80);
+  it('con yaw=0, un blip de frente (-Z) mapea ARRIBA del disco', () => {
+    // Convención del motor: a yaw=0 forward=-Z. relZ<0 debe ir arriba (y<0).
+    const r = bearingToDisc(0, -1000, 0, 1000, 80);
     expect(r.x).toBeCloseTo(0, 5);
     expect(r.y).toBeCloseTo(-80, 5);
   });
+
+  // ── Estabilización al rumbo: la PROA siempre queda arriba para cualquier yaw ──
+  // forward en XZ = (-sin(yaw), -cos(yaw)); un blip en esa dirección debe ir
+  // ARRIBA en pantalla (x≈centro, y<centro) sin importar el yaw. Bloquea la
+  // regresión del bug (restar solo `yaw` solo acertaba a 0°/180°).
+  const FORWARD_YAWS = [
+    ['0', 0],
+    ['π/2', Math.PI / 2],
+    ['π', Math.PI],
+    ['3π/2', (3 * Math.PI) / 2],
+  ] as const;
+
+  for (const [label, yaw] of FORWARD_YAWS) {
+    it(`un blip de frente mapea ARRIBA con yaw=${label}`, () => {
+      const D = 1000;
+      const relX = -Math.sin(yaw) * D; // dirección de la proa en XZ
+      const relZ = -Math.cos(yaw) * D;
+      const r = bearingToDisc(relX, relZ, yaw, 1000, 80);
+      expect(r.x).toBeCloseTo(0, 5);
+      expect(r.y).toBeCloseTo(-80, 5);
+      expect(r.y).toBeLessThan(0);
+    });
+
+    it(`un blip a estribor mapea a la DERECHA con yaw=${label}`, () => {
+      // estribor = proa girada -90° en XZ = (cos(yaw), -sin(yaw)).
+      const D = 1000;
+      const relX = Math.cos(yaw) * D;
+      const relZ = -Math.sin(yaw) * D;
+      const r = bearingToDisc(relX, relZ, yaw, 1000, 80);
+      expect(r.x).toBeCloseTo(80, 5);
+      expect(r.y).toBeCloseTo(0, 5);
+      expect(r.x).toBeGreaterThan(0);
+    });
+  }
 
   it('un blip prácticamente en el centro no genera NaN', () => {
     const r = bearingToDisc(0, 0, 0, 1000, 80);
