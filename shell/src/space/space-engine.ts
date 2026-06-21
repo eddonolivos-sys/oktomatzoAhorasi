@@ -3,8 +3,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShipController, type ShipState } from './ship-controller';
-import { ChaseCamera, SPEED_FOV_REF } from './chase-camera';
+import { ChaseCamera } from './chase-camera';
 import { Hud } from './hud';
+import { PauseMenu } from './pause-menu';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
 import { ChunkManager } from './chunks';
@@ -62,7 +63,7 @@ export class SpaceEngine {
   private radar!: Radar;
   private ships: THREE.Group[] = [];
   private playerShip!: PlayerShip;
-  private escMenu!: HTMLElement;
+  private pauseMenu!: PauseMenu;
   private ramatzoLabel!: HTMLElement;
 
   mount(host: HTMLElement, opts: MountOpts) {
@@ -124,10 +125,12 @@ export class SpaceEngine {
     this.scene.add(this.ship.object);
     this.chaseCamera = new ChaseCamera(this.camera);
 
-    // HUD (reticula, velocidad, nitro, coords, vignette)
+    // HUD (reticula, velocidad, altitud/rumbo, leyenda, vignette)
     this.hud = new Hud(host);
     this.ship.onLockChange = (locked) => {
-      this.controlPrompt.classList.toggle('visible', !locked);
+      // El prompt "Clic para tomar control" no aparece si el menú de pausa está
+      // visible (ese caso lo cubre el propio menú con su botón "Reanudar control").
+      this.controlPrompt.classList.toggle('visible', !locked && !this.pauseMenu?.visible);
       if (locked) this.hud.hideStartMessage();
     };
 
@@ -159,7 +162,17 @@ export class SpaceEngine {
     // La entrada a proyectos es por permanencia (dwell) dentro de la esfera de
     // influencia del planeta; no hay pick por clic ni overlay de proyecto.
     this.canvas.addEventListener('click', this.onCanvasClick);
-    this.buildEscMenu(host);
+
+    this.pauseMenu = new PauseMenu(host, {
+      onResume: () => this.resumeControl(),
+      onLogout: () => this.opts.onLogout(),
+    });
+    // Truco clave (§5.6): el navegador consume el primer ESC liberando el lock.
+    // Escuchamos pointerlockchange: si se pierde el lock y no hay menú abierto,
+    // lo interpretamos como "abrir pausa" → el primer ESC libera ratón Y muestra menú.
+    document.addEventListener('pointerlockchange', this.onLockChange);
+    // Un ESC posterior (con cursor ya libre) cierra el menú.
+    document.addEventListener('keydown', this.onKeyDown);
     this.buildLabels(host);
 
     window.addEventListener('resize', this.onResize);
@@ -180,8 +193,8 @@ export class SpaceEngine {
     this.trackFps(delta);
 
     // ── Actualización de subsistemas ──
-    // Congela el vuelo (mirar + WASD) mientras el menú ESC está abierto.
-    this.ship.setEnabled(!this.escMenu.classList.contains('visible'));
+    // Congela el vuelo (mirar + WASD) mientras el menú de pausa está visible.
+    this.ship.setEnabled(!this.pauseMenu.visible);
 
     // Vuelo: la nave se mueve; la cámara la sigue.
     const ship = this.ship.update(delta);
@@ -189,15 +202,6 @@ export class SpaceEngine {
     this.chaseCamera.update(this.ship.object, ship, delta);
 
     this.maybeRebase();
-
-    const worldX = ship.position.x + this.worldOffset.x;
-    const worldZ = ship.position.z + this.worldOffset.z;
-    this.hud.update(ship, worldX, worldZ, SPEED_FOV_REF);
-
-    const fromOrigin = ship.position.clone().add(this.worldOffset).length();
-    const SOFT = 70000;
-    const HARD = 100000;
-    this.hud.setStray(fromOrigin > SOFT, fromOrigin > HARD * 0.85);
 
     this.galaxy.update(this.elapsed, delta, this.camera.position);
     this.ramatzoSun.update(this.elapsed);
@@ -208,6 +212,17 @@ export class SpaceEngine {
     // del mundo (plan 01); su posición de escena es this.ship.object.position,
     // que coincide con ship.position (misma referencia de Vector3).
     const solar = this.solarSystem.update(this.elapsed, delta, ship.position);
+
+    // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw), estado de
+    // aproximación y progreso de permanencia (dwell) del sistema solar.
+    const altitude = ship.position.y + this.worldOffset.y;
+    this.hud.update(ship, {
+      altitude,
+      heading: ship.yaw,
+      approaching: solar.approaching ? { name: solar.approaching.app.name } : null,
+      dwellProgress: solar.dwellProgress,
+    });
+
     // Frenado de aproximación aplicado a la nave (1 = normal, <1 cerca del núcleo).
     this.ship.setApproachBrake(this.solarSystem.brakeFactor(solar.approaching));
     // Entrada confirmada por permanencia: mismo contrato existente, app sin cambios.
@@ -261,35 +276,37 @@ export class SpaceEngine {
   // a proyectos ya no es por clic, sino por permanencia dentro de la esfera de
   // influencia de un planeta.
   private onCanvasClick = () => {
-    if (this.escMenu.classList.contains('visible')) return;
+    if (this.pauseMenu.visible) return;
     if (!this.ship.isLocked) this.ship.requestControl();
   };
 
-  private buildEscMenu(host: HTMLElement) {
-    this.escMenu = document.createElement('div');
-    this.escMenu.id = 'escMenu';
-    this.escMenu.innerHTML = `
-      <div class="panel">
-        <h3>Ramatzo</h3>
-        <p class="esc-controls">RAT&Oacute;N mirar &middot; W/S avanzar &middot; A/D lateral &middot; SPACE nitro<br/>clic en una constelaci&oacute;n para entrar</p>
-        <button data-act="resume">Reanudar</button>
-        <button data-act="logout">Cerrar sesi&oacute;n</button>
-      </div>`;
-    host.appendChild(this.escMenu);
-    this.escMenu.querySelector('[data-act="resume"]')!.addEventListener('click', () => this.toggleEscMenu(false));
-    this.escMenu.querySelector('[data-act="logout"]')!.addEventListener('click', () => this.opts.onLogout());
-    document.addEventListener('keydown', this.onEscKey);
-  }
-
-  // Escape: alterna el menú de pausa. (Ya no hay overlay de proyecto que cerrar.)
-  private onEscKey = (e: KeyboardEvent) => {
-    if (e.code !== 'Escape') return;
-    this.toggleEscMenu();
+  // El navegador sale del pointer lock al primer ESC. Si se pierde el lock con el
+  // motor en marcha (no en cabina) y no hay menú abierto, abrimos la pausa (cursor
+  // visible) → el primer ESC libera el ratón Y muestra el menú. Si reentramos al
+  // lock con el menú abierto, lo cerramos. NO abrimos el menú cuando el lock se
+  // pierde por entrar a la cabina/ocultar la pestaña (motor pausado: !running) ni
+  // en el teardown.
+  private onLockChange = () => {
+    const locked = this.ship.isLocked;
+    if (!locked && !this.pauseMenu.visible && this.running) {
+      this.pauseMenu.open();
+      // Oculta el prompt "Clic para tomar control" mientras el menú está abierto.
+      this.controlPrompt.classList.remove('visible');
+    } else if (locked && this.pauseMenu.visible) {
+      this.pauseMenu.close();
+    }
   };
 
-  private toggleEscMenu(force?: boolean) {
-    const show = force ?? !this.escMenu.classList.contains('visible');
-    this.escMenu.classList.toggle('visible', show);
+  // ESC con el cursor libre (menú abierto): vuelve a tomar control.
+  private onKeyDown = (e: KeyboardEvent) => {
+    if (e.code === 'Escape' && this.pauseMenu.visible) {
+      this.resumeControl();
+    }
+  };
+
+  private resumeControl() {
+    this.pauseMenu.close();
+    this.ship.requestControl(); // vuelve a pedir pointer lock al canvas
   }
 
   private buildLabels(host: HTMLElement) {
@@ -375,8 +392,9 @@ export class SpaceEngine {
     this.solarSystem?.dispose();
     this.radar?.dispose();
     this.canvas?.removeEventListener('click', this.onCanvasClick);
-    document.removeEventListener('keydown', this.onEscKey);
-    this.escMenu?.remove();
+    document.removeEventListener('pointerlockchange', this.onLockChange);
+    document.removeEventListener('keydown', this.onKeyDown);
+    this.pauseMenu?.dispose();
     this.controlPrompt?.remove();
     this.ramatzoLabel?.remove();
     window.removeEventListener('resize', this.onResize);
