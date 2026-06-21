@@ -368,8 +368,8 @@
   box-shadow: 0 0 25px rgba(255, 107, 53, 0.3);
 }
 
-/* ESC menu (Task 18) */
-#escMenu {
+/* Menú de pausa (con cursor) */
+#pauseMenu {
   position: fixed;
   inset: 0;
   z-index: 180;
@@ -377,35 +377,27 @@
   align-items: center;
   justify-content: center;
   background: rgba(10, 5, 3, 0.6);
+  cursor: default; /* recupera el cursor sobre el overlay */
 }
-#escMenu.visible {
+#pauseMenu.visible {
   display: flex;
 }
-#escMenu .panel {
+#pauseMenu .panel {
   background: rgba(10, 5, 3, 0.95);
   border: 1px solid var(--metal-brass);
   border-radius: 12px;
   padding: 28px 32px;
   text-align: center;
-  min-width: 240px;
+  min-width: 260px;
 }
-#escMenu .panel h3 {
+#pauseMenu .panel h3 {
   font-family: var(--font-display);
   color: var(--orange-amber);
   letter-spacing: 0.12em;
-  margin: 0 0 14px;
+  margin: 0 0 18px;
   font-size: 16px;
 }
-#escMenu .panel .esc-controls {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--space-text-2);
-  line-height: 1.7;
-  letter-spacing: 0.04em;
-  margin: 0 0 16px;
-  max-width: 230px;
-}
-#escMenu .panel button {
+#pauseMenu .panel button {
   display: block;
   width: 100%;
   margin: 8px 0 0;
@@ -421,9 +413,30 @@
   cursor: pointer;
   transition: all 0.3s;
 }
-#escMenu .panel button:hover {
+#pauseMenu .panel button:hover {
   border-color: var(--orange-burnt);
   color: var(--orange-burnt);
+}
+#pauseMenu .controls-panel {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--metal-iron);
+}
+#pauseMenu .controls-panel p {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--space-text-2);
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+#pauseMenu .controls-panel .key {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border: 1px solid var(--metal-iron);
+  border-radius: 3px;
+  color: var(--space-text);
 }
 
 /* Etiquetas flotantes (aparecen solo al apuntar a la constelación / hub) */
