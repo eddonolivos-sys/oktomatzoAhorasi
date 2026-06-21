@@ -30,7 +30,9 @@ function createCoronaTexture(): THREE.CanvasTexture {
  */
 export function createRamatzoSun(): RamatzoSun {
   const group = new THREE.Group();
-  const radius = 700;
+  // Escala coherente con el sistema compacto (plan 02: orbitas ~600-3000 u,
+  // planetas ~120-260 u). El sol es el cuerpo mayor pero sin eclipsar el sistema.
+  const radius = 340;
 
   const core = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 48, 48),
@@ -39,11 +41,11 @@ export function createRamatzoSun(): RamatzoSun {
   group.add(core);
 
   const shell = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 1.05, 48, 48),
+    new THREE.SphereGeometry(radius * 1.06, 48, 48),
     new THREE.MeshBasicMaterial({
       color: 0xff8c42,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.4,
       blending: THREE.AdditiveBlending,
       fog: false,
     }),
@@ -58,14 +60,16 @@ export function createRamatzoSun(): RamatzoSun {
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      opacity: 0.9,
+      opacity: 0.85,
       fog: false,
     }),
   );
-  corona.scale.set(radius * 9, radius * 9, 1);
+  corona.scale.set(radius * 6, radius * 6, 1);
   group.add(corona);
 
-  const light = new THREE.PointLight(0xffb060, 2.6, 15000, 2);
+  // Luz puntual que cubre el sistema compacto (hasta ~3600 u de orbita externa)
+  // con caida fisica suave. Intensidad sobria para realismo (sin sobreexponer).
+  const light = new THREE.PointLight(0xffb060, 3.2, 4200, 1.6);
   group.add(light);
 
   return {
@@ -77,7 +81,7 @@ export function createRamatzoSun(): RamatzoSun {
       core.rotation.y += 0.0008;
       const pulse = 0.85 + 0.15 * Math.sin(elapsed * 0.6);
       (shell.material as THREE.MeshBasicMaterial).opacity = 0.4 * pulse;
-      const s = radius * (8.5 + 0.5 * Math.sin(elapsed * 0.5));
+      const s = radius * (5.8 + 0.4 * Math.sin(elapsed * 0.5));
       corona.scale.set(s, s, 1);
     },
     dispose() {
