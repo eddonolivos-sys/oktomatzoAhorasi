@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { ShipController, type ShipState } from './ship-controller';
+import { ShipController } from './ship-controller';
 import { ChaseCamera } from './chase-camera';
 import { Hud } from './hud';
 import { PauseMenu } from './pause-menu';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
+import { createFarStarfield, type FarStarfield } from './far-starfield';
+import { createRamatzoBelt, type RamatzoBelt } from './asteroids';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
 import { SolarSystem } from './solar-system';
@@ -53,11 +55,12 @@ export class SpaceEngine {
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
-  private lastShip?: ShipState;
   private controlPrompt!: HTMLElement;
   private hud!: Hud;
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
+  private farStars!: FarStarfield;
+  private belt!: RamatzoBelt;
   private chunks!: ChunkManager;
   private solarSystem!: SolarSystem;
   private radar!: Radar;
@@ -82,7 +85,7 @@ export class SpaceEngine {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1.05; // sobrio: evita lavar los acentos
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -93,29 +96,30 @@ export class SpaceEngine {
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 110000);
     this.camera.position.set(0, 120, 2600);
 
-    // Iluminación cálida
-    this.scene.add(new THREE.AmbientLight(0x3a2a20, 0.4));
-    const starLight = new THREE.DirectionalLight(0xff8c42, 1.5);
+    // Iluminación cálida y sobria: key cálido del sol, fill frío tenue y un
+    // rim azulado para recortar nave y planetas del fondo (realismo sin neón).
+    this.scene.add(new THREE.AmbientLight(0x2a2018, 0.35));
+    const starLight = new THREE.DirectionalLight(0xffb070, 1.35);
     starLight.position.set(50, 100, -200);
     starLight.castShadow = true;
     starLight.shadow.mapSize.set(1024, 1024);
     this.scene.add(starLight);
-    const fillLight = new THREE.DirectionalLight(0x8b7a5a, 0.3);
-    fillLight.position.set(-50, 30, 100);
+    const fillLight = new THREE.DirectionalLight(0x6a7488, 0.28);
+    fillLight.position.set(-60, 20, 120);
     this.scene.add(fillLight);
-    const warmLight = new THREE.PointLight(0xff6b35, 0.5, 80);
-    warmLight.position.set(20, 10, 30);
-    this.scene.add(warmLight);
+    const rimLight = new THREE.DirectionalLight(0x9fb6d8, 0.45);
+    rimLight.position.set(-30, 60, -150); // contraluz: rim en nave/planetas
+    this.scene.add(rimLight);
 
     // Post-procesado: bloom cálido
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    // Bloom sobrio pero marcado: realza los emisivos de la nave (núcleos,
-    // llamas, costura ámbar, luces nav) sin emborronar el sistema.
-    // (strength, radius, threshold). NOTA: el plan 06 finaliza la iluminación
-    // y el bloom globales; este ajuste es para los acentos de la nave.
+    // Bloom final (plan 06): realza solo emisivos brillantes (sol, toberas,
+    // acentos ámbar de la nave) sin halo lechoso global. El umbral alto recorta
+    // el fondo y los planetas mates; strength/radius conservan el realce de la
+    // nave afinado en plan 05. (strength, radius, threshold).
     this.composer.addPass(
-      new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.45, 0.08),
+      new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.45, 0.6),
     );
 
     // Control de vuelo: la nave es una entidad en el mundo; la cámara la sigue.
@@ -140,6 +144,15 @@ export class SpaceEngine {
 
     this.ramatzoSun = createRamatzoSun();
     this.scene.add(this.ramatzoSun.object);
+
+    this.farStars = createFarStarfield(this.renderer);
+    this.scene.add(this.farStars.object);
+
+    // Cinturon de asteroides Ramatzo: radios coordinados con plan 02 (orbita
+    // externa de planetas ~3000 u; superficie/influencia hasta ~3260 u). Anillo
+    // por fuera de esa franja, sin solaparse con los planetas.
+    this.belt = createRamatzoBelt({ count: 240, innerRadius: 3400, outerRadius: 4400 });
+    this.scene.add(this.belt.object);
 
     this.chunks = new ChunkManager(this.scene, this.renderer);
     this.solarSystem = new SolarSystem(this.scene, opts.apps, this.renderer);
@@ -198,13 +211,18 @@ export class SpaceEngine {
 
     // Vuelo: la nave se mueve; la cámara la sigue.
     const ship = this.ship.update(delta);
-    this.lastShip = ship;
     this.chaseCamera.update(this.ship.object, ship, delta);
 
     this.maybeRebase();
 
-    this.galaxy.update(this.elapsed, delta, this.camera.position);
+    // Parallax sobre la posicion de la NAVE (plan 01): el backdrop se desplaza a
+    // una fraccion de la posicion de la nave, no se recentra en ella.
+    this.galaxy.update(this.elapsed, delta, ship.position);
+    // farStars es FIJA (anclada al origen): no recibe posicion ni se rebasa, es
+    // la referencia absoluta de movimiento.
+    this.farStars.update(this.elapsed);
     this.ramatzoSun.update(this.elapsed);
+    this.belt.update(this.elapsed, delta);
 
     setStarGasTime(this.elapsed);
     this.chunks.update(ship.position.clone().add(this.worldOffset));
@@ -356,8 +374,10 @@ export class SpaceEngine {
     this.worldOffset.add(delta);
     this.chunks.rebase(delta);
     this.solarSystem.rebase(delta);
+    this.belt.rebase(delta);
     this.ramatzoSun.object.position.sub(delta);
     for (const s of this.ships) s.position.sub(delta);
+    // farStars es fija (referencia absoluta): no se rebasa a proposito.
   }
 
   start() {
@@ -385,6 +405,8 @@ export class SpaceEngine {
     this.ship?.detach();
     this.hud?.dispose();
     this.galaxy?.dispose();
+    this.farStars?.dispose();
+    this.belt?.dispose();
     this.ramatzoSun?.dispose();
     this.playerShip?.dispose();
     this.chunks?.dispose();

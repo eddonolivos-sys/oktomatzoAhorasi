@@ -48,34 +48,6 @@
   margin-top: 2px;
 }
 
-/* Barra nitro */
-#nitroBar {
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 100;
-  pointer-events: none;
-  width: 200px;
-  height: 3px;
-  background: var(--metal-iron);
-  border-radius: 2px;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-#nitroBar.active {
-  opacity: 1;
-}
-#nitroBar .fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--orange-rust), var(--orange-ember), var(--orange-warm));
-  border-radius: 2px;
-  transition: width 0.05s linear;
-  box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
-}
-
 /* Datos de vuelo (altitud / rumbo) — reemplaza el antiguo #coords con Z/AU */
 #flightData {
   position: fixed;
@@ -115,35 +87,6 @@
   border: 1px solid var(--metal-iron);
   border-radius: 3px;
   color: var(--space-text);
-}
-
-/* Aviso de orientación (al alejarse de la zona de proyectos) */
-#strayWarn {
-  position: fixed;
-  top: 66px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 110;
-  pointer-events: none;
-  font-family: var(--font-serif);
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--orange-amber);
-  text-shadow: 0 0 14px rgba(230, 168, 23, 0.4), 0 1px 3px #000;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-#strayWarn.visible {
-  opacity: 0.9;
-}
-#strayWarn.urgent {
-  color: var(--orange-ember);
-  animation: stray-pulse 1s ease-in-out infinite;
-}
-@keyframes stray-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
 }
 
 /* Reticula */
@@ -280,92 +223,6 @@
 #startMsg.hidden {
   opacity: 0;
   pointer-events: none;
-}
-
-/* Project info overlay */
-#projectInfo {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
-  z-index: 150;
-  width: 90%;
-  max-width: 500px;
-  background: rgba(10, 5, 3, 0.92);
-  border: 1px solid var(--metal-brass);
-  border-radius: 12px;
-  padding: 36px 32px;
-  text-align: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), inset 0 0 60px rgba(139, 58, 26, 0.1);
-}
-#projectInfo.visible {
-  opacity: 1;
-  pointer-events: all;
-  transform: translate(-50%, -50%) scale(1);
-}
-#projectInfo .constellation-icon {
-  font-size: 36px;
-  color: var(--orange-amber);
-  margin-bottom: 12px;
-}
-#projectInfo h2 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--orange-amber);
-  letter-spacing: 0.1em;
-  margin: 0 0 8px;
-}
-#projectInfo .category {
-  font-family: var(--font-serif);
-  font-size: 11px;
-  color: var(--metal-brass);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-#projectInfo .desc {
-  font-family: var(--font-serif);
-  font-size: 13px;
-  color: var(--space-text-2);
-  line-height: 1.6;
-  margin-bottom: 24px;
-}
-#projectInfo .actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-#projectInfo .actions button {
-  padding: 10px 28px;
-  border: 1px solid var(--metal-brass);
-  border-radius: 6px;
-  font-family: var(--font-serif);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  background: transparent;
-  color: var(--space-text);
-}
-#projectInfo .actions button:hover {
-  border-color: var(--orange-amber);
-  color: var(--orange-amber);
-  box-shadow: 0 0 20px rgba(230, 168, 23, 0.15);
-}
-#projectInfo .actions button.primary {
-  background: var(--orange-burnt);
-  border-color: var(--orange-burnt);
-  color: #fff;
-}
-#projectInfo .actions button.primary:hover {
-  background: var(--orange-ember);
-  border-color: var(--orange-ember);
-  box-shadow: 0 0 25px rgba(255, 107, 53, 0.3);
 }
 
 /* Prompt "Clic para tomar control" (visible cuando no hay pointer lock) */
@@ -536,6 +393,4 @@
   #hud .speed-display .value { font-size: 28px; }
   #flightData { display: none; }
   #controlsLegend { display: none; }
-  #projectInfo { padding: 24px 20px; }
-  #projectInfo h2 { font-size: 16px; }
 }
