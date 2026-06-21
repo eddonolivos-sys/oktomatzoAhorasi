@@ -1,4 +1,12 @@
 import * as THREE from 'three';
+import { parallaxOffset } from './parallax';
+
+/**
+ * Fraccion de seguimiento de la galaxia al jugador. Pequena (~6%) para que el
+ * backdrop se desplace lento respecto a la nave (parallax visible) sin que la
+ * nave llegue nunca a "alcanzarlo". 0 = totalmente fija; 1 = pegada (bug previo).
+ */
+const GALAXY_PARALLAX = 0.06;
 
 export interface Galaxy {
   object: THREE.Points;
@@ -8,8 +16,8 @@ export interface Galaxy {
 
 /**
  * Galaxia espiral de fondo (4 brazos, 80k puntos, shader de gas difuso).
- * Backdrop lejano: rota lento y sigue al jugador a gran escala para que nunca
- * se "alcance".
+ * Backdrop lejano: rota lento y sigue al jugador solo a una fraccion pequena
+ * (parallax) para que el avance sea visible sin que la nave la "alcance".
  */
 export function createGalaxy(renderer: THREE.WebGLRenderer): Galaxy {
   const count = 40000;
@@ -85,7 +93,10 @@ export function createGalaxy(renderer: THREE.WebGLRenderer): Galaxy {
     update(elapsed, delta, playerPos) {
       object.rotation.y += delta * 0.008;
       object.rotation.x = Math.sin(elapsed * 0.003) * 0.05;
-      object.position.set(playerPos.x, playerPos.y - 20, playerPos.z);
+      // Parallax: el backdrop sigue al jugador solo a una fraccion pequena, de
+      // modo que la nave avanza visiblemente respecto a el (fix galaxy.ts:88).
+      const o = parallaxOffset({ x: playerPos.x, y: playerPos.y, z: playerPos.z }, GALAXY_PARALLAX);
+      object.position.set(o.x, o.y - 20, o.z);
     },
     dispose() {
       geometry.dispose();
