@@ -1,27 +1,38 @@
 import type { ShipState } from './ship-controller';
-import { sectorOf } from './layout';
+import { formatAltitude, formatHeading } from './hud-format';
 
 /**
- * Overlay HUD in-space (DOM en light DOM). Crea reticula, velocidad, barra nitro,
- * coordenadas/sector, vignette y mensaje de inicio. Estilos en space.css.
+ * Overlay HUD in-space (DOM en light DOM). Reactivo: reticula con estado
+ * (idle / aproximando con anillo de permanencia), velocidad real (sin tope),
+ * altitud real y rumbo/brújula, leyenda de controles persistente y vignette.
+ * Sin campo "Z … AU" (engañoso). Estilos en space.css. Sin Three.js.
  */
 export class Hud {
   private root: HTMLDivElement;
+  private reticle: HTMLElement;
+  private dwellRing: SVGCircleElement;
+  private reticleLabel: HTMLElement;
   private speedValue: HTMLElement;
   private speedUnit: HTMLElement;
-  private nitroBar: HTMLElement;
-  private nitroFill: HTMLElement;
-  private sectorVal: HTMLElement;
-  private zVal: HTMLElement;
-  private sysVal: HTMLElement;
+  private altValue: HTMLElement;
+  private headingValue: HTMLElement;
   private startMsg: HTMLElement;
-  private strayWarn: HTMLElement;
+
+  /** Circunferencia del círculo de progreso (r = 16). */
+  private readonly ringCircumference = 2 * Math.PI * 16;
 
   constructor(host: HTMLElement) {
     this.root = document.createElement('div');
     this.root.innerHTML = `
       <div id="vignette"></div>
-      <div id="reticle"><div class="center-dot"></div></div>
+      <div id="reticle">
+        <svg class="dwell" viewBox="0 0 40 40" aria-hidden="true">
+          <circle class="dwell-track" cx="20" cy="20" r="16"></circle>
+          <circle class="dwell-fill" cx="20" cy="20" r="16"></circle>
+        </svg>
+        <div class="center-dot"></div>
+        <div class="reticle-label"></div>
+      </div>
       <div id="startMsg">
         <h1>Ramatzo</h1>
         <p>
@@ -29,70 +40,76 @@ export class Hud {
           <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
           <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
           <span class="key">SPACE</span> Nitro<br/>
-          Apunta con la mira a una constelaci&oacute;n y haz clic para entrar
+          Acerca la nave a un planeta y mant&eacute;n el rumbo para entrar
         </p>
       </div>
       <div id="hud">
         <div class="speed-display"><span class="value" id="speedValue">0</span> <span id="speedUnit">U/s</span></div>
-        <div class="speed-unit">Velocidad de crucero</div>
+        <div class="speed-unit">Velocidad</div>
       </div>
-      <div id="nitroBar"><div class="fill" id="nitroFill"></div></div>
-      <div id="coords">
-        <span class="label">SECTOR</span> <span id="sectorVal">0:0</span><br/>
-        <span class="label">Z</span> <span id="zVal">0.00</span> AU<br/>
-        <span class="label">SISTEMAS</span> <span id="sysVal">OK</span>
+      <div id="flightData">
+        <div class="row"><span class="label">ALT</span> <span id="altValue">+0 u</span></div>
+        <div class="row"><span class="label">RUMBO</span> <span id="headingValue">000</span>&deg;</div>
       </div>
-      <div id="strayWarn"></div>`;
+      <div id="controlsLegend">
+        <span class="key">RAT&Oacute;N</span> mirar
+        <span class="key">W</span><span class="key">S</span> avanzar
+        <span class="key">A</span><span class="key">D</span> lateral
+        <span class="key">SPACE</span> nitro
+        <span class="key">SHIFT</span> freno
+        <span class="key">ESC</span> men&uacute;
+      </div>`;
     host.appendChild(this.root);
 
-    const q = (id: string) => this.root.querySelector('#' + id) as HTMLElement;
-    this.speedValue = q('speedValue');
-    this.speedUnit = q('speedUnit');
-    this.nitroBar = q('nitroBar');
-    this.nitroFill = q('nitroFill');
-    this.sectorVal = q('sectorVal');
-    this.zVal = q('zVal');
-    this.sysVal = q('sysVal');
-    this.startMsg = q('startMsg');
-    this.strayWarn = q('strayWarn');
+    const q = (sel: string) => this.root.querySelector(sel) as HTMLElement;
+    this.reticle = q('#reticle');
+    this.dwellRing = this.root.querySelector('#reticle .dwell-fill') as unknown as SVGCircleElement;
+    this.reticleLabel = q('#reticle .reticle-label');
+    this.speedValue = q('#speedValue');
+    this.speedUnit = q('#speedUnit');
+    this.altValue = q('#altValue');
+    this.headingValue = q('#headingValue');
+    this.startMsg = q('#startMsg');
+
+    // Estado inicial del anillo de permanencia: vacío.
+    this.dwellRing.style.strokeDasharray = String(this.ringCircumference);
+    this.dwellRing.style.strokeDashoffset = String(this.ringCircumference);
   }
 
-  update(state: ShipState, worldX: number, worldZ: number, maxNitroSpeed: number) {
-    this.speedValue.textContent = state.speed.toFixed(1);
-    this.zVal.textContent = (Math.abs(worldZ) * 0.01).toFixed(2);
-
-    const { sx, sz } = sectorOf(worldX, worldZ);
-    this.sectorVal.textContent = `${sx}:${sz}`;
+  update(
+    state: ShipState,
+    info: { altitude: number; heading: number; approaching: { name: string } | null; dwellProgress: number },
+  ) {
+    // Velocidad real, sin tope.
+    this.speedValue.textContent = state.speed.toFixed(0);
 
     if (state.isNitro) {
-      this.nitroBar.classList.add('active');
-      this.nitroFill.style.width = Math.min(100, (state.speed / maxNitroSpeed) * 100) + '%';
       this.speedUnit.textContent = 'NITRO';
       this.speedUnit.style.color = 'var(--orange-ember)';
     } else {
-      this.nitroBar.classList.remove('active');
       this.speedUnit.textContent = 'U/s';
       this.speedUnit.style.color = '';
     }
 
-    this.sysVal.textContent = 'OK';
+    // Altitud real y rumbo (formateadores puros).
+    this.altValue.textContent = formatAltitude(info.altitude);
+    this.headingValue.textContent = formatHeading(info.heading);
+
+    // Estado de la reticula: idle vs aproximando con anillo de permanencia.
+    const approaching = info.approaching != null;
+    this.reticle.classList.toggle('approaching', approaching);
+    if (approaching) {
+      this.reticleLabel.textContent = info.approaching!.name;
+      const p = Math.max(0, Math.min(1, info.dwellProgress));
+      this.dwellRing.style.strokeDashoffset = String(this.ringCircumference * (1 - p));
+    } else {
+      this.reticleLabel.textContent = '';
+      this.dwellRing.style.strokeDashoffset = String(this.ringCircumference);
+    }
   }
 
   hideStartMessage() {
     this.startMsg.classList.add('hidden');
-  }
-
-  /** Aviso de orientación cuando el jugador se aleja de la zona de proyectos. */
-  setStray(straying: boolean, urgent: boolean) {
-    if (straying) {
-      this.strayWarn.textContent = urgent
-        ? 'SIN RUMBO — regresa hacia los proyectos'
-        : 'Te alejas de la zona de proyectos';
-      this.strayWarn.classList.add('visible');
-      this.strayWarn.classList.toggle('urgent', urgent);
-    } else {
-      this.strayWarn.classList.remove('visible');
-    }
   }
 
   dispose() {
