@@ -67,9 +67,9 @@ export function createRamatzoSun(): RamatzoSun {
   corona.scale.set(radius * 6, radius * 6, 1);
   group.add(corona);
 
-  // Luz puntual que cubre el sistema compacto (hasta ~3600 u de orbita externa)
-  // con caida fisica suave. Intensidad sobria para realismo (sin sobreexponer).
-  const light = new THREE.PointLight(0xffb060, 3.2, 4200, 1.6);
+  // Luz puntual que cubre el sistema (órbitas hasta ~6000 u) con caída física
+  // suave. Intensidad sobria para realismo (sin sobreexponer).
+  const light = new THREE.PointLight(0xffb060, 3.6, 7500, 1.5);
   group.add(light);
 
   return {

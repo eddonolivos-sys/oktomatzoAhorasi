@@ -2,6 +2,7 @@ apps:
   - id: dashboard
     name: Dashboard Comercial
     description: Métricas y reportes de ventas
+    blurb: Panel comercial con métricas, reportes y gráficos de ventas en tiempo real.
     icon: bar-chart
     route: /dashboard
     src: /apps/dashboard/
@@ -15,6 +16,7 @@ apps:
   - id: viewer-3d
     name: Visor 3D
     description: Visualización interactiva de modelos 3D
+    blurb: Explorador de modelos 3D con WebGL; rota, acerca y examina geometrías.
     icon: cube
     route: /viewer-3d
     src: /apps/viewer-3d/
@@ -28,6 +30,7 @@ apps:
   - id: combate-3d
     name: Combate 3D
     description: Juego de combate vehicular en 3D
+    blurb: Arena de combate vehicular en 3D, con multijugador y físicas.
     icon: target
     route: /combate-3d
     src: /apps/combate-3d/
@@ -42,6 +45,7 @@ apps:
   - id: oktomatzo2
     name: TattooAR
     description: Previsualización 3D de tatuajes
+    blurb: Previsualiza tatuajes en 3D sobre el cuerpo antes de hacerlos realidad.
     icon: layers
     route: /oktomatzo2
     src: /apps/oktomatzo2/
@@ -56,6 +60,7 @@ apps:
   - id: busqueda
     name: Búsqueda
     description: Búsqueda inteligente en la documentación del proyecto
+    blurb: Buscador inteligente sobre toda la documentación del proyecto.
     icon: search
     route: /busqueda
     src: /docs/search.html
@@ -69,6 +74,7 @@ apps:
   - id: mundo-3d
     name: Mundo 3D
     description: Visualización de globo terráqueo con CesiumJS
+    blurb: Globo terráqueo interactivo con CesiumJS y datos geoespaciales.
     icon: globe
     route: /mundo-3d
     src: /apps/mundo-3d/
@@ -80,9 +86,25 @@ apps:
       - webgl
       - 3d
 
+  - id: ramatzo
+    name: Ramatzo
+    description: Repositorio del proyecto Ramatzo en GitHub
+    blurb: Código fuente del proyecto Ramatzo. Se abre en GitHub en una pestaña nueva.
+    icon: brand-github
+    route: /ramatzo
+    src: ""
+    externalUrl: https://github.com/eddonolivos-sys/Oktomatzo2/tree/Ramatzo
+    version: 1.0.0
+    sandbox: ""
+    category: Sistema
+    tags:
+      - github
+      - repo
+
   - id: test-uno
     name: Proyecto de prueba 1
     description: Verificación del sistema con iframes
+    blurb: Proyecto de prueba para verificar la integración por iframes.
     icon: home
     route: /test-uno
     src: /apps/test-uno/
@@ -96,6 +118,7 @@ apps:
   - id: test-dos
     name: Proyecto de prueba 2
     description: Segunda verificación con navegación cross-app
+    blurb: Segunda prueba para la navegación entre apps embebidas.
     icon: home
     route: /test-dos
     src: /apps/test-dos/

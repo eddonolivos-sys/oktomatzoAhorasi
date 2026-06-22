@@ -10,6 +10,10 @@ export interface AppInfo {
   category: string;
   tags: string[];
   enabled: boolean;
+  /** Texto genérico editable que se muestra en el panel de info del proyecto (app-registry.yaml). */
+  blurb?: string;
+  /** Si está presente, "entrar" abre esta URL en una pestaña nueva (no iframe). P. ej. un repo de GitHub. */
+  externalUrl?: string;
 }
 
 export type ShellMessageType =

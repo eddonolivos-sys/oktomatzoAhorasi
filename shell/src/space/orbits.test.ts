@@ -6,12 +6,12 @@ describe('planetLayout', () => {
     expect(planetLayout(2, 6)).toEqual(planetLayout(2, 6));
   });
 
-  it('reparte los radios entre ~600 y ~3000 u, crecientes por índice', () => {
+  it('reparte los radios entre ~1200 y ~6000 u, crecientes por índice', () => {
     const total = 6;
     const a = planetLayout(0, total);
     const b = planetLayout(total - 1, total);
-    expect(a.radius).toBeGreaterThanOrEqual(600);
-    expect(b.radius).toBeLessThanOrEqual(3000);
+    expect(a.radius).toBeGreaterThanOrEqual(1200);
+    expect(b.radius).toBeLessThanOrEqual(6000);
     expect(b.radius).toBeGreaterThan(a.radius);
   });
 

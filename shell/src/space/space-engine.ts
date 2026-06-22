@@ -249,7 +249,13 @@ export class SpaceEngine {
     this.hud.update(ship, {
       altitude,
       heading: ship.yaw,
-      approaching: solar.approaching ? { name: solar.approaching.app.name } : null,
+      approaching: solar.approaching
+        ? {
+            name: solar.approaching.app.name,
+            description: solar.approaching.app.description,
+            blurb: solar.approaching.app.blurb,
+          }
+        : null,
       dwellProgress: solar.dwellProgress,
     });
 
@@ -337,7 +343,13 @@ export class SpaceEngine {
   // Entra al proyecto del planeta en aproximación (tecla E).
   private enterApproaching() {
     if (this.pauseMenu.visible || !this.approachingApp) return;
-    this.opts.onEnterApp(this.approachingApp);
+    const app = this.approachingApp;
+    if (app.externalUrl) {
+      // Proyecto externo (p. ej. repo de GitHub): abre en pestaña nueva, no iframe.
+      window.open(app.externalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    this.opts.onEnterApp(app);
   }
 
   // Abre el menú de pausa con cursor visible (suelta el lock si lo había).

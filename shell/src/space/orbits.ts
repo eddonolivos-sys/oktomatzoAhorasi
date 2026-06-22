@@ -5,8 +5,8 @@
  * 3D en un instante `t` (segundos transcurridos).
  */
 
-const MIN_RADIUS = 600;
-const MAX_RADIUS = 3000;
+const MIN_RADIUS = 1200;
+const MAX_RADIUS = 6000;
 const GOLDEN = 2.399963267; // ángulo áureo (rad), para fases sin alineación
 
 /** Parámetros orbitales deterministas del planeta `index` de `total`. */
