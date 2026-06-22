@@ -18,6 +18,8 @@ services:
       - app-mundo-3d
       - app-combate-3d
       - game-server
+      - space-server
+      - redis
       - oktomatzo2-app
       - test-uno
       - test-dos
@@ -83,6 +85,27 @@ services:
     ports:
       - "127.0.0.1:8091:8080"
 
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:8092:6379"
+
+  space-server:
+    build:
+      context: ../services/space-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    ports:
+      - "127.0.0.1:8093:8080"
+
   oktomatzo2-api:
     build:
       context: ../apps/oktomatzo2/tattoo-preview/backend
@@ -126,3 +149,4 @@ volumes:
   caddy_data:
   caddy_config:
   backend_data:
+  redis_data:
