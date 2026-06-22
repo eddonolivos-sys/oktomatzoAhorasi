@@ -21,7 +21,7 @@ export interface Galaxy {
  * Densidad reducida (~50%) para menos saturación visual y mejor rendimiento.
  */
 export function createGalaxy(renderer: THREE.WebGLRenderer): Galaxy {
-  const count = 10000;
+  const count = 2000;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);

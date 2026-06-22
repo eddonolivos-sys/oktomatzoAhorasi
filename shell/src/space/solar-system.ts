@@ -3,7 +3,6 @@ import type { AppInfo } from '../services/protocol';
 import { createPlanet } from './planet';
 import { colorForCategory } from './layout';
 import { planetLayout, orbitPosition } from './orbits';
-import { dwellStep, type DwellState } from './dwell';
 import { approachBrakeFactor } from './flight-math';
 
 export interface RadarBlip {
@@ -42,7 +41,6 @@ interface SolarPlanet {
 const PLANET_MIN = 120;
 const PLANET_MAX = 260;
 const INFLUENCE_FACTOR = 2.5;
-const DWELL_THRESHOLD = 1.0; // segundos dentro de la esfera para entrar
 const BRAKE_MIN_FACTOR = 0.25; // damping fuerte en el núcleo de la esfera
 
 function seedFromId(id: string): number {
@@ -59,10 +57,6 @@ function seedFromId(id: string): number {
  */
 export class SolarSystem {
   private planets: SolarPlanet[] = [];
-  /** Estado de permanencia del planeta actualmente "dentro", o null. */
-  private dwell: DwellState = { inside: false, elapsed: 0 };
-  /** App sobre la que se acumula la permanencia (para reiniciar al cambiar). */
-  private dwellApp: AppInfo | null = null;
 
   constructor(
     private scene: THREE.Scene,
@@ -115,22 +109,9 @@ export class SolarSystem {
       ? { app: nearest.app, distance: nearestDist, influenceRadius: nearest.influenceRadius }
       : null;
 
-    // 3) Permanencia: si cambió el planeta objetivo, reinicia el contador.
-    const inside = nearest !== null;
-    if (nearest && nearest.app !== this.dwellApp) {
-      this.dwell = { inside: false, elapsed: 0 };
-      this.dwellApp = nearest.app;
-    }
-    if (!inside) this.dwellApp = null;
-
-    const step = dwellStep(this.dwell, inside, delta, DWELL_THRESHOLD);
-    this.dwell = step.state;
-
-    return {
-      approaching,
-      dwellProgress: step.progress,
-      entered: step.entered ? (nearest as SolarPlanet).app : null,
-    };
+    // La entrada ya NO es automática: el motor abre el proyecto al pulsar E cuando
+    // hay un planeta en aproximación. Aquí solo se reporta el objetivo cercano.
+    return { approaching, dwellProgress: 0, entered: null };
   }
 
   /**
@@ -163,7 +144,5 @@ export class SolarSystem {
       else mat?.dispose?.();
     }
     this.planets = [];
-    this.dwell = { inside: false, elapsed: 0 };
-    this.dwellApp = null;
   }
 }

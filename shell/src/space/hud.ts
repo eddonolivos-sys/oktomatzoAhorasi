@@ -40,7 +40,7 @@ export class Hud {
           <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
           <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
           <span class="key">SPACE</span> Nitro<br/>
-          Acerca la nave a un planeta y mant&eacute;n el rumbo para entrar
+          Ac&eacute;rcate a un planeta y pulsa <span class="key">E</span> para entrar
         </p>
       </div>
       <div id="hud">
@@ -57,6 +57,7 @@ export class Hud {
         <span class="key">A</span><span class="key">D</span> lateral
         <span class="key">SPACE</span> nitro
         <span class="key">SHIFT</span> freno
+        <span class="key">E</span> entrar
         <span class="key">ESC</span> men&uacute;
       </div>`;
     host.appendChild(this.root);
@@ -99,9 +100,9 @@ export class Hud {
     const approaching = info.approaching != null;
     this.reticle.classList.toggle('approaching', approaching);
     if (approaching) {
-      this.reticleLabel.textContent = info.approaching!.name;
-      const p = Math.max(0, Math.min(1, info.dwellProgress));
-      this.dwellRing.style.strokeDashoffset = String(this.ringCircumference * (1 - p));
+      this.reticleLabel.textContent = `Pulsa E · ${info.approaching!.name}`;
+      // Anillo lleno como marcador estático (la entrada es por tecla E, no por permanencia).
+      this.dwellRing.style.strokeDashoffset = '0';
     } else {
       this.reticleLabel.textContent = '';
       this.dwellRing.style.strokeDashoffset = String(this.ringCircumference);

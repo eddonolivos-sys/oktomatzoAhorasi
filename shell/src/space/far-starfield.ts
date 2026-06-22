@@ -13,7 +13,7 @@ export interface FarStarfield {
  * pulso ni neon. Rota imperceptiblemente para sensacion de profundidad.
  */
 export function createFarStarfield(renderer: THREE.WebGLRenderer): FarStarfield {
-  const count = 700; // densidad reducida para menos saturación visual
+  const count = 140; // densidad muy reducida (−80%) para mínima saturación
   const inner = 18000;
   const outer = 26000;
 

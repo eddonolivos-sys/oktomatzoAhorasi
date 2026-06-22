@@ -57,6 +57,7 @@ export class SpaceEngine {
   private chaseCamera!: ChaseCamera;
   private controlPrompt!: HTMLElement;
   private menuBtn!: HTMLElement;
+  private approachingApp: AppInfo | null = null;
   private hud!: Hud;
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
@@ -239,9 +240,11 @@ export class SpaceEngine {
     // del mundo (plan 01); su posición de escena es this.ship.object.position,
     // que coincide con ship.position (misma referencia de Vector3).
     const solar = this.solarSystem.update(this.elapsed, delta, ship.position);
+    // Planeta en aproximación: se entra al pulsar E (ver onKeyDown), no de forma automática.
+    this.approachingApp = solar.approaching?.app ?? null;
 
-    // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw), estado de
-    // aproximación y progreso de permanencia (dwell) del sistema solar.
+    // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw) y planeta en
+    // aproximación (prompt "Pulsa E").
     const altitude = ship.position.y + this.worldOffset.y;
     this.hud.update(ship, {
       altitude,
@@ -252,8 +255,6 @@ export class SpaceEngine {
 
     // Frenado de aproximación aplicado a la nave (1 = normal, <1 cerca del núcleo).
     this.ship.setApproachBrake(this.solarSystem.brakeFactor(solar.approaching));
-    // Entrada confirmada por permanencia: mismo contrato existente, app sin cambios.
-    if (solar.entered) this.opts.onEnterApp(solar.entered);
     this.radar.draw(
       ship.position,
       ship.yaw,
@@ -314,19 +315,30 @@ export class SpaceEngine {
   // pierde por entrar a la cabina/ocultar la pestaña (motor pausado: !running) ni
   // en el teardown.
   private onLockChange = () => {
-    // Perder el pointer lock NO abre ningún modal: simplemente se vuelve al modo
-    // de mirada por posición de cursor (siempre activo; el prompt lo gestiona
-    // ship.onLockChange). Así un clic nunca deja al usuario atrapado en una capa
-    // que captura el ratón. El menú se abre solo de forma explícita (botón/ESC).
+    if (!this.running) return; // en cabina (motor pausado) no reaccionamos al lock
+    // Perder el lock no abre ningún modal; la mirada (movementX) funciona igual sin
+    // lock. El menú se abre solo de forma explícita (botón "Menú" o ESC).
     if (this.ship.isLocked && this.pauseMenu.visible) this.pauseMenu.close();
   };
 
-  // ESC: abre el menú; si ya está abierto, reanuda. (Independiente del pointer lock.)
   private onKeyDown = (e: KeyboardEvent) => {
+    if (!this.running) return; // en cabina (motor pausado) el motor ignora las teclas
+    // E: entra al proyecto del planeta en aproximación (no automático).
+    if (e.code === 'KeyE') {
+      this.enterApproaching();
+      return;
+    }
+    // ESC: abre el menú; si ya está abierto, reanuda. (Independiente del pointer lock.)
     if (e.code !== 'Escape') return;
     if (this.pauseMenu.visible) this.resumeControl();
     else this.openMenu();
   };
+
+  // Entra al proyecto del planeta en aproximación (tecla E).
+  private enterApproaching() {
+    if (this.pauseMenu.visible || !this.approachingApp) return;
+    this.opts.onEnterApp(this.approachingApp);
+  }
 
   // Abre el menú de pausa con cursor visible (suelta el lock si lo había).
   private openMenu() {
@@ -407,11 +419,20 @@ export class SpaceEngine {
     cancelAnimationFrame(this.rafId);
     this.radar?.hide();
     this.ship?.setEnabled(false); // suelta teclas: evita nave acelerando al volver de la cabina
+    // Al entrar a un proyecto: libera el puntero (cursor disponible en la cabina
+    // SIN pulsar ESC) y cierra el menú/prompt para no volver a un estado bloqueado.
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.pauseMenu?.close();
+    this.controlPrompt?.classList.remove('visible');
   }
 
   resume() {
     if (document.hidden) return;
+    // Vuelve del proyecto en estado limpio: menú cerrado (el bucle rehabilita la
+    // nave) y prompt visible por si se quiere clic para el modo inmersivo.
+    this.pauseMenu?.close();
     this.radar?.show();
+    this.controlPrompt?.classList.add('visible');
     this.start();
   }
 
