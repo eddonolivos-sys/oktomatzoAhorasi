@@ -9,6 +9,8 @@ import { PauseMenu } from './pause-menu';
 import { createGalaxy, type Galaxy } from './galaxy';
 import { createRamatzoSun, type RamatzoSun } from './ramatzo-sun';
 import { createFarStarfield, type FarStarfield } from './far-starfield';
+import { createNebulae, type Nebulae } from './nebulae';
+import { createComets, type Comets } from './comets';
 import { createRamatzoBelt, type RamatzoBelt } from './asteroids';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
@@ -62,6 +64,8 @@ export class SpaceEngine {
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
   private farStars!: FarStarfield;
+  private nebulae!: Nebulae;
+  private comets!: Comets;
   private belt!: RamatzoBelt;
   private chunks!: ChunkManager;
   private solarSystem!: SolarSystem;
@@ -150,6 +154,13 @@ export class SpaceEngine {
     this.farStars = createFarStarfield(this.renderer);
     this.scene.add(this.farStars.object);
 
+    // Ambiente cósmico: nebulosas de fondo (telón lejano, no se rebasa, como
+    // far-stars) y cometas ocasionales (transitorios de campo cercano).
+    this.nebulae = createNebulae();
+    this.scene.add(this.nebulae.object);
+    this.comets = createComets();
+    this.scene.add(this.comets.object);
+
     // Cinturon de asteroides Ramatzo: radios coordinados con plan 02 (orbita
     // externa de planetas ~3000 u; superficie/influencia hasta ~3260 u). Anillo
     // por fuera de esa franja, sin solaparse con los planetas.
@@ -231,6 +242,10 @@ export class SpaceEngine {
     // farStars es FIJA (anclada al origen): no recibe posicion ni se rebasa, es
     // la referencia absoluta de movimiento.
     this.farStars.update(this.elapsed);
+    // Nebulosas: telón de fondo fijo (no se rebasa, como far-stars). Cometas:
+    // transitorios de campo cercano (no se rebasan; ver comets.ts).
+    this.nebulae.update(this.elapsed);
+    this.comets.update(this.elapsed, delta);
     this.ramatzoSun.update(this.elapsed);
     this.belt.update(this.elapsed, delta);
 
@@ -454,6 +469,8 @@ export class SpaceEngine {
     this.hud?.dispose();
     this.galaxy?.dispose();
     this.farStars?.dispose();
+    this.nebulae?.dispose();
+    this.comets?.dispose();
     this.belt?.dispose();
     this.ramatzoSun?.dispose();
     this.playerShip?.dispose();
