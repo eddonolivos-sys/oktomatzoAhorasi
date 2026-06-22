@@ -44,6 +44,11 @@
 		reverse_proxy game-server:8080
 	}
 
+	# Space WebSocket server (multiplayer presence)
+	handle /space-ws {
+		reverse_proxy space-server:8080
+	}
+
 	# Documentación y búsqueda
 	handle /docs/* {
 		uri strip_prefix /docs
@@ -119,6 +124,11 @@
 	# Game WebSocket server
 	handle /ws {
 		reverse_proxy game-server:8080
+	}
+
+	# Space WebSocket server (multiplayer presence)
+	handle /space-ws {
+		reverse_proxy space-server:8080
 	}
 
 	# Documentación y búsqueda
