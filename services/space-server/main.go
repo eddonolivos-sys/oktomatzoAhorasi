@@ -69,7 +69,10 @@ func (c *Client) readPump(hub *Hub) {
 		}
 		switch msg.Type {
 		case "state":
-			hub.applyState(context.Background(), c, msg)
+			// Bound the per-state Save so a hung Redis can't pin this goroutine.
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			hub.applyState(ctx, c, msg)
+			cancel()
 		case "emote":
 			hub.emote(c, msg.Emoji)
 		}

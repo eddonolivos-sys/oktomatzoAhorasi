@@ -80,14 +80,19 @@ func (c *Client) send1(msg ServerMessage) {
 // register adds a client to its room, restores persisted state if present,
 // sends it the room snapshot, then broadcasts "joined" to the room.
 func (h *Hub) register(ctx context.Context, c *Client) {
-	if prev, ok, err := h.store.Restore(ctx, c.state.ID); err != nil {
+	// Redis I/O is done WITHOUT the lock; only the assignment to c.state and the
+	// insertion into the room map happen under h.mu, before c becomes visible to
+	// readers (roomPlayers/tick) that hold RLock.
+	prev, ok, err := h.store.Restore(ctx, c.state.ID)
+	if err != nil {
 		log.Printf("restore %s: %v", c.state.ID, err)
-	} else if ok {
-		// Keep the (fresh) name/id from the query; restore position+yaw.
-		c.state.X, c.state.Y, c.state.Z, c.state.Yaw = prev.X, prev.Y, prev.Z, prev.Yaw
 	}
 
 	h.mu.Lock()
+	if ok {
+		// Keep the (fresh) name/id from the query; restore position+yaw.
+		c.state.X, c.state.Y, c.state.Z, c.state.Yaw = prev.X, prev.Y, prev.Z, prev.Yaw
+	}
 	if h.rooms[c.room] == nil {
 		h.rooms[c.room] = make(map[*Client]bool)
 	}
@@ -100,12 +105,16 @@ func (h *Hub) register(ctx context.Context, c *Client) {
 
 // broadcastJoined notifies peers (NOT the joiner) that c arrived.
 func (h *Hub) broadcastJoined(c *Client) {
-	data, err := json.Marshal(ServerMessage{Type: "joined", Player: &c.state})
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	// Marshal a COPY of c.state taken under the lock: c is already in the room
+	// map, so other goroutines (the tick) may read it concurrently; we must not
+	// marshal the live &c.state without the lock held.
+	state := c.state
+	data, err := json.Marshal(ServerMessage{Type: "joined", Player: &state})
 	if err != nil {
 		return
 	}
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for peer := range h.rooms[c.room] {
 		if peer == c {
 			continue
@@ -133,7 +142,11 @@ func (h *Hub) unregister(c *Client) {
 }
 
 // applyState merges a "state" frame into the client and persists to the store.
+// The mutation of c.state is done under the hub mutex (so readers that hold
+// RLock are actually protected); we then take a COPY and release the lock
+// BEFORE the Redis Save so we never hold the mutex across I/O.
 func (h *Hub) applyState(ctx context.Context, c *Client, msg ClientMessage) {
+	h.mu.Lock()
 	if msg.X != nil {
 		c.state.X = *msg.X
 	}
@@ -146,8 +159,12 @@ func (h *Hub) applyState(ctx context.Context, c *Client, msg ClientMessage) {
 	if msg.Yaw != nil {
 		c.state.Yaw = *msg.Yaw
 	}
-	if err := h.store.Save(ctx, c.state, c.room); err != nil {
-		log.Printf("save %s: %v", c.state.ID, err)
+	state := c.state
+	room := c.room
+	h.mu.Unlock()
+
+	if err := h.store.Save(ctx, state, room); err != nil {
+		log.Printf("save %s: %v", state.ID, err)
 	}
 }
 
