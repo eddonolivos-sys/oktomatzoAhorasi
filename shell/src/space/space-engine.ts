@@ -18,6 +18,10 @@ import { SolarSystem } from './solar-system';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
 import { createPlayerShip, type PlayerShip } from './player-ship';
+import { SpaceMultiplayer, type Emote } from './space-multiplayer';
+import { RemoteShips } from './remote-ships';
+import { EmoteWheel } from './emote-wheel';
+import { toAbsolute } from './multiplayer-math';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -76,6 +80,13 @@ export class SpaceEngine {
   private playerShip!: PlayerShip;
   private pauseMenu!: PauseMenu;
   private ramatzoLabel!: HTMLElement;
+
+  private multiplayer: SpaceMultiplayer | null = null;
+  private remoteShips: RemoteShips | null = null;
+  private emoteWheel: EmoteWheel | null = null;
+  /** Glifo del emoji propio flotante (id local) y su caducidad. */
+  private selfEmoteEl: HTMLDivElement | null = null;
+  private selfEmoteUntil = 0;
 
   mount(host: HTMLElement, opts: MountOpts) {
     this.host = host;
@@ -214,6 +225,31 @@ export class SpaceEngine {
     window.addEventListener('resize', this.onResize);
     document.addEventListener('visibilitychange', this.onVisibility);
 
+    // ── Multijugador (solo con identidad de usuario) ──
+    if (this.opts.user) {
+      const user = this.opts.user;
+      this.remoteShips = new RemoteShips(this.scene, host, user.id);
+
+      // Emoji propio flotante (sobre la nave del jugador).
+      this.selfEmoteEl = document.createElement('div');
+      this.selfEmoteEl.className = 'remote-emote';
+      host.appendChild(this.selfEmoteEl);
+
+      this.multiplayer = new SpaceMultiplayer({
+        onPlayers: (players) => this.remoteShips?.setSnapshot(players, this.worldOffset),
+        onJoined: (player) => this.remoteShips?.addPlayer(player, this.worldOffset),
+        onLeft: (id) => this.remoteShips?.removePlayer(id),
+        onEmote: (id, emoji) => {
+          if (id === user.id) this.showSelfEmote(emoji);
+          else this.remoteShips?.showEmote(id, emoji);
+        },
+      });
+      this.multiplayer.connect({ room: 'home', id: user.id, name: user.name });
+
+      // Rueda de emoticonos: la tecla C la abre (ver onKeyDown).
+      this.emoteWheel = new EmoteWheel(host, (emote: Emote) => this.multiplayer?.sendEmote(emote));
+    }
+
     this.start();
   }
 
@@ -292,6 +328,16 @@ export class SpaceEngine {
     // ShipController, NO player-ship.
     this.playerShip.update(this.elapsed, ship, delta);
 
+    // ── Multijugador por frame ──
+    if (this.multiplayer) {
+      const abs = toAbsolute(
+        { x: ship.position.x, y: ship.position.y, z: ship.position.z },
+        this.worldOffset,
+      );
+      this.multiplayer.sendState({ x: abs.x, y: abs.y, z: abs.z, yaw: ship.yaw }, time);
+    }
+    this.remoteShips?.update(delta);
+
     this.composer.render();
     this.updateLabels();
   };
@@ -351,8 +397,16 @@ export class SpaceEngine {
       this.enterApproaching();
       return;
     }
+    // C: abre/cierra la rueda de emoticonos (solo si hay multijugador).
+    if (e.code === 'KeyC') {
+      this.emoteWheel?.toggle();
+      return;
+    }
     // ESC: abre el menú; si ya está abierto, reanuda. (Independiente del pointer lock.)
     if (e.code !== 'Escape') return;
+    // Si la rueda de emoticonos está abierta, ESC solo la cierra (lo hace la propia
+    // rueda); no abrimos el menú de pausa en el mismo pulso.
+    if (this.emoteWheel?.visible) return;
     if (this.pauseMenu.visible) this.resumeControl();
     else this.openMenu();
   };
@@ -413,6 +467,30 @@ export class SpaceEngine {
     } else {
       this.ramatzoLabel.classList.remove('visible');
     }
+
+    // Etiquetas de nombre + emojis de las naves remotas (reusa project()).
+    const now = performance.now();
+    this.remoteShips?.updateLabels((w) => this.project(w), now);
+
+    // Emoji propio flotante (anclado sobre la nave del jugador).
+    if (this.selfEmoteEl) {
+      const sp = this.project(this.ship.object.position);
+      if (now < this.selfEmoteUntil && sp.visible) {
+        this.selfEmoteEl.style.left = `${sp.x}px`;
+        this.selfEmoteEl.style.top = `${sp.y}px`;
+        this.selfEmoteEl.classList.add('visible');
+      } else {
+        this.selfEmoteEl.classList.remove('visible');
+      }
+    }
+  }
+
+  // Emoji propio flotante ~3 s (mapeo de glifos sobrios, igual que RemoteShips).
+  private showSelfEmote(emoji: string) {
+    if (!this.selfEmoteEl) return;
+    const glyph: Record<string, string> = { happy: ':)', sad: ':(', angry: '>:(' };
+    this.selfEmoteEl.textContent = glyph[emoji] ?? emoji;
+    this.selfEmoteUntil = performance.now() + 3000;
   }
 
   // Rebase de origen: al alejarse mucho, traslada cámara + mundo de vuelta hacia
@@ -467,6 +545,14 @@ export class SpaceEngine {
 
   dispose() {
     this.pause();
+    this.multiplayer?.disconnect();
+    this.multiplayer = null;
+    this.remoteShips?.dispose();
+    this.remoteShips = null;
+    this.emoteWheel?.dispose();
+    this.emoteWheel = null;
+    this.selfEmoteEl?.remove();
+    this.selfEmoteEl = null;
     this.ship?.detach();
     this.hud?.dispose();
     this.galaxy?.dispose();
