@@ -315,6 +315,7 @@ export class ShellApp extends LitElement {
       <shell-space
         .apps=${this.apps}
         .theme=${this.theme}
+        .user=${this.authState.user}
         @logout=${this.handleLogout}
       ></shell-space>
     `;

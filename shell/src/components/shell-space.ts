@@ -16,6 +16,7 @@ export class ShellSpace extends LitElement {
 
   @property({ type: Array }) apps: AppInfo[] = [];
   @property({ type: String }) theme: 'light' | 'dark' = 'dark';
+  @property({ type: Object }) user: { id: string; name: string } | null = null;
 
   @state() private webglOk = true;
   @state() private cockpitApp: AppInfo | null = null;
@@ -43,6 +44,7 @@ export class ShellSpace extends LitElement {
     this.engine = new mod.SpaceEngine();
     this.engine.mount(host, {
       apps: this.apps,
+      user: this.user ?? undefined,
       onEnterApp: (app) => {
         this.cockpitApp = app;
         this.engine?.pause();

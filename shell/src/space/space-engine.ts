@@ -25,6 +25,8 @@ export interface MountOpts {
   apps: AppInfo[];
   onEnterApp: (app: AppInfo) => void;
   onLogout: () => void;
+  /** Identidad del usuario autenticado (de authState.user). Sin ella, el multijugador no se activa. */
+  user?: { id: string; name: string };
 }
 
 /**
