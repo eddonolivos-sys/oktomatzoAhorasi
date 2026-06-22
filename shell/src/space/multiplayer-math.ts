@@ -42,3 +42,34 @@ export function lerpState(from: PlayerState, to: PlayerState, t: number): Player
     yaw: from.yaw + shortestAngleDiff(from.yaw, to.yaw) * k,
   };
 }
+
+/** Punto 3D simple (sin Three.js). Compatible con `THREE.Vector3` por estructura. */
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * Escena → mundo absoluto: el servidor trabaja en coordenadas absolutas, así que
+ * el cliente SUMA su worldOffset antes de enviar el estado de su nave.
+ */
+export function toAbsolute(scenePos: Vec3, worldOffset: Vec3): Vec3 {
+  return {
+    x: scenePos.x + worldOffset.x,
+    y: scenePos.y + worldOffset.y,
+    z: scenePos.z + worldOffset.z,
+  };
+}
+
+/**
+ * Mundo absoluto → escena: al colocar una nave remota, el cliente RESTA su
+ * worldOffset a la posición absoluta que llegó del servidor.
+ */
+export function toScene(absPos: Vec3, worldOffset: Vec3): Vec3 {
+  return {
+    x: absPos.x - worldOffset.x,
+    y: absPos.y - worldOffset.y,
+    z: absPos.z - worldOffset.z,
+  };
+}

@@ -69,3 +69,31 @@ describe('lerpState', () => {
     expect(r.yaw).toBeCloseTo(0.5, 10);
   });
 });
+
+import { toAbsolute, toScene } from './multiplayer-math';
+
+describe('toAbsolute / toScene (conversión worldOffset)', () => {
+  const offset = { x: 1000, y: -50, z: 2500 };
+
+  it('toAbsolute suma el worldOffset a la posición de escena', () => {
+    expect(toAbsolute({ x: 10, y: 5, z: -20 }, offset)).toEqual({ x: 1010, y: -45, z: 2480 });
+  });
+
+  it('toScene resta el worldOffset a la posición absoluta', () => {
+    expect(toScene({ x: 1010, y: -45, z: 2480 }, offset)).toEqual({ x: 10, y: 5, z: -20 });
+  });
+
+  it('round-trip: toScene(toAbsolute(p)) === p', () => {
+    const p = { x: 123.5, y: -7.25, z: 42 };
+    const back = toScene(toAbsolute(p, offset), offset);
+    expect(back.x).toBeCloseTo(p.x, 10);
+    expect(back.y).toBeCloseTo(p.y, 10);
+    expect(back.z).toBeCloseTo(p.z, 10);
+  });
+
+  it('offset cero es identidad', () => {
+    const zero = { x: 0, y: 0, z: 0 };
+    expect(toAbsolute({ x: 3, y: 4, z: 5 }, zero)).toEqual({ x: 3, y: 4, z: 5 });
+    expect(toScene({ x: 3, y: 4, z: 5 }, zero)).toEqual({ x: 3, y: 4, z: 5 });
+  });
+});
