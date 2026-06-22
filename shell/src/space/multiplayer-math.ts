@@ -43,6 +43,20 @@ export function lerpState(from: PlayerState, to: PlayerState, t: number): Player
   };
 }
 
+/**
+ * Variante in-place de `lerpState`: muta `target` interpolándolo hacia `to` con
+ * factor `t∈[0,1]` (mismo cálculo: clamp de t, yaw por arco más corto). No aloca
+ * un objeto nuevo (pensada para el bucle por frame). Devuelve el propio `target`.
+ */
+export function lerpStateInto(target: PlayerState, to: PlayerState, t: number): PlayerState {
+  const k = Math.max(0, Math.min(1, t));
+  target.x += (to.x - target.x) * k;
+  target.y += (to.y - target.y) * k;
+  target.z += (to.z - target.z) * k;
+  target.yaw += shortestAngleDiff(target.yaw, to.yaw) * k;
+  return target;
+}
+
 /** Punto 3D simple (sin Three.js). Compatible con `THREE.Vector3` por estructura. */
 export interface Vec3 {
   x: number;

@@ -70,6 +70,66 @@ describe('lerpState', () => {
   });
 });
 
+import { lerpStateInto } from './multiplayer-math';
+
+describe('lerpStateInto (mutación in-place, sin alocar)', () => {
+  const mk = () => ({ x: 0, y: 0, z: 0, yaw: 0 });
+  const B = { x: 10, y: 20, z: -30, yaw: 1 };
+
+  it('t=0 deja el target en el estado origen', () => {
+    const target = mk();
+    lerpStateInto(target, B, 0);
+    expect(target).toEqual({ x: 0, y: 0, z: 0, yaw: 0 });
+  });
+
+  it('t=1 deja el target en el estado destino', () => {
+    const target = mk();
+    lerpStateInto(target, B, 1);
+    expect(target).toEqual({ x: 10, y: 20, z: -30, yaw: 1 });
+  });
+
+  it('muta el MISMO objeto (no aloca uno nuevo)', () => {
+    const target = mk();
+    const ret = lerpStateInto(target, B, 0.5);
+    // El target original quedó modificado in-place.
+    expect(target.x).toBeCloseTo(5, 10);
+    // Si devuelve algo, es el mismo objeto (identidad).
+    if (ret !== undefined) expect(ret).toBe(target);
+  });
+
+  it('t=0.5 interpola la posición a la mitad sobre el target', () => {
+    const target = mk();
+    lerpStateInto(target, B, 0.5);
+    expect(target.x).toBeCloseTo(5, 10);
+    expect(target.y).toBeCloseTo(10, 10);
+    expect(target.z).toBeCloseTo(-15, 10);
+  });
+
+  it('hace clamp de t por debajo de 0', () => {
+    const target = mk();
+    lerpStateInto(target, B, -2);
+    expect(target).toEqual({ x: 0, y: 0, z: 0, yaw: 0 });
+  });
+
+  it('hace clamp de t por encima de 1', () => {
+    const target = mk();
+    lerpStateInto(target, B, 5);
+    expect(target).toEqual({ x: 10, y: 20, z: -30, yaw: 1 });
+  });
+
+  it('yaw: toma el arco más corto cruzando ±π (de 3.0 a -3.0 va hacia arriba)', () => {
+    const target = { x: 0, y: 0, z: 0, yaw: 3.0 };
+    lerpStateInto(target, { x: 0, y: 0, z: 0, yaw: -3.0 }, 0.5);
+    expect(Math.abs(target.yaw)).toBeGreaterThan(3.0);
+  });
+
+  it('yaw: interpolación normal sin cruce de wrap', () => {
+    const target = { x: 0, y: 0, z: 0, yaw: 0 };
+    lerpStateInto(target, { x: 0, y: 0, z: 0, yaw: 1 }, 0.5);
+    expect(target.yaw).toBeCloseTo(0.5, 10);
+  });
+});
+
 import { toAbsolute, toScene } from './multiplayer-math';
 
 describe('toAbsolute / toScene (conversión worldOffset)', () => {

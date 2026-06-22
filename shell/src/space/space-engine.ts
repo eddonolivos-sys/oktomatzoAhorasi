@@ -18,7 +18,7 @@ import { SolarSystem } from './solar-system';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
 import { createPlayerShip, type PlayerShip } from './player-ship';
-import { SpaceMultiplayer, type Emote } from './space-multiplayer';
+import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
@@ -485,11 +485,10 @@ export class SpaceEngine {
     }
   }
 
-  // Emoji propio flotante ~3 s (mapeo de glifos sobrios, igual que RemoteShips).
+  // Emoji propio flotante ~3 s (mapeo de glifos sobrios compartido, igual que RemoteShips).
   private showSelfEmote(emoji: string) {
     if (!this.selfEmoteEl) return;
-    const glyph: Record<string, string> = { happy: ':)', sad: ':(', angry: '>:(' };
-    this.selfEmoteEl.textContent = glyph[emoji] ?? emoji;
+    this.selfEmoteEl.textContent = EMOTE_GLYPH[emoji] ?? emoji;
     this.selfEmoteUntil = performance.now() + 3000;
   }
 
@@ -530,6 +529,7 @@ export class SpaceEngine {
     // SIN pulsar ESC) y cierra el menú/prompt para no volver a un estado bloqueado.
     if (document.pointerLockElement) document.exitPointerLock();
     this.pauseMenu?.close();
+    this.emoteWheel?.close(); // no dejar la rueda interactuable en pausa/cabina
     this.controlPrompt?.classList.remove('visible');
   }
 

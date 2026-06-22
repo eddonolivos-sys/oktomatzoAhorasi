@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createRemoteShip, type RemoteShipModel } from './remote-ship-model';
-import { lerpState, toScene, type PlayerState, type Vec3 } from './multiplayer-math';
-import type { Player } from './space-multiplayer';
+import { lerpStateInto, toScene, type PlayerState, type Vec3 } from './multiplayer-math';
+import { EMOTE_GLYPH, type Player } from './space-multiplayer';
 
 /** Resultado de la proyección mundo→pantalla (lo provee el motor). */
 export interface Projected {
@@ -10,7 +10,6 @@ export interface Projected {
   visible: boolean;
 }
 
-const EMOTE_GLYPH: Record<string, string> = { happy: ':)', sad: ':(', angry: '>:(' };
 const EMOTE_MS = 3000; // duración del emoji flotante
 const LERP_RATE = 12; // suavizado del seguimiento (mayor = más rápido)
 
@@ -111,7 +110,7 @@ export class RemoteShips {
   update(delta: number) {
     const t = Math.min(1, LERP_RATE * delta); // seguimiento exponencial estable
     for (const s of this.ships.values()) {
-      s.from = lerpState(s.from, s.to, t);
+      lerpStateInto(s.from, s.to, t); // muta s.from in-place (sin alocar por frame)
       s.model.object.position.set(s.from.x, s.from.y, s.from.z);
       s.model.object.rotation.y = s.from.yaw;
     }

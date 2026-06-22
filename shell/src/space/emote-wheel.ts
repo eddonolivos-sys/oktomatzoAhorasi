@@ -1,10 +1,10 @@
-import type { Emote } from './space-multiplayer';
+import { EMOTE_GLYPH, type Emote } from './space-multiplayer';
 
-/** Glifos sobrios (sin emojis a color) por sector e identificador de protocolo. */
-const SECTORS: { sector: 0 | 1 | 2; emote: Emote; glyph: string; key: string }[] = [
-  { sector: 0, emote: 'happy', glyph: ':)', key: '1' },
-  { sector: 1, emote: 'sad', glyph: ':(', key: '2' },
-  { sector: 2, emote: 'angry', glyph: '>:(', key: '3' },
+/** Sectores por identificador de protocolo; el glifo sobrio sale del mapa compartido. */
+const SECTORS: { sector: 0 | 1 | 2; emote: Emote; key: string }[] = [
+  { sector: 0, emote: 'happy', key: '1' },
+  { sector: 1, emote: 'sad', key: '2' },
+  { sector: 2, emote: 'angry', key: '3' },
 ];
 
 /**
@@ -24,7 +24,7 @@ export class EmoteWheel {
     this.root.innerHTML = SECTORS.map(
       (s) =>
         `<button class="ew-sector" data-sector="${s.sector}" data-emote="${s.emote}" type="button">` +
-        `${s.glyph}<span class="ew-key">${s.key}</span></button>`,
+        `${EMOTE_GLYPH[s.emote]}<span class="ew-key">${s.key}</span></button>`,
     ).join('');
     host.appendChild(this.root);
 

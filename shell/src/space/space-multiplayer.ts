@@ -13,6 +13,9 @@ export interface Player {
 /** Emoticonos del protocolo (identificadores, no glifos). */
 export type Emote = 'happy' | 'sad' | 'angry';
 
+/** Mapa único identificador→glifo sobrio (sin emojis a color). Fuente compartida. */
+export const EMOTE_GLYPH: Record<string, string> = { happy: ':)', sad: ':(', angry: '>:(' };
+
 export interface SpaceMultiplayerHandlers {
   onPlayers: (players: Player[]) => void; // snapshot al unirse + state_update por tick
   onJoined: (player: Player) => void;
