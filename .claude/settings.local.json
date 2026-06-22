@@ -28,7 +28,32 @@
       "Bash(pnpm --filter @plataforma/shell build)",
       "Bash(cd /c/Users/victo/OneDrive/Documentos/GitHub/oktomatzoAhorasi/shell && cat package.json 2>/dev/null | head -40)",
       "Bash(git check-ignore *)",
-      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/oktomatzoAhorasi/**)"
+      "Read(//c/Users/victo/OneDrive/Documentos/GitHub/oktomatzoAhorasi/**)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "PowerShell(pnpm --filter @plataforma/shell test 2>&1)",
+      "Bash(echo \"exit grep: $?\")",
+      "Bash(node -e ' *)",
+      "Bash(git commit *)",
+      "Bash(type vitest.config.ts)",
+      "Bash(dir vitest.config.*)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/orbits.test.ts)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/dwell.test.ts)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(node -e \"const t=require\\('./tsconfig.json'\\); console.log\\(JSON.stringify\\(t.compilerOptions,null,2\\)\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);console.log\\(fs.readFileSync\\('./tsconfig.json','utf8'\\)\\)\")",
+      "Bash(git rm *)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/thrust-visual.test.ts)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/hud-format.test.ts)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/parallax.test.ts)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/radar-projection.test.ts)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/flight-math.test.ts)",
+      "Bash(git --no-pager log --oneline -1)",
+      "Bash(pnpm --filter @plataforma/shell exec vitest run src/space/planet-archetype.test.ts)",
+      "Bash(node -e \"const {Archetype}=require\\('./shell/src/space/planet-archetype.ts'\\); \")",
+      "Bash(node --input-type=module -e \"import {Archetype, planetArchetype, ARCHETYPE_COUNT} from './shell/src/space/planet-archetype.ts'; console.log\\(JSON.stringify\\(Archetype\\)\\); const c={}; for\\(let s=1;s<=12;s++\\){const a=planetArchetype\\(s\\);c[a]=\\(c[a]||0\\)+1;} console.log\\('dist 1..12:',JSON.stringify\\(c\\)\\);\")",
+      "Bash(node --input-type=module -e ' *)"
     ]
   }
 }
