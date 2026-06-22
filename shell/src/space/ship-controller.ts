@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { bankFromYawRate } from './flight-math';
+import { bankFromYawRate, lookRateFromCursor } from './flight-math';
 
 /**
  * Estado de la nave que consumen HUD, radar, cámara de persecución y player-ship.
@@ -45,6 +45,12 @@ export class ShipController {
   private roll = 0;
   private prevYaw = 0;
 
+  // Mirada de respaldo SIN pointer lock: posición del cursor (normalizada al
+  // centro de la ventana, [-1,1]) → tasa de giro. Inmune al bloqueo en el borde.
+  private cursorDX = 0;
+  private cursorDY = 0;
+  private cursorActive = false;
+
   private readonly velocity = new THREE.Vector3();
   private readonly forward = new THREE.Vector3();
   private readonly right = new THREE.Vector3();
@@ -59,6 +65,8 @@ export class ShipController {
   rollDamp = 6;
   kRoll = 5.5;
   maxRoll = 0.55;
+  lookDeadZone = 0.14; // fracción central del cursor sin giro (estable al centrar)
+  lookMaxRate = 1.9; // rad/s en el borde (mirada de respaldo sin lock)
   acceleration = 140; // empuje continuo (u/s²); SIN maxSpeed
   strafeAccel = 90;
   // Damping expresado como factor POR FOTOGRAMA A 60FPS; se reescala con `delta`
@@ -109,7 +117,12 @@ export class ShipController {
 
   /** Solicita el pointer lock sobre el canvas (botón "Tomar control" o clic). */
   requestControl() {
-    if (document.pointerLockElement !== this.canvas) this.canvas.requestPointerLock();
+    if (document.pointerLockElement === this.canvas) return;
+    // Chrome devuelve una Promise; si el lock falla (p.ej. cooldown ~1.2s tras
+    // salir con ESC) no rompemos: el modo sin-lock sigue operativo. Captura el
+    // rechazo para evitar un unhandled rejection.
+    const r = this.canvas.requestPointerLock() as unknown;
+    if (r && typeof (r as Promise<void>).catch === 'function') (r as Promise<void>).catch(() => {});
   }
 
   get isLocked() {
@@ -132,15 +145,25 @@ export class ShipController {
 
   private onPLChange = () => {
     this.locked = document.pointerLockElement === this.canvas;
+    // Al bloquear, cesa la mirada por posición de cursor (pasa a delta relativo).
+    if (this.locked) this.cursorActive = false;
     this.onLockChange?.(this.locked);
   };
 
-  // Solo con pointer lock: acumula el delta del ratón en el target de la mirada.
+  // Con lock: delta relativo (giro ilimitado). Sin lock: registra la posición del
+  // cursor respecto al centro para la mirada de respaldo (ver update) → el ratón
+  // responde de inmediato sin necesidad de clic.
   private onMouseMove = (e: MouseEvent) => {
-    if (!this.enabled || !this.locked) return;
-    this.targetYaw -= e.movementX * this.sensitivity;
-    this.targetPitch -= e.movementY * this.sensitivity;
-    this.targetPitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.targetPitch));
+    if (!this.enabled) return;
+    if (this.locked) {
+      this.targetYaw -= e.movementX * this.sensitivity;
+      this.targetPitch -= e.movementY * this.sensitivity;
+      this.targetPitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.targetPitch));
+    } else {
+      this.cursorDX = (e.clientX / window.innerWidth) * 2 - 1;
+      this.cursorDY = (e.clientY / window.innerHeight) * 2 - 1;
+      this.cursorActive = true;
+    }
   };
 
   // Al perder foco (alt-tab, foco al iframe de la cabina): soltar teclas.
@@ -159,8 +182,18 @@ export class ShipController {
 
   update(delta: number): ShipState {
     if (this.enabled) {
-      // Mirada suavizada hacia el target (sin tirones). Si no hay lock, target no
-      // cambia → la mirada se congela pero la nave conserva inercia.
+      // Mirada de respaldo SIN lock: el cursor fuera del centro gira la vista a una
+      // tasa (rad/s) proporcional a su desplazamiento, inmune al borde de la ventana
+      // y sin requerir clic. Con lock, el delta ya se acumuló en onMouseMove.
+      if (!this.locked && this.cursorActive) {
+        const r = lookRateFromCursor(this.cursorDX, this.cursorDY, this.lookDeadZone, this.lookMaxRate);
+        this.targetYaw += r.yawRate * delta;
+        this.targetPitch = Math.max(
+          -this.pitchLimit,
+          Math.min(this.pitchLimit, this.targetPitch + r.pitchRate * delta),
+        );
+      }
+      // Suavizado hacia el target (sin tirones).
       const t = 1 - Math.exp(-this.lookDamp * delta);
       this.yaw += (this.targetYaw - this.yaw) * t;
       this.pitch += (this.targetPitch - this.pitch) * t;

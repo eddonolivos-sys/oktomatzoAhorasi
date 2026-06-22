@@ -30,3 +30,28 @@ export function approachBrakeFactor(distance: number, influenceRadius: number, m
   const depth = Math.max(0, Math.min(1, distance / influenceRadius)); // 0 en núcleo, 1 en borde
   return minFactor + (1 - minFactor) * depth;
 }
+
+/**
+ * Tasa de giro (yaw/pitch, rad/s) para mirar SIN pointer lock, a partir del
+ * desplazamiento del cursor respecto al centro de la pantalla, normalizado a
+ * [-1,1] por eje. Zona muerta central (estable al centrar) y respuesta cuadrática
+ * hacia los bordes; se satura en `maxRate`. Convención: cursor a la derecha/abajo
+ * → la vista gira a la derecha/abajo (yawRate/pitchRate negativos), coherente con
+ * el modo bloqueado (donde movementX/Y positivos restan a yaw/pitch).
+ */
+export function lookRateFromCursor(
+  dxNorm: number,
+  dyNorm: number,
+  deadZone: number,
+  maxRate: number,
+): { yawRate: number; pitchRate: number } {
+  const dz = Math.max(0, Math.min(0.99, deadZone));
+  const axis = (v: number): number => {
+    const m = Math.abs(v);
+    if (m <= dz) return 0;
+    const t = Math.min(1, (m - dz) / (1 - dz)); // 0..1 fuera de la zona muerta
+    return Math.sign(v) * t * t * maxRate;
+  };
+  // `+ 0` normaliza el caso 0 (que produce -0 al negar) a +0.
+  return { yawRate: -axis(dxNorm) + 0, pitchRate: -axis(dyNorm) + 0 };
+}

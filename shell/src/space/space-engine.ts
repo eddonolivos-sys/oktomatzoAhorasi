@@ -325,6 +325,10 @@ export class SpaceEngine {
   private resumeControl() {
     this.pauseMenu.close();
     this.ship.requestControl(); // vuelve a pedir pointer lock al canvas
+    // Si el navegador rechaza el lock (cooldown ~1.2s tras salir con ESC), el modo
+    // sin-lock sigue activo; mostramos el prompt para reintentar. onLockChange lo
+    // oculta en cuanto el lock se establece.
+    this.controlPrompt.classList.add('visible');
   }
 
   private buildLabels(host: HTMLElement) {
