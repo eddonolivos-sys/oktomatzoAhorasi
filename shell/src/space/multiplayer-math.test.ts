@@ -97,3 +97,32 @@ describe('toAbsolute / toScene (conversión worldOffset)', () => {
     expect(toScene({ x: 3, y: 4, z: 5 }, zero)).toEqual({ x: 3, y: 4, z: 5 });
   });
 });
+
+import { emoteWheelSector } from './multiplayer-math';
+
+describe('emoteWheelSector', () => {
+  it('centro muerto (cerca del centro) → null', () => {
+    expect(emoteWheelSector(0, 0)).toBe(null);
+    expect(emoteWheelSector(0.05, -0.05)).toBe(null); // magnitud < 0.2 (dead zone)
+  });
+
+  it('arriba (feliz) → sector 0', () => {
+    expect(emoteWheelSector(0, -1)).toBe(0); // recto arriba
+  });
+
+  it('abajo-derecha (triste) → sector 1', () => {
+    expect(emoteWheelSector(0.8, 0.6)).toBe(1);
+  });
+
+  it('abajo-izquierda (enojada) → sector 2', () => {
+    expect(emoteWheelSector(-0.8, 0.6)).toBe(2);
+  });
+
+  it('los tres sectores cubren el círculo sin solaparse (12 muestras → 0|1|2, nunca null fuera del centro)', () => {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const s = emoteWheelSector(Math.cos(a), Math.sin(a));
+      expect([0, 1, 2]).toContain(s);
+    }
+  });
+});

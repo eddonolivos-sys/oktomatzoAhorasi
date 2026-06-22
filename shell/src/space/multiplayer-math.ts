@@ -73,3 +73,24 @@ export function toScene(absPos: Vec3, worldOffset: Vec3): Vec3 {
     z: absPos.z - worldOffset.z,
   };
 }
+
+/**
+ * Sector de la rueda de emoticonos a partir del vector cursor-centro normalizado
+ * (coords de pantalla: y hacia abajo). Devuelve 0|1|2 o null (centro muerto).
+ *
+ * 3 sectores de 120°, centrados en: arriba (feliz=0), abajo-derecha (triste=1),
+ * abajo-izquierda (enojada=2). Centro muerto: magnitud < 0.2 → null.
+ */
+export function emoteWheelSector(dxNorm: number, dyNorm: number): 0 | 1 | 2 | null {
+  const mag = Math.hypot(dxNorm, dyNorm);
+  if (mag < 0.2) return null;
+  // Ángulo en pantalla: 0 = derecha, crece en sentido horario (y hacia abajo).
+  // Lo rotamos para que "arriba" (−90°) sea el centro del sector 0.
+  let deg = (Math.atan2(dyNorm, dxNorm) * 180) / Math.PI; // (−180, 180], horario
+  // Desplaza +90 → arriba pasa a 0; normaliza a [0, 360).
+  deg = (deg + 90 + 360) % 360;
+  // Sectores de 120° centrados en 0/120/240, con bordes en 60/180/300.
+  if (deg < 60 || deg >= 300) return 0; // arriba (feliz)
+  if (deg < 180) return 1; // abajo-derecha (triste)
+  return 2; // abajo-izquierda (enojada)
+}
