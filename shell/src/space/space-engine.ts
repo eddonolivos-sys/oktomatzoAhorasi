@@ -56,6 +56,7 @@ export class SpaceEngine {
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
   private controlPrompt!: HTMLElement;
+  private menuBtn!: HTMLElement;
   private hud!: Hud;
   private galaxy!: Galaxy;
   private ramatzoSun!: RamatzoSun;
@@ -169,8 +170,16 @@ export class SpaceEngine {
     this.controlPrompt = document.createElement('div');
     this.controlPrompt.id = 'controlPrompt';
     this.controlPrompt.className = 'visible';
-    this.controlPrompt.textContent = 'Clic para tomar control';
+    this.controlPrompt.textContent = 'Mueve el ratón para mirar · clic = modo inmersivo';
     host.appendChild(this.controlPrompt);
+
+    // Botón de menú SIEMPRE accesible: abre pausa/cierre de sesión sin depender
+    // del pointer lock, para que el menú nunca quede ligado a la captura del ratón.
+    this.menuBtn = document.createElement('button');
+    this.menuBtn.id = 'menuBtn';
+    this.menuBtn.textContent = 'Menú';
+    this.menuBtn.addEventListener('click', () => this.openMenu());
+    host.appendChild(this.menuBtn);
 
     // La entrada a proyectos es por permanencia (dwell) dentro de la esfera de
     // influencia del planeta; no hay pick por clic ni overlay de proyecto.
@@ -305,29 +314,31 @@ export class SpaceEngine {
   // pierde por entrar a la cabina/ocultar la pestaña (motor pausado: !running) ni
   // en el teardown.
   private onLockChange = () => {
-    const locked = this.ship.isLocked;
-    if (!locked && !this.pauseMenu.visible && this.running) {
-      this.pauseMenu.open();
-      // Oculta el prompt "Clic para tomar control" mientras el menú está abierto.
-      this.controlPrompt.classList.remove('visible');
-    } else if (locked && this.pauseMenu.visible) {
-      this.pauseMenu.close();
-    }
+    // Perder el pointer lock NO abre ningún modal: simplemente se vuelve al modo
+    // de mirada por posición de cursor (siempre activo; el prompt lo gestiona
+    // ship.onLockChange). Así un clic nunca deja al usuario atrapado en una capa
+    // que captura el ratón. El menú se abre solo de forma explícita (botón/ESC).
+    if (this.ship.isLocked && this.pauseMenu.visible) this.pauseMenu.close();
   };
 
-  // ESC con el cursor libre (menú abierto): vuelve a tomar control.
+  // ESC: abre el menú; si ya está abierto, reanuda. (Independiente del pointer lock.)
   private onKeyDown = (e: KeyboardEvent) => {
-    if (e.code === 'Escape' && this.pauseMenu.visible) {
-      this.resumeControl();
-    }
+    if (e.code !== 'Escape') return;
+    if (this.pauseMenu.visible) this.resumeControl();
+    else this.openMenu();
   };
+
+  // Abre el menú de pausa con cursor visible (suelta el lock si lo había).
+  private openMenu() {
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.pauseMenu.open();
+    this.controlPrompt.classList.remove('visible');
+  }
 
   private resumeControl() {
     this.pauseMenu.close();
-    this.ship.requestControl(); // vuelve a pedir pointer lock al canvas
-    // Si el navegador rechaza el lock (cooldown ~1.2s tras salir con ESC), el modo
-    // sin-lock sigue activo; mostramos el prompt para reintentar. onLockChange lo
-    // oculta en cuanto el lock se establece.
+    // No forzamos pointer lock: la mirada por cursor ya funciona. Mostramos el
+    // prompt por si el usuario quiere clic para el modo inmersivo.
     this.controlPrompt.classList.add('visible');
   }
 
@@ -422,6 +433,7 @@ export class SpaceEngine {
     document.removeEventListener('keydown', this.onKeyDown);
     this.pauseMenu?.dispose();
     this.controlPrompt?.remove();
+    this.menuBtn?.remove();
     this.ramatzoLabel?.remove();
     window.removeEventListener('resize', this.onResize);
     document.removeEventListener('visibilitychange', this.onVisibility);

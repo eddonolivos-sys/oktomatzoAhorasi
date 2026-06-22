@@ -255,6 +255,29 @@
   50% { opacity: 1; }
 }
 
+/* Botón de menú (siempre accesible, independiente del pointer lock) */
+#menuBtn {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 170;
+  padding: 7px 16px;
+  border: 1px solid var(--metal-iron);
+  border-radius: 6px;
+  background: rgba(10, 5, 3, 0.55);
+  color: var(--space-text-2);
+  font-family: var(--font-serif);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s;
+}
+#menuBtn:hover {
+  border-color: var(--orange-amber);
+  color: var(--orange-amber);
+}
+
 /* Menú de pausa (con cursor) */
 #pauseMenu {
   position: fixed;

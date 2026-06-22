@@ -159,7 +159,7 @@ export class ShipController {
       this.targetYaw -= e.movementX * this.sensitivity;
       this.targetPitch -= e.movementY * this.sensitivity;
       this.targetPitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.targetPitch));
-    } else {
+    } else if (window.innerWidth > 0 && window.innerHeight > 0) {
       this.cursorDX = (e.clientX / window.innerWidth) * 2 - 1;
       this.cursorDY = (e.clientY / window.innerHeight) * 2 - 1;
       this.cursorActive = true;
