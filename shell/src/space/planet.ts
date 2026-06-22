@@ -201,10 +201,12 @@ export function createPlanet(radius: number, seed: number, baseColor: number): T
         float diff = max(0.0, dot(vNormalV, lightDir)) * 0.85 + 0.18;
         col *= diff;
 
-        // Atmósfera (fresnel en el borde). El tinte de categoría matiza el halo.
-        float rim = pow(1.0 - abs(vNormalV.z), 3.0);
+        // Atmósfera: halo fresnel MUY sutil y ceñido al borde, para que el planeta
+        // se lea sólido (sin aspecto translúcido). Exponente alto = borde fino;
+        // contribución reducida.
+        float rim = pow(1.0 - abs(vNormalV.z), 5.0);
         vec3 atmoCol = mix(atmo, uTint, 0.25);
-        col += atmoCol * rim * atmoStr;
+        col += atmoCol * rim * atmoStr * 0.35;
 
         gl_FragColor = vec4(col, 1.0);
       }
