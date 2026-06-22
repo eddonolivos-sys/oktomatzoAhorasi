@@ -39,7 +39,7 @@ export class ChunkManager {
   ) {
     this.chunkSize = new THREE.Vector3(...(opts.chunkSize ?? [100, 100, 50]));
     this.loadRadius = opts.loadRadius ?? 2;
-    this.starsPerChunk = opts.starsPerChunk ?? 250;
+    this.starsPerChunk = opts.starsPerChunk ?? 125; // densidad reducida (~50%) para claridad/rendimiento
     this.maxLoaded = opts.maxLoadedChunks ?? 125;
   }
 

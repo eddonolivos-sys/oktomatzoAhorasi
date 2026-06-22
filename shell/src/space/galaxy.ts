@@ -15,12 +15,13 @@ export interface Galaxy {
 }
 
 /**
- * Galaxia espiral de fondo (4 brazos, 80k puntos, shader de gas difuso).
+ * Galaxia espiral de fondo (4 brazos, shader de gas difuso).
  * Backdrop lejano: rota lento y sigue al jugador solo a una fraccion pequena
  * (parallax) para que el avance sea visible sin que la nave la "alcance".
+ * Densidad reducida (~50%) para menos saturación visual y mejor rendimiento.
  */
 export function createGalaxy(renderer: THREE.WebGLRenderer): Galaxy {
-  const count = 40000;
+  const count = 20000;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
