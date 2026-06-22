@@ -474,3 +474,99 @@
   #flightData { display: none; }
   #controlsLegend { display: none; }
 }
+
+/* ── Multijugador: etiqueta de nombre de naves remotas ── */
+.remote-name {
+  position: fixed;
+  transform: translate(-50%, -160%);
+  z-index: 92;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--space-text);
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border: 1px solid var(--metal-iron);
+  border-radius: 4px;
+  background: rgba(10, 5, 3, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.remote-name.visible {
+  opacity: 0.92;
+}
+
+/* Emoji flotante sobre una nave (propia o remota), temporal ~3 s */
+.remote-emote {
+  position: fixed;
+  transform: translate(-50%, -260%);
+  z-index: 93;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--orange-amber);
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.remote-emote.visible {
+  opacity: 1;
+}
+
+/* ── Rueda de emoticonos (overlay DOM radial, abierta con C) ── */
+#emoteWheel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 190;
+  width: 220px;
+  height: 220px;
+  display: none;
+  border-radius: 50%;
+  background: rgba(10, 5, 3, 0.72);
+  border: 1px solid var(--metal-brass);
+}
+#emoteWheel.visible {
+  display: block;
+}
+#emoteWheel .ew-sector {
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  margin: -39px 0 0 -39px;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--metal-iron);
+  border-radius: 12px;
+  background: rgba(20, 12, 8, 0.6);
+  color: var(--space-text);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+#emoteWheel .ew-sector:hover,
+#emoteWheel .ew-sector.active {
+  border-color: var(--orange-amber);
+  color: var(--orange-amber);
+  background: rgba(58, 42, 32, 0.6);
+}
+/* Posiciones: 0 arriba, 1 abajo-derecha, 2 abajo-izquierda. */
+#emoteWheel .ew-sector[data-sector="0"] { transform: translate(0, -64px); }
+#emoteWheel .ew-sector[data-sector="1"] { transform: translate(56px, 38px); }
+#emoteWheel .ew-sector[data-sector="2"] { transform: translate(-56px, 38px); }
+#emoteWheel .ew-key {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 9px;
+  color: var(--space-text-2);
+}
