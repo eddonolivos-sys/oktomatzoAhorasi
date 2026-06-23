@@ -46,6 +46,17 @@ export function neededChunkKeys(cx: number, cy: number, cz: number, r: number): 
   return keys;
 }
 
+/**
+ * Semillas por estrella en [0, 1), una por punto del chunk. El shader deriva de
+ * cada semilla la rotación de la cruz, la fase y la velocidad del parpadeo. Se
+ * consume el `rng` determinista del chunk, así un chunk recargado regenera idéntico.
+ */
+export function buildStarSeeds(count: number, rng: () => number): Float32Array {
+  const seeds = new Float32Array(count);
+  for (let i = 0; i < count; i++) seeds[i] = rng();
+  return seeds;
+}
+
 // ── Layout de constelaciones (derivado del app-registry) ──
 
 const CATEGORY_COLORS: Record<string, number> = {

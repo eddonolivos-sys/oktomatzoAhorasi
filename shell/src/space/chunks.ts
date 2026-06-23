@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getStarGasMaterial, buildStarFieldGeometry } from './star-gas';
 import { chunkCoord, chunkKey, hashChunk, seededRng, neededChunkKeys } from './layout';
+import { STAR_FIELD_CONFIG } from './space-config';
 
 interface Chunk {
   key: string;
@@ -39,7 +40,7 @@ export class ChunkManager {
   ) {
     this.chunkSize = new THREE.Vector3(...(opts.chunkSize ?? [100, 100, 50]));
     this.loadRadius = opts.loadRadius ?? 2;
-    this.starsPerChunk = opts.starsPerChunk ?? 16; // densidad muy reducida (−80%) para claridad/rendimiento
+    this.starsPerChunk = opts.starsPerChunk ?? STAR_FIELD_CONFIG.starsPerChunk; // densidad centralizada en space-config
     this.maxLoaded = opts.maxLoadedChunks ?? 125;
   }
 
@@ -98,7 +99,7 @@ export class ChunkManager {
     const rng = seededRng(hashChunk(cx, cy, cz));
     const geometry = buildStarFieldGeometry({
       count: this.starsPerChunk,
-      sizeBounds: [0.5, 1.6],
+      sizeBounds: STAR_FIELD_CONFIG.sizeBounds,
       box: { min: [0, 0, 0], max: [this.chunkSize.x, this.chunkSize.y, this.chunkSize.z] },
       rng,
     });
