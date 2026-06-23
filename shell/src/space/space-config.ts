@@ -32,3 +32,9 @@ export const STAR_FIELD_CONFIG = {
   flickerSpeedMin: 0.3, // [UNIFORME] velocidad mínima de parpadeo (rad/s)
   flickerSpeedMax: 0.8, // [UNIFORME] velocidad máxima de parpadeo (rad/s)
 };
+
+/** Control de vuelo / mirada del jugador (mejora #1). */
+export const CONTROL_CONFIG = {
+  sensitivity: 0.0022, // [PERSONALIZABLE #5] rad de yaw/pitch por px de movimiento del ratón
+  maxLookRate: 30, // [PERSONALIZABLE #5] velocidad angular máx. de mirada (rad/s); recorta solo picos bruscos
+};

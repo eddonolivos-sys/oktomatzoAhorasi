@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { bankFromYawRate } from './flight-math';
+import { bankFromYawRate, limitAngularStep } from './flight-math';
+import { CONTROL_CONFIG } from './space-config';
 
 /**
  * Estado de la nave que consumen HUD, radar, cámara de persecución y player-ship.
@@ -23,8 +24,9 @@ export interface ShipState {
  * recibe SOLO el roll → el visual de la nave se inclina en los giros pero la cámara,
  * que sigue al raíz, nunca rota en roll (no marea).
  *
- * Ratón: SOLO con pointer lock (movementX/Y), acumulado en targetYaw/targetPitch
- * y suavizado (damp) → sin tirones ni bloqueo en el borde de la ventana.
+ * Ratón: movementX/Y acumulado en rawYaw/rawPitch (con o sin pointer lock). En
+ * update() la mirada aplicada (yaw/pitch) se desliza hacia el raw con un límite de
+ * velocidad angular (limitAngularStep): 1:1 exacto salvo picos bruscos, que se recortan.
  * Teclado: W empuje continuo (sin tope), S/Shift freno, A/D strafe, Space nitro.
  */
 export class ShipController {
@@ -37,9 +39,12 @@ export class ShipController {
   private locked = false;
   private keys: Record<string, boolean> = {};
 
-  // Mirada DIRECTA: yaw/pitch se fijan 1:1 con el delta del ratón (sin target ni damp).
+  // Mirada: rawYaw/rawPitch reciben el delta del ratón 1:1; yaw/pitch (aplicados) se
+  // deslizan hacia ellos en update() con un límite de velocidad angular (recorta picos).
   yaw = 0;
   pitch = 0;
+  private rawYaw = 0;
+  private rawPitch = 0;
   private roll = 0;
   private prevYaw = 0;
 
@@ -51,7 +56,8 @@ export class ShipController {
   private readonly tmp = new THREE.Vector3();
 
   // Sintonía
-  sensitivity = 0.0022;
+  sensitivity = CONTROL_CONFIG.sensitivity;
+  maxLookRate = CONTROL_CONFIG.maxLookRate; // rad/s; límite de velocidad angular de la mirada (recorta picos)
   pitchLimit = 1.48; // ~85°
   rollDamp = 6;
   kRoll = 5.5;
@@ -137,15 +143,15 @@ export class ShipController {
     this.onLockChange?.(this.locked);
   };
 
-  // Mirada DIRECTA 1:1 en tiempo real, SIN interpolación. Usa el delta del ratón
-  // (movementX/Y), que el navegador entrega haya o no pointer lock. El clic solo
-  // añade la captura (lock) para giro ilimitado sin tope del borde de la ventana;
-  // la respuesta del ratón es idéntica en ambos modos.
+  // Mirada con el delta del ratón (movementX/Y), que el navegador entrega haya o no
+  // pointer lock. Acumula en rawYaw/rawPitch; update() desliza yaw/pitch hacia el raw con
+  // un límite de velocidad angular (1:1 salvo picos). El clic solo añade la captura (lock)
+  // para giro ilimitado sin tope del borde; la respuesta del ratón es igual en ambos modos.
   private onMouseMove = (e: MouseEvent) => {
     if (!this.enabled) return;
-    this.yaw -= e.movementX * this.sensitivity;
-    this.pitch -= e.movementY * this.sensitivity;
-    this.pitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.pitch));
+    this.rawYaw -= e.movementX * this.sensitivity;
+    this.rawPitch -= e.movementY * this.sensitivity;
+    this.rawPitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.rawPitch));
   };
 
   // Al perder foco (alt-tab, foco al iframe de la cabina): soltar teclas.
@@ -163,7 +169,10 @@ export class ShipController {
   }
 
   update(delta: number): ShipState {
-    // yaw/pitch ya se fijaron 1:1 en onMouseMove (mirada directa, sin interpolación).
+    // Desliza la mirada aplicada hacia el objetivo crudo del ratón, recortando solo los
+    // picos que superan maxLookRate (por debajo del umbral es 1:1 exacto, sin lag).
+    this.yaw = limitAngularStep(this.yaw, this.rawYaw, this.maxLookRate, delta);
+    this.pitch = limitAngularStep(this.pitch, this.rawPitch, this.maxLookRate, delta);
 
     // Tasa de giro de yaw → alabeo objetivo (clamp). El roll lerp hacia el target.
     const yawRate = delta > 0 ? (this.yaw - this.prevYaw) / delta : 0;

@@ -81,3 +81,28 @@ describe('approachBrakeFactor', () => {
     expect(approachBrakeFactor(0, 0, MIN)).toBe(1);
   });
 });
+
+import { limitAngularStep } from './flight-math';
+
+describe('limitAngularStep', () => {
+  it('dentro del límite → devuelve target exacto (preserva 1:1)', () => {
+    // |target-current| = 0.01 <= maxRate*delta = 30*0.016 = 0.48
+    expect(limitAngularStep(1.0, 1.01, 30, 0.016)).toBe(1.01);
+  });
+
+  it('salto positivo grande → recorta a current + maxRate*delta', () => {
+    expect(limitAngularStep(0, 2, 30, 0.016)).toBeCloseTo(0.48, 10);
+  });
+
+  it('salto negativo grande → recorta a current - maxRate*delta (antisimetría)', () => {
+    expect(limitAngularStep(0, -2, 30, 0.016)).toBeCloseTo(-0.48, 10);
+  });
+
+  it('maxRate = Infinity → devuelve target (interruptor sin efecto)', () => {
+    expect(limitAngularStep(0, 12345, Infinity, 0.016)).toBe(12345);
+  });
+
+  it('idempotente al converger (current === target)', () => {
+    expect(limitAngularStep(0.7, 0.7, 30, 0.016)).toBe(0.7);
+  });
+});

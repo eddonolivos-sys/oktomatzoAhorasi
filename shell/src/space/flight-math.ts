@@ -30,3 +30,16 @@ export function approachBrakeFactor(distance: number, influenceRadius: number, m
   const depth = Math.max(0, Math.min(1, distance / influenceRadius)); // 0 en núcleo, 1 en borde
   return minFactor + (1 - minFactor) * depth;
 }
+
+/**
+ * Desliza `current` hacia `target` limitando el paso de este frame a `maxRate·delta`.
+ * Si el salto cabe dentro del límite devuelve `target` EXACTO (mirada 1:1, sin lag);
+ * si lo supera, recorta solo el exceso (amortigua el pico brusco). `maxRate` en rad/s.
+ */
+export function limitAngularStep(current: number, target: number, maxRate: number, delta: number): number {
+  const maxStep = maxRate * delta;
+  const d = target - current;
+  if (d > maxStep) return current + maxStep;
+  if (d < -maxStep) return current - maxStep;
+  return target;
+}
