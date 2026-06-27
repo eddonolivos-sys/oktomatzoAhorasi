@@ -86,4 +86,5 @@ export const ORBIT_CONFIG = {
   angularSpeed: 0.5, // [PERSONALIZABLE #5] rad/s de la órbita del satélite (~12.6 s por vuelta)
   ejectStrength: 900, // [UNIFORME] velocidad del impulso radial de expulsión (u/s); afinable
   ejectCooldownSeconds: 1.0, // [UNIFORME] tiempo sin recaptura tras expulsar
+  captureGraceSeconds: 0.5, // [UNIFORME] gracia tras capturar: ignora el empuje un instante (no auto-expulsa al llegar con W); pasada la gracia, mantener empuje expulsa (no quedarse atrapado)
 };

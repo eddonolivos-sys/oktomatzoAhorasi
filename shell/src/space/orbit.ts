@@ -10,15 +10,25 @@ export interface OrbitState {
   phase: OrbitPhase;
   /** Segundos restantes de bloqueo de recaptura tras expulsar (solo en 'ejecting'). */
   cooldown: number;
+  /** Segundos de gracia tras capturar durante los que el empuje NO expulsa (solo 'orbiting'). */
+  grace: number;
 }
 
 export interface OrbitInput {
   insideInfluence: boolean;
   enterPressed: boolean;
-  /** Flanco de subida del empuje (una pulsación NUEVA), no la tecla mantenida:
-   * acercarse manteniendo W no debe romper la órbita; solo una pulsación deliberada expulsa. */
-  thrustPressed: boolean;
+  /** Empuje activo (W/A/S/D/Shift/Space mantenido). */
+  thrustActive: boolean;
   dt: number;
+}
+
+export interface OrbitParams {
+  /** Tiempo sin recaptura tras expulsar. */
+  cooldownDuration: number;
+  /** Gracia tras capturar: ignora el empuje un instante para no auto-expulsar al
+   * acercarse con W. Pasada la gracia, el empuje (aunque sea mantenido) expulsa
+   * → nunca te quedas atrapado en la órbita. */
+  captureGrace: number;
 }
 
 export interface OrbitResult {
@@ -34,31 +44,37 @@ interface V3 {
 
 /**
  * Avanza un frame la máquina de estados de la órbita:
- * - `free`: entra en órbita al cruzar la esfera de influencia.
- * - `orbiting`: E entra (acción `enter`); una PULSACIÓN de empuje expulsa (acción `eject`
- *   → `ejecting`); salir de la influencia vuelve a `free`. Acercarse con el empuje mantenido
- *   no expulsa (es flanco, no nivel); mirar con el ratón no cambia nada.
+ * - `free`: entra en órbita al cruzar la esfera de influencia (con una gracia inicial).
+ * - `orbiting`: E entra (acción `enter`); pasada la gracia, el empuje expulsa (acción
+ *   `eject` → `ejecting`); salir de la influencia vuelve a `free`. Mirar con el ratón no
+ *   cambia nada. La gracia evita la auto-expulsión al llegar con W; tras ella, mantener
+ *   el empuje también expulsa (no hay forma de quedarse atrapado).
  * - `ejecting`: descuenta el cooldown (sin recaptura) hasta volver a `free`.
- * El empuje y el `enter` simultáneos: gana `enter` (no expulsa).
+ * El empuje y el `enter` simultáneos: gana `enter`.
  */
-export function stepOrbit(prev: OrbitState, input: OrbitInput, cooldownDuration: number): OrbitResult {
-  const { insideInfluence, enterPressed, thrustPressed, dt } = input;
+export function stepOrbit(prev: OrbitState, input: OrbitInput, params: OrbitParams): OrbitResult {
+  const { insideInfluence, enterPressed, thrustActive, dt } = input;
 
   if (prev.phase === 'ejecting') {
     const cooldown = prev.cooldown - dt;
-    if (cooldown > 0) return { state: { phase: 'ejecting', cooldown }, action: 'none' };
-    return { state: { phase: 'free', cooldown: 0 }, action: 'none' };
+    if (cooldown > 0) return { state: { phase: 'ejecting', cooldown, grace: 0 }, action: 'none' };
+    return { state: { phase: 'free', cooldown: 0, grace: 0 }, action: 'none' };
   }
 
   if (prev.phase === 'orbiting') {
     if (enterPressed) return { state: prev, action: 'enter' };
-    if (thrustPressed) return { state: { phase: 'ejecting', cooldown: cooldownDuration }, action: 'eject' };
-    if (!insideInfluence) return { state: { phase: 'free', cooldown: 0 }, action: 'none' };
-    return { state: prev, action: 'none' };
+    const grace = Math.max(0, prev.grace - dt);
+    if (thrustActive && grace <= 0) {
+      return { state: { phase: 'ejecting', cooldown: params.cooldownDuration, grace: 0 }, action: 'eject' };
+    }
+    if (!insideInfluence) return { state: { phase: 'free', cooldown: 0, grace: 0 }, action: 'none' };
+    return { state: { phase: 'orbiting', cooldown: 0, grace }, action: 'none' };
   }
 
   // free
-  if (insideInfluence) return { state: { phase: 'orbiting', cooldown: 0 }, action: 'none' };
+  if (insideInfluence) {
+    return { state: { phase: 'orbiting', cooldown: 0, grace: params.captureGrace }, action: 'none' };
+  }
   return { state: prev, action: 'none' };
 }
 

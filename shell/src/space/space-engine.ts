@@ -64,7 +64,7 @@ export class SpaceEngine {
   private readonly rebaseThreshold = 200000;
 
   // ── Interacción orbital (#3) ──
-  private orbit: OrbitState = { phase: 'free', cooldown: 0 };
+  private orbit: OrbitState = { phase: 'free', cooldown: 0, grace: 0 };
   private enterQueued = false;
   private readonly orbitCenter = new THREE.Vector3();
   private readonly orbitU = new THREE.Vector3();
@@ -73,7 +73,6 @@ export class SpaceEngine {
   private readonly orbitImpulse = new THREE.Vector3();
   private orbitRadius = 0;
   private orbitAngle = 0;
-  private prevThrusting = false;
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
@@ -399,6 +398,8 @@ export class SpaceEngine {
   // influencia de un planeta.
   private onCanvasClick = () => {
     if (this.pauseMenu.visible) return;
+    // En órbita el cursor queda libre para clicar "Entrar": no recapturamos el puntero.
+    if (this.orbit.phase === 'orbiting') return;
     if (!this.ship.isLocked) this.ship.requestControl();
   };
 
@@ -439,18 +440,16 @@ export class SpaceEngine {
   // ── Interacción orbital (#3): máquina de estados libre/órbita/expulsión ──
   private updateOrbit(approaching: ApproachInfo | null, shipState: ShipState, delta: number) {
     const prevPhase = this.orbit.phase;
-    const thrusting = this.ship.isThrusting;
     const r = stepOrbit(
       this.orbit,
       {
         insideInfluence: !!approaching,
         enterPressed: this.enterQueued,
-        thrustPressed: thrusting && !this.prevThrusting, // flanco: una pulsación nueva, no la tecla mantenida
+        thrustActive: this.ship.isThrusting,
         dt: delta,
       },
-      ORBIT_CONFIG.ejectCooldownSeconds,
+      { cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds, captureGrace: ORBIT_CONFIG.captureGraceSeconds },
     );
-    this.prevThrusting = thrusting;
     this.orbit = r.state;
     this.enterQueued = false;
 
@@ -513,7 +512,7 @@ export class SpaceEngine {
     if (this.pauseMenu.visible) return;
     const app = this.approachingApp;
     if (!app) return;
-    this.orbit = { phase: 'free', cooldown: 0 }; // al volver de la cabina, recaptura limpia
+    this.orbit = { phase: 'free', cooldown: 0, grace: 0 }; // al volver de la cabina, recaptura limpia
     this.ship.setOrbiting(false);
     this.enterProject(app);
   };
