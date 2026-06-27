@@ -72,6 +72,8 @@ export class ShipController {
 
   /** Frenado de aproximación: 1 normal; <1 amortigua la velocidad cerca de un planeta. */
   private approachBrake = 1;
+  /** Modo órbita (#3): la posición la impone el motor; update() no integra empuje. */
+  private orbiting = false;
 
   onLockChange?: (locked: boolean) => void;
 
@@ -127,6 +129,27 @@ export class ShipController {
   /** Factor de frenado de aproximación (1 normal; <1 amortigua cerca de planeta). */
   setApproachBrake(factor: number) {
     this.approachBrake = Math.max(0, Math.min(1, factor));
+  }
+
+  /** Modo órbita (#3): el motor impone la posición; update() no integra empuje. */
+  setOrbiting(on: boolean) {
+    this.orbiting = on;
+    if (on) this.velocity.set(0, 0, 0);
+  }
+
+  /** Añade un impulso a la velocidad (p. ej. expulsión radial al salir de la órbita). */
+  applyImpulse(v: THREE.Vector3) {
+    this.velocity.add(v);
+  }
+
+  /** ¿Hay alguna tecla de empuje/strafe/nitro/freno activa? (rompe la órbita en #3). */
+  get isThrusting(): boolean {
+    const k = this.keys;
+    return !!(
+      k['KeyW'] || k['ArrowUp'] || k['KeyS'] || k['ArrowDown'] ||
+      k['KeyA'] || k['ArrowLeft'] || k['KeyD'] || k['ArrowRight'] ||
+      k['Space'] || k['ShiftLeft'] || k['ShiftRight']
+    );
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -194,6 +217,22 @@ export class ShipController {
     // amortigua. Mantiene su orientación actual; velocidad/estado se reportan a 0
     // para que el HUD y la cámara no muestren deriva detrás del menú abierto.
     if (!this.enabled) {
+      return {
+        position: this.object.position,
+        velocity: this.velocity,
+        quaternion: this.object.quaternion,
+        yaw: this.yaw,
+        pitch: this.pitch,
+        roll: this.roll,
+        speed: 0,
+        isNitro: false,
+        isBraking: false,
+      };
+    }
+
+    if (this.orbiting) {
+      // En órbita la posición la impone el motor (satélite): no se integra empuje
+      // ni damping. La orientación (mirar con el ratón) ya se aplicó arriba.
       return {
         position: this.object.position,
         velocity: this.velocity,

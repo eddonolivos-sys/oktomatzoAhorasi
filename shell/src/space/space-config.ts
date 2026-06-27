@@ -80,3 +80,10 @@ export const SOLAR_CONFIG = {
 export const CAMERA_CONFIG = {
   chaseOffset: { x: 0, y: 7, z: 24 }, // [PERSONALIZABLE #5] offset detrás/arriba de la nave (antes 0,9,34)
 };
+
+/** Interacción orbital al aproximarse a un planeta (mejora #3). */
+export const ORBIT_CONFIG = {
+  angularSpeed: 0.5, // [PERSONALIZABLE #5] rad/s de la órbita del satélite (~12.6 s por vuelta)
+  ejectStrength: 900, // [UNIFORME] velocidad del impulso radial de expulsión (u/s); afinable
+  ejectCooldownSeconds: 1.0, // [UNIFORME] tiempo sin recaptura tras expulsar
+};

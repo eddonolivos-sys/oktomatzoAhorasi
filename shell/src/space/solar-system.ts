@@ -16,6 +16,10 @@ export interface ApproachInfo {
   app: AppInfo;
   distance: number;
   influenceRadius: number;
+  /** Posición (centro) del planeta en aproximación (#3: ancla de la órbita). */
+  center: THREE.Vector3;
+  /** Radio físico del planeta. */
+  planetRadius: number;
 }
 
 export interface SolarUpdate {
@@ -107,7 +111,13 @@ export class SolarSystem {
 
     // 2) Aproximación + frenado.
     const approaching: ApproachInfo | null = nearest
-      ? { app: nearest.app, distance: nearestDist, influenceRadius: nearest.influenceRadius }
+      ? {
+          app: nearest.app,
+          distance: nearestDist,
+          influenceRadius: nearest.influenceRadius,
+          center: nearest.mesh.position.clone(),
+          planetRadius: nearest.planetRadius,
+        }
       : null;
 
     // La entrada ya NO es automática: el motor abre el proyecto al pulsar E cuando

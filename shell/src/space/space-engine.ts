@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { ShipController } from './ship-controller';
+import { ShipController, type ShipState } from './ship-controller';
 import { ChaseCamera } from './chase-camera';
 import { Hud } from './hud';
 import { PauseMenu } from './pause-menu';
@@ -14,7 +14,7 @@ import { createComets, type Comets } from './comets';
 import { createRamatzoBelt, type RamatzoBelt } from './asteroids';
 import { ChunkManager } from './chunks';
 import { setStarGasTime, disposeStarGasMaterial } from './star-gas';
-import { SolarSystem } from './solar-system';
+import { SolarSystem, type ApproachInfo } from './solar-system';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
 import { createPlayerShip, type PlayerShip } from './player-ship';
@@ -22,7 +22,8 @@ import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
-import { SOLAR_CONFIG, CAMERA_CONFIG } from './space-config';
+import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG } from './space-config';
+import { stepOrbit, ejectVelocity, type OrbitState } from './orbit';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -61,6 +62,17 @@ export class SpaceEngine {
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
   private readonly rebaseThreshold = 200000;
+
+  // ── Interacción orbital (#3) ──
+  private orbit: OrbitState = { phase: 'free', cooldown: 0 };
+  private enterQueued = false;
+  private readonly orbitCenter = new THREE.Vector3();
+  private readonly orbitU = new THREE.Vector3();
+  private readonly orbitV = new THREE.Vector3();
+  private readonly orbitTmpVel = new THREE.Vector3();
+  private readonly orbitImpulse = new THREE.Vector3();
+  private orbitRadius = 0;
+  private orbitAngle = 0;
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
@@ -305,27 +317,26 @@ export class SpaceEngine {
     // del mundo (plan 01); su posición de escena es this.ship.object.position,
     // que coincide con ship.position (misma referencia de Vector3).
     const solar = this.solarSystem.update(this.elapsed, delta, ship.position);
-    // Planeta en aproximación: se entra al pulsar E (ver onKeyDown), no de forma automática.
-    this.approachingApp = solar.approaching?.app ?? null;
+    const approaching = solar.approaching;
+    this.approachingApp = approaching?.app ?? null;
 
-    // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw) y planeta en
-    // aproximación (prompt "Pulsa E").
+    // ── Interacción orbital (#3): captura → órbita → entrar/expulsar ──
+    if (!this.pauseMenu.visible) this.updateOrbit(approaching, ship, delta);
+
+    // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw) y planeta en aproximación.
     const altitude = ship.position.y + this.worldOffset.y;
     this.hud.update(ship, {
       altitude,
       heading: ship.yaw,
-      approaching: solar.approaching
+      approaching: approaching
         ? {
-            name: solar.approaching.app.name,
-            description: solar.approaching.app.description,
-            blurb: solar.approaching.app.blurb,
+            name: approaching.app.name,
+            description: approaching.app.description,
+            blurb: approaching.app.blurb,
           }
         : null,
       dwellProgress: solar.dwellProgress,
     });
-
-    // Frenado de aproximación aplicado a la nave (1 = normal, <1 cerca del núcleo).
-    this.ship.setApproachBrake(this.solarSystem.brakeFactor(solar.approaching));
     this.radar.draw(
       ship.position,
       ship.yaw,
@@ -406,7 +417,7 @@ export class SpaceEngine {
     if (!this.running) return; // en cabina (motor pausado) el motor ignora las teclas
     // E: entra al proyecto del planeta en aproximación (no automático).
     if (e.code === 'KeyE') {
-      this.enterApproaching();
+      this.enterQueued = true; // lo consume la máquina de órbita (#3); solo entra si está orbitando
       return;
     }
     // C: abre/cierra la rueda de emoticonos (solo si hay multijugador).
@@ -423,12 +434,78 @@ export class SpaceEngine {
     else this.openMenu();
   };
 
-  // Entra al proyecto del planeta en aproximación (tecla E).
-  private enterApproaching() {
-    if (this.pauseMenu.visible || !this.approachingApp) return;
-    const app = this.approachingApp;
+  // ── Interacción orbital (#3): máquina de estados libre/órbita/expulsión ──
+  private updateOrbit(approaching: ApproachInfo | null, shipState: ShipState, delta: number) {
+    const prevPhase = this.orbit.phase;
+    const r = stepOrbit(
+      this.orbit,
+      {
+        insideInfluence: !!approaching,
+        enterPressed: this.enterQueued,
+        thrustActive: this.ship.isThrusting,
+        dt: delta,
+      },
+      ORBIT_CONFIG.ejectCooldownSeconds,
+    );
+    this.orbit = r.state;
+    this.enterQueued = false;
+
+    if (prevPhase !== 'orbiting' && this.orbit.phase === 'orbiting' && approaching) {
+      this.beginOrbit(approaching, shipState);
+    }
+    if (this.orbit.phase === 'orbiting' && approaching) {
+      this.advanceOrbit(approaching, delta);
+    }
+
+    if (r.action === 'enter' && approaching) {
+      this.orbit = { phase: 'free', cooldown: 0 }; // al volver de cabina, recaptura limpia
+      this.ship.setOrbiting(false);
+      this.enterProject(approaching.app);
+    } else if (r.action === 'eject' && approaching) {
+      this.ship.setOrbiting(false);
+      const v = ejectVelocity(approaching.center, this.ship.object.position, ORBIT_CONFIG.ejectStrength);
+      this.ship.applyImpulse(this.orbitImpulse.set(v.x, v.y, v.z));
+    }
+  }
+
+  /** Captura: fija centro, radio (distancia de captura acotada) y el plano (radial × velocidad). */
+  private beginOrbit(approaching: ApproachInfo, shipState: ShipState) {
+    this.orbitCenter.copy(approaching.center);
+    this.orbitU.copy(this.ship.object.position).sub(this.orbitCenter);
+    const dist = this.orbitU.length() || 1;
+    this.orbitRadius = Math.max(
+      approaching.planetRadius * 1.5,
+      Math.min(dist, approaching.influenceRadius),
+    );
+    this.orbitU.multiplyScalar(1 / dist); // radial unitario
+    // Tangencial: velocidad de llegada sin su componente radial; si ~0, perpendicular cualquiera.
+    this.orbitTmpVel.copy(shipState.velocity);
+    this.orbitTmpVel.addScaledVector(this.orbitU, -this.orbitTmpVel.dot(this.orbitU));
+    if (this.orbitTmpVel.lengthSq() < 1e-4) {
+      const upish = Math.abs(this.orbitU.y) > 0.9;
+      this.orbitTmpVel.set(upish ? 1 : 0, upish ? 0 : 1, 0);
+      this.orbitTmpVel.addScaledVector(this.orbitU, -this.orbitTmpVel.dot(this.orbitU));
+    }
+    this.orbitV.copy(this.orbitTmpVel).normalize();
+    this.orbitAngle = 0;
+    this.ship.setOrbiting(true);
+  }
+
+  /** Avanza la órbita un frame, relativa al centro VIVO del planeta (órbita + rebase). */
+  private advanceOrbit(approaching: ApproachInfo, delta: number) {
+    this.orbitCenter.copy(approaching.center);
+    this.orbitAngle += ORBIT_CONFIG.angularSpeed * delta;
+    const cos = Math.cos(this.orbitAngle);
+    const sin = Math.sin(this.orbitAngle);
+    this.ship.object.position
+      .copy(this.orbitCenter)
+      .addScaledVector(this.orbitU, cos * this.orbitRadius)
+      .addScaledVector(this.orbitV, sin * this.orbitRadius);
+  }
+
+  /** Entrada al proyecto. COSTURA del circuito (#6): por ahora abre directo; #6 la envolverá. */
+  private enterProject(app: AppInfo) {
     if (app.externalUrl) {
-      // Proyecto externo (p. ej. repo de GitHub): abre en pestaña nueva, no iframe.
       window.open(app.externalUrl, '_blank', 'noopener,noreferrer');
       return;
     }
