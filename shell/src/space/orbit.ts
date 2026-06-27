@@ -15,7 +15,9 @@ export interface OrbitState {
 export interface OrbitInput {
   insideInfluence: boolean;
   enterPressed: boolean;
-  thrustActive: boolean;
+  /** Flanco de subida del empuje (una pulsación NUEVA), no la tecla mantenida:
+   * acercarse manteniendo W no debe romper la órbita; solo una pulsación deliberada expulsa. */
+  thrustPressed: boolean;
   dt: number;
 }
 
@@ -33,13 +35,14 @@ interface V3 {
 /**
  * Avanza un frame la máquina de estados de la órbita:
  * - `free`: entra en órbita al cruzar la esfera de influencia.
- * - `orbiting`: E entra (acción `enter`); el empuje expulsa (acción `eject` →
- *   `ejecting`); salir de la influencia vuelve a `free`; mirar con el ratón no cambia nada.
+ * - `orbiting`: E entra (acción `enter`); una PULSACIÓN de empuje expulsa (acción `eject`
+ *   → `ejecting`); salir de la influencia vuelve a `free`. Acercarse con el empuje mantenido
+ *   no expulsa (es flanco, no nivel); mirar con el ratón no cambia nada.
  * - `ejecting`: descuenta el cooldown (sin recaptura) hasta volver a `free`.
  * El empuje y el `enter` simultáneos: gana `enter` (no expulsa).
  */
 export function stepOrbit(prev: OrbitState, input: OrbitInput, cooldownDuration: number): OrbitResult {
-  const { insideInfluence, enterPressed, thrustActive, dt } = input;
+  const { insideInfluence, enterPressed, thrustPressed, dt } = input;
 
   if (prev.phase === 'ejecting') {
     const cooldown = prev.cooldown - dt;
@@ -49,7 +52,7 @@ export function stepOrbit(prev: OrbitState, input: OrbitInput, cooldownDuration:
 
   if (prev.phase === 'orbiting') {
     if (enterPressed) return { state: prev, action: 'enter' };
-    if (thrustActive) return { state: { phase: 'ejecting', cooldown: cooldownDuration }, action: 'eject' };
+    if (thrustPressed) return { state: { phase: 'ejecting', cooldown: cooldownDuration }, action: 'eject' };
     if (!insideInfluence) return { state: { phase: 'free', cooldown: 0 }, action: 'none' };
     return { state: prev, action: 'none' };
   }

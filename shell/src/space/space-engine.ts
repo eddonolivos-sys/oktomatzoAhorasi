@@ -73,6 +73,7 @@ export class SpaceEngine {
   private readonly orbitImpulse = new THREE.Vector3();
   private orbitRadius = 0;
   private orbitAngle = 0;
+  private prevThrusting = false;
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
@@ -169,6 +170,7 @@ export class SpaceEngine {
 
     // HUD (reticula, velocidad, altitud/rumbo, leyenda, vignette)
     this.hud = new Hud(host);
+    this.hud.onEnter = this.enterCurrentProject; // botón "Entrar" del panel de proyecto (#3)
     this.ship.onLockChange = (locked) => {
       // El prompt "Clic para tomar control" no aparece si el menú de pausa está
       // visible (ese caso lo cubre el propio menú con su botón "Reanudar control").
@@ -437,16 +439,18 @@ export class SpaceEngine {
   // ── Interacción orbital (#3): máquina de estados libre/órbita/expulsión ──
   private updateOrbit(approaching: ApproachInfo | null, shipState: ShipState, delta: number) {
     const prevPhase = this.orbit.phase;
+    const thrusting = this.ship.isThrusting;
     const r = stepOrbit(
       this.orbit,
       {
         insideInfluence: !!approaching,
         enterPressed: this.enterQueued,
-        thrustActive: this.ship.isThrusting,
+        thrustPressed: thrusting && !this.prevThrusting, // flanco: una pulsación nueva, no la tecla mantenida
         dt: delta,
       },
       ORBIT_CONFIG.ejectCooldownSeconds,
     );
+    this.prevThrusting = thrusting;
     this.orbit = r.state;
     this.enterQueued = false;
 
@@ -458,9 +462,7 @@ export class SpaceEngine {
     }
 
     if (r.action === 'enter' && approaching) {
-      this.orbit = { phase: 'free', cooldown: 0 }; // al volver de cabina, recaptura limpia
-      this.ship.setOrbiting(false);
-      this.enterProject(approaching.app);
+      this.enterCurrentProject();
     } else if (r.action === 'eject' && approaching) {
       this.ship.setOrbiting(false);
       const v = ejectVelocity(approaching.center, this.ship.object.position, ORBIT_CONFIG.ejectStrength);
@@ -489,6 +491,9 @@ export class SpaceEngine {
     this.orbitV.copy(this.orbitTmpVel).normalize();
     this.orbitAngle = 0;
     this.ship.setOrbiting(true);
+    // En órbita no hay control: libera el puntero para que el cursor se vea y pueda
+    // clicar el botón "Entrar" del HUD.
+    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   /** Avanza la órbita un frame, relativa al centro VIVO del planeta (órbita + rebase). */
@@ -502,6 +507,16 @@ export class SpaceEngine {
       .addScaledVector(this.orbitU, cos * this.orbitRadius)
       .addScaledVector(this.orbitV, sin * this.orbitRadius);
   }
+
+  /** Entra al proyecto en aproximación/órbita (tecla E o botón "Entrar" del HUD). */
+  private enterCurrentProject = () => {
+    if (this.pauseMenu.visible) return;
+    const app = this.approachingApp;
+    if (!app) return;
+    this.orbit = { phase: 'free', cooldown: 0 }; // al volver de la cabina, recaptura limpia
+    this.ship.setOrbiting(false);
+    this.enterProject(app);
+  };
 
   /** Entrada al proyecto. COSTURA del circuito (#6): por ahora abre directo; #6 la envolverá. */
   private enterProject(app: AppInfo) {

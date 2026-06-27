@@ -21,6 +21,10 @@ export class Hud {
   private altValue: HTMLElement;
   private headingValue: HTMLElement;
   private startMsg: HTMLElement;
+  private enterBtn: HTMLElement;
+
+  /** Se invoca al pulsar el botón "Entrar" del panel de proyecto (#3). */
+  onEnter?: () => void;
 
   /** Circunferencia del círculo de progreso (r = 16). */
   private readonly ringCircumference = 2 * Math.PI * 16;
@@ -41,7 +45,7 @@ export class Hud {
         <div class="pp-name"></div>
         <div class="pp-desc"></div>
         <div class="pp-blurb"></div>
-        <div class="pp-enter"><span class="key">E</span> Entrar al proyecto</div>
+        <button type="button" class="pp-enter" style="pointer-events:auto;cursor:pointer;background:transparent;border:1px solid rgba(230,168,23,0.5);color:#E6A817;font:inherit;padding:6px 14px;border-radius:6px;margin-top:8px;">Entrar al proyecto</button>
       </div>
       <div id="startMsg">
         <h1>Ramatzo</h1>
@@ -85,6 +89,8 @@ export class Hud {
     this.altValue = q('#altValue');
     this.headingValue = q('#headingValue');
     this.startMsg = q('#startMsg');
+    this.enterBtn = q('#projectPanel .pp-enter');
+    this.enterBtn.addEventListener('click', () => this.onEnter?.());
 
     // Estado inicial del anillo de permanencia: vacío.
     this.dwellRing.style.strokeDasharray = String(this.ringCircumference);

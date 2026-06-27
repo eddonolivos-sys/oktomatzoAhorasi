@@ -171,7 +171,7 @@ export class ShipController {
   // un límite de velocidad angular (1:1 salvo picos). El clic solo añade la captura (lock)
   // para giro ilimitado sin tope del borde; la respuesta del ratón es igual en ambos modos.
   private onMouseMove = (e: MouseEvent) => {
-    if (!this.enabled) return;
+    if (!this.enabled || this.orbiting) return; // en órbita no se controla la mirada (#3)
     this.rawYaw -= e.movementX * this.sensitivity;
     this.rawPitch -= e.movementY * this.sensitivity;
     this.rawPitch = Math.max(-this.pitchLimit, Math.min(this.pitchLimit, this.rawPitch));

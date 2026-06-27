@@ -97,3 +97,16 @@ export const ORBIT_CONFIG = {
 - Cámara especial de órbita (se mantiene la chase cam).
 - Cambios de velocidad de vuelo libre.
 - UI del menú de configuración (#5).
+
+## Addendum — corrección tras prueba del usuario (2026-06-27)
+
+Tras probar la primera versión, el usuario reportó que la nave no orbitaba, no había expulsión y la entrada no pausaba el mapa.
+
+**Causa raíz (depuración):** la órbita capturaba y se expulsaba en el mismo instante. La expulsión se evaluaba con el empuje **a nivel** (`thrustActive`); como uno se aproxima manteniendo W (más aún con el sistema ×5), el empuje seguía activo justo tras capturar → expulsión inmediata. Esto impedía que la órbita se sostuviera y, en cadena, que `E` emitiera `enter` (sólo válido en `orbiting`), por lo que `onEnterApp` casi nunca se llamaba y el mapa no se pausaba (el cableado de pausa en `shell-space.ts` era correcto; sólo no se disparaba).
+
+**Correcciones:**
+1. Expulsión por **flanco** (`thrustPressed`), no por tecla mantenida: acercarse con W no rompe la órbita; sólo una pulsación nueva de movimiento expulsa. El motor calcula el flanco (`isThrusting && !prevThrusting`).
+2. **Bloqueo total de control en órbita** (decisión del usuario): además de congelar el empuje, se congela la mirada (`onMouseMove` ignora la entrada en órbita) y se **libera el pointer lock** para mostrar el cursor.
+3. **Botón "Entrar" en el panel del proyecto** (`hud.ts`, callback `onEnter`): clic (o tecla `E`) → `enterCurrentProject` → `onEnterApp` → `engine.pause()` (mapa congelado) hasta cerrar la vista del proyecto, que reanuda con `resume()`.
+
+Tests: nuevo caso en `orbit.test.ts` (empuje mantenido sin flanco NO expulsa). 165 tests verdes.

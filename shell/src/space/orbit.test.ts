@@ -4,7 +4,7 @@ import { stepOrbit, ejectVelocity, type OrbitState, type OrbitInput } from './or
 const FREE: OrbitState = { phase: 'free', cooldown: 0 };
 const ORBIT: OrbitState = { phase: 'orbiting', cooldown: 0 };
 const CD = 1.0;
-const baseInput: OrbitInput = { insideInfluence: false, enterPressed: false, thrustActive: false, dt: 0.016 };
+const baseInput: OrbitInput = { insideInfluence: false, enterPressed: false, thrustPressed: false, dt: 0.016 };
 
 describe('stepOrbit', () => {
   it('captura: free + dentro de influencia → orbiting', () => {
@@ -24,11 +24,17 @@ describe('stepOrbit', () => {
     expect(r.action).toBe('enter');
   });
 
-  it('orbiting + empuje → ejecting + acción eject', () => {
-    const r = stepOrbit(ORBIT, { ...baseInput, insideInfluence: true, thrustActive: true }, CD);
+  it('orbiting + pulsación de empuje (flanco) → ejecting + acción eject', () => {
+    const r = stepOrbit(ORBIT, { ...baseInput, insideInfluence: true, thrustPressed: true }, CD);
     expect(r.state.phase).toBe('ejecting');
     expect(r.state.cooldown).toBeCloseTo(CD, 6);
     expect(r.action).toBe('eject');
+  });
+
+  it('orbiting + empuje MANTENIDO (sin flanco) NO expulsa (acercarse con W no rompe la órbita)', () => {
+    const r = stepOrbit(ORBIT, { ...baseInput, insideInfluence: true, thrustPressed: false }, CD);
+    expect(r.state.phase).toBe('orbiting');
+    expect(r.action).toBe('none');
   });
 
   it('orbiting + sale de influencia → free', () => {
@@ -53,7 +59,7 @@ describe('stepOrbit', () => {
   it('orbiting: enter tiene prioridad sobre el empuje simultáneo', () => {
     const r = stepOrbit(
       ORBIT,
-      { ...baseInput, insideInfluence: true, enterPressed: true, thrustActive: true },
+      { ...baseInput, insideInfluence: true, enterPressed: true, thrustPressed: true },
       CD,
     );
     expect(r.action).toBe('enter');
