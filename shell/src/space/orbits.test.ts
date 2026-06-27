@@ -34,6 +34,30 @@ describe('planetLayout', () => {
   });
 });
 
+describe('planetLayout con escala', () => {
+  it('escala el radio linealmente (×scale)', () => {
+    for (const i of [0, 2, 5]) {
+      const base = planetLayout(i, 6, 1).radius;
+      const scaled = planetLayout(i, 6, 5).radius;
+      expect(scaled).toBeCloseTo(base * 5, 6);
+    }
+  });
+
+  it('preserva la proporción entre radios consecutivos al escalar', () => {
+    const ratioAt = (scale: number) =>
+      planetLayout(3, 6, scale).radius / planetLayout(1, 6, scale).radius;
+    expect(ratioAt(5)).toBeCloseTo(ratioAt(1), 10);
+  });
+
+  it('no cambia la velocidad angular con la escala (mismo ritmo orbital)', () => {
+    expect(planetLayout(2, 6, 5).speed).toBe(planetLayout(2, 6, 1).speed);
+  });
+
+  it('scale por defecto = 1 (retrocompatible)', () => {
+    expect(planetLayout(2, 6)).toEqual(planetLayout(2, 6, 1));
+  });
+});
+
 describe('orbitPosition', () => {
   it('en t=0 con fase 0 y sin inclinación queda sobre +X', () => {
     const p = orbitPosition(1000, 0, 0, 0.05, 0);

@@ -4,6 +4,7 @@ import { createPlanet } from './planet';
 import { colorForCategory } from './layout';
 import { planetLayout, orbitPosition } from './orbits';
 import { approachBrakeFactor } from './flight-math';
+import { SOLAR_CONFIG } from './space-config';
 
 export interface RadarBlip {
   name: string;
@@ -38,9 +39,9 @@ interface SolarPlanet {
   mat: THREE.ShaderMaterial;
 }
 
-const PLANET_MIN = 120;
-const PLANET_MAX = 260;
-const INFLUENCE_FACTOR = 2.5;
+const PLANET_MIN = SOLAR_CONFIG.planetMin;
+const PLANET_MAX = SOLAR_CONFIG.planetMax;
+const INFLUENCE_FACTOR = SOLAR_CONFIG.influenceFactor;
 const BRAKE_MIN_FACTOR = 0.25; // damping fuerte en el núcleo de la esfera
 
 function seedFromId(id: string): number {
@@ -65,7 +66,7 @@ export class SolarSystem {
   ) {
     const total = apps.length;
     apps.forEach((app, i) => {
-      const layout = planetLayout(i, total);
+      const layout = planetLayout(i, total, SOLAR_CONFIG.scale);
       // Tamaño compacto, determinista por índice (interiores algo menores).
       const planetRadius = PLANET_MIN + ((PLANET_MAX - PLANET_MIN) * (i % 4)) / 3;
       const seed = seedFromId(app.id);

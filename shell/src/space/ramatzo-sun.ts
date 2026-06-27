@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SOLAR_CONFIG } from './space-config';
 
 export interface RamatzoSun {
   object: THREE.Group;
@@ -30,9 +31,9 @@ function createCoronaTexture(): THREE.CanvasTexture {
  */
 export function createRamatzoSun(): RamatzoSun {
   const group = new THREE.Group();
-  // Escala coherente con el sistema compacto (plan 02: orbitas ~600-3000 u,
-  // planetas ~120-260 u). El sol es el cuerpo mayor pero sin eclipsar el sistema.
-  const radius = 340;
+  // Radio del sol escalado con el sistema (SOLAR_CONFIG.scale). Hub heliocéntrico:
+  // el cuerpo mayor, visible desde la órbita interior sin eclipsar el sistema.
+  const radius = SOLAR_CONFIG.sunRadius;
 
   const core = new THREE.Mesh(
     new THREE.SphereGeometry(radius, 48, 48),
@@ -67,9 +68,14 @@ export function createRamatzoSun(): RamatzoSun {
   corona.scale.set(radius * 6, radius * 6, 1);
   group.add(corona);
 
-  // Luz puntual que cubre el sistema (órbitas hasta ~6000 u) con caída física
-  // suave. Intensidad sobria para realismo (sin sobreexponer).
-  const light = new THREE.PointLight(0xffb060, 3.6, 7500, 1.5);
+  // Luz puntual que cubre el sistema escalado (distancia derivada de SOLAR_CONFIG)
+  // con caída física suave. Intensidad sobria para realismo (sin sobreexponer).
+  const light = new THREE.PointLight(
+    0xffb060,
+    SOLAR_CONFIG.sunLightIntensity,
+    SOLAR_CONFIG.sunLightDistance,
+    SOLAR_CONFIG.sunLightDecay,
+  );
   group.add(light);
 
   return {

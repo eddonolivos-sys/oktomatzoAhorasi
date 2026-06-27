@@ -38,3 +38,45 @@ export const CONTROL_CONFIG = {
   sensitivity: 0.0022, // [PERSONALIZABLE #5] rad de yaw/pitch por px de movimiento del ratón
   maxLookRate: 30, // [PERSONALIZABLE #5] velocidad angular máx. de mirada (rad/s); recorta solo picos bruscos
 };
+
+/**
+ * Escala global del sistema solar (mejora #2). Un único factor del que DERIVAN
+ * órbitas, radar, niebla, luz del sol, spawn y la ubicación del cinturón.
+ * Cambiar este número reescala el mundo de forma coherente.
+ */
+const SOLAR_SCALE = 5;
+
+/** Sistema solar y cuerpos (mejora #2 escala + mejora #4 planetas). */
+export const SOLAR_CONFIG = {
+  scale: SOLAR_SCALE, // [UNIFORME] factor de escala (×5 sobre la base compacta 1200–6000)
+
+  // Planetas (#4: +20% visual; NO se escala ×scale → de ahí la vastedad)
+  planetMin: 120 * 1.2, // [UNIFORME] 144
+  planetMax: 260 * 1.2, // [UNIFORME] 312
+  influenceFactor: 4, // [UNIFORME] gatillo de aproximación; PROVISIONAL — #3 redefine la captura
+
+  // Sol (crece con el sistema)
+  sunRadius: 340 * SOLAR_SCALE, // [UNIFORME] 1700
+  sunLightDistance: 7500 * SOLAR_SCALE, // [UNIFORME] 37500
+  sunLightIntensity: 3.6, // [UNIFORME]
+  sunLightDecay: 1.5, // [UNIFORME]
+
+  // Radar (el sistema entero cabe en el disco)
+  radarRange: 6000 * SOLAR_SCALE, // [UNIFORME] 30000
+  radarAltScale: 0.012 / SOLAR_SCALE, // [UNIFORME] 0.0024 (Y orbital ×5 → poste recalibrado)
+
+  // Niebla / spawn (el sistema siempre nítido)
+  fogNear: 55000, // [UNIFORME]
+  fogFar: 110000, // [UNIFORME] = camera.far
+  spawn: { x: 0, y: 120 * SOLAR_SCALE, z: 2600 * SOLAR_SCALE }, // [UNIFORME] (0, 600, 13000)
+
+  // Cinturón RAMATZO (periferia, opción A: banner lejano −Z)
+  ramatzoCenter: { x: 0, y: 3000, z: -45000 }, // [UNIFORME]
+  ramatzoInnerRadius: 3400 * SOLAR_SCALE, // [UNIFORME] 17000
+  ramatzoOuterRadius: 4400 * SOLAR_SCALE, // [UNIFORME] 22000
+};
+
+/** Cámara de persecución (mejora #4: más cercana). */
+export const CAMERA_CONFIG = {
+  chaseOffset: { x: 0, y: 7, z: 24 }, // [PERSONALIZABLE #5] offset detrás/arriba de la nave (antes 0,9,34)
+};

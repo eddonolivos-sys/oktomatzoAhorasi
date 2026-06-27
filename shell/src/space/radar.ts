@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { RadarBlip } from './solar-system';
 import type { AppInfo } from '../services/protocol';
 import { bearingToDisc, elevationStalk } from './radar-projection';
+import { SOLAR_CONFIG } from './space-config';
 
 /**
  * Radar 3D holográfico (canvas 2D) fijo arriba-izquierda. Lee el plano XZ del
@@ -23,9 +24,9 @@ export class Radar {
   private readonly r = 84;
 
   /** Rango total FIJO del radar en unidades de mundo (escala estable, no autoscale). */
-  private readonly range = 6000;
+  private readonly range = SOLAR_CONFIG.radarRange;
   /** Escala del poste de altitud: unidades de mundo (Y) → píxeles. */
-  private readonly altScale = 0.012;
+  private readonly altScale = SOLAR_CONFIG.radarAltScale;
   private readonly maxStalk = 26;
 
   constructor(host: HTMLElement) {

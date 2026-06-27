@@ -22,6 +22,7 @@ import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
+import { SOLAR_CONFIG, CAMERA_CONFIG } from './space-config';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -110,10 +111,10 @@ export class SpaceEngine {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0503);
-    this.scene.fog = new THREE.Fog(0x0a0503, 35000, 100000);
+    this.scene.fog = new THREE.Fog(0x0a0503, SOLAR_CONFIG.fogNear, SOLAR_CONFIG.fogFar);
 
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 110000);
-    this.camera.position.set(0, 120, 2600);
+    this.camera.position.set(SOLAR_CONFIG.spawn.x, SOLAR_CONFIG.spawn.y, SOLAR_CONFIG.spawn.z);
 
     // Iluminación cálida y sobria: key cálido del sol, fill frío tenue y un
     // rim azulado para recortar nave y planetas del fondo (realismo sin neón).
@@ -144,9 +145,15 @@ export class SpaceEngine {
     // Control de vuelo: la nave es una entidad en el mundo; la cámara la sigue.
     this.ship = new ShipController(this.canvas);
     this.ship.attach();
-    this.ship.object.position.set(0, 120, 2600); // spawn mirando al sistema
+    this.ship.object.position.set(SOLAR_CONFIG.spawn.x, SOLAR_CONFIG.spawn.y, SOLAR_CONFIG.spawn.z); // spawn mirando al sistema
     this.scene.add(this.ship.object);
-    this.chaseCamera = new ChaseCamera(this.camera);
+    this.chaseCamera = new ChaseCamera(this.camera, {
+      offset: new THREE.Vector3(
+        CAMERA_CONFIG.chaseOffset.x,
+        CAMERA_CONFIG.chaseOffset.y,
+        CAMERA_CONFIG.chaseOffset.z,
+      ),
+    });
 
     // HUD (reticula, velocidad, altitud/rumbo, leyenda, vignette)
     this.hud = new Hud(host);
@@ -177,7 +184,12 @@ export class SpaceEngine {
     // Cinturon de asteroides Ramatzo: radios coordinados con plan 02 (orbita
     // externa de planetas ~3000 u; superficie/influencia hasta ~3260 u). Anillo
     // por fuera de esa franja, sin solaparse con los planetas.
-    this.belt = createRamatzoBelt({ count: 240, innerRadius: 3400, outerRadius: 4400 });
+    this.belt = createRamatzoBelt({
+      count: 240,
+      innerRadius: SOLAR_CONFIG.ramatzoInnerRadius,
+      outerRadius: SOLAR_CONFIG.ramatzoOuterRadius,
+      center: SOLAR_CONFIG.ramatzoCenter,
+    });
     this.scene.add(this.belt.object);
 
     this.chunks = new ChunkManager(this.scene, this.renderer);

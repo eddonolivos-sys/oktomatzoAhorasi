@@ -17,6 +17,8 @@ export interface RamatzoBeltOptions {
   count?: number;
   innerRadius: number;
   outerRadius: number;
+  /** Centro del cinturón en espacio de escena (default: por delante del sistema). */
+  center?: { x: number; y: number; z: number };
 }
 
 /** Punto objetivo (en la palabra) muestreado de un glifo. */
@@ -148,7 +150,8 @@ export function createRamatzoBelt(opts: RamatzoBeltOptions): RamatzoBelt {
   // Plano de la palabra: centrado por delante del sistema y orientado para
   // verse de frente desde el spawn (z≈+2600 mirando a −Z). La colocamos algo
   // elevada y a media distancia, dentro del campo visible, sin tapar el sol.
-  const wordCenter = new THREE.Vector3(0, 900, -1800);
+  const c = opts.center ?? { x: 0, y: 900, z: -1800 };
+  const wordCenter = new THREE.Vector3(c.x, c.y, c.z);
   group.position.copy(wordCenter);
 
   // ── Asteroides instanciados (roca) ────────────────────────────────────────
@@ -160,6 +163,7 @@ export function createRamatzoBelt(opts: RamatzoBeltOptions): RamatzoBelt {
     emissive: 0x3a2410, // brillo cálido tenue propio (visible a lo lejos)
     emissiveIntensity: 0.5,
     flatShading: true,
+    fog: false, // landmark visible desde lejos (como el sol): la niebla no lo atenúa
   });
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.frustumCulled = false;

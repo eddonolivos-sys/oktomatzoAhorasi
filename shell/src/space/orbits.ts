@@ -9,16 +9,21 @@ const MIN_RADIUS = 1200;
 const MAX_RADIUS = 6000;
 const GOLDEN = 2.399963267; // ángulo áureo (rad), para fases sin alineación
 
-/** Parámetros orbitales deterministas del planeta `index` de `total`. */
+/**
+ * Parámetros orbitales deterministas del planeta `index` de `total`.
+ * `scale` multiplica el radio (escala global del sistema, manteniendo la
+ * proporción entre órbitas); la velocidad ANGULAR no escala (mismo ritmo orbital).
+ */
 export function planetLayout(
   index: number,
   total: number,
+  scale = 1,
 ): { radius: number; inclination: number; phase: number; speed: number } {
   const n = Math.max(1, total);
   // Radio creciente, repartido linealmente en [MIN, MAX]; con un solo planeta,
-  // se coloca a un radio medio cómodo.
+  // se coloca a un radio medio cómodo. `scale` agranda el sistema sin alterar proporciones.
   const f = n === 1 ? 0.5 : index / (n - 1);
-  const radius = MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * f;
+  const radius = (MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * f) * scale;
   // Inclinación alternada y variada (|inc| <= ~32°) → uso real de las 3 dimensiones.
   const inclination = Math.sin(index * 1.7 + 0.5) * 0.56 * (index % 2 === 0 ? 1 : -1);
   // Fase por ángulo áureo, normalizada a [0, 2π).
