@@ -46,11 +46,16 @@ export class ShellSpace extends LitElement {
       apps: this.apps,
       user: this.user ?? undefined,
       onEnterApp: (app) => {
+        history.pushState({ cockpit: app.id }, '', `?app=${encodeURIComponent(app.id)}`);
         this.cockpitApp = app;
         this.engine?.pause();
       },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
     });
+
+    // Empezar siempre en el mapa: ignora un ?app= de una recarga previa.
+    if (location.search) history.replaceState({}, '', location.pathname);
+    window.addEventListener('popstate', this.onPopState);
 
     window.setTimeout(() => {
       this.igniting = false;
@@ -59,6 +64,7 @@ export class ShellSpace extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener('popstate', this.onPopState);
     this.engine?.dispose();
     this.engine = null;
   }
@@ -86,23 +92,36 @@ export class ShellSpace extends LitElement {
       <div
         id="space-host"
         class=${this.igniting ? 'igniting' : ''}
-        style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
+        style="position:fixed;inset:0;overflow:hidden;background:#0A0503;display:${this.cockpitApp ? 'none' : 'block'};"
       ></div>
       ${this.igniting ? html`<div id="ignition"></div>` : ''}
       ${this.cockpitApp
         ? html`<shell-cockpit
             .app=${this.cockpitApp}
             .theme=${this.theme}
-            @back=${this.exitCockpit}
+            @back=${this.onBack}
             @logout=${() => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }))}
           ></shell-cockpit>`
         : ''}
     `;
   }
 
-  private exitCockpit = () => {
-    this.cockpitApp = null;
-    this.engine?.resume();
+  // El botón "Volver al espacio" navega atrás en el historial → mismo camino que el
+  // botón de retroceso del navegador (ambos disparan popstate).
+  private onBack = () => history.back();
+
+  // Manejador ÚNICO de retorno: lo invocan TANTO el botón (vía history.back) como el
+  // retroceso del navegador. Reconstruye la vista según el estado del historial.
+  private onPopState = (e: PopStateEvent) => {
+    const id = e.state && (e.state as { cockpit?: string }).cockpit;
+    const app = id ? this.apps.find((a) => a.id === id) ?? null : null;
+    if (app) {
+      this.cockpitApp = app;
+      this.engine?.pause();
+    } else {
+      this.cockpitApp = null;
+      this.engine?.resume();
+    }
   };
 }
 
