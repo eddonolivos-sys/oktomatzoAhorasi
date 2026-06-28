@@ -5,7 +5,7 @@ import type { ShipState } from './ship-controller';
  * Velocidad de referencia (u/s) que SATURA el kick de FOV y normaliza la barra de
  * nitro del HUD. Compartida para que cámara y HUD no se desincronicen.
  */
-export const SPEED_FOV_REF = 600;
+export const SPEED_FOV_REF = 3000;
 
 /**
  * Cámara de persecución: sigue al raíz de la nave con un resorte (lerp) y aplica

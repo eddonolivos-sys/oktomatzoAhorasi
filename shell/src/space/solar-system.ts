@@ -84,7 +84,7 @@ export class SolarSystem {
         radius: layout.radius,
         inclination: layout.inclination,
         phase: layout.phase,
-        speed: layout.speed,
+        speed: layout.speed * SOLAR_CONFIG.orbitSpeedScale,
         mat: mesh.material as THREE.ShaderMaterial,
       });
     });

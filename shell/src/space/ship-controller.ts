@@ -62,13 +62,13 @@ export class ShipController {
   rollDamp = 6;
   kRoll = 5.5;
   maxRoll = 0.55;
-  acceleration = 140; // empuje continuo (u/s²); SIN maxSpeed
-  strafeAccel = 90;
+  acceleration = CONTROL_CONFIG.acceleration; // empuje continuo (u/s²); SIN maxSpeed
+  strafeAccel = CONTROL_CONFIG.strafeAccel;
   // Damping expresado como factor POR FOTOGRAMA A 60FPS; se reescala con `delta`
   // (ver frameDamp) para que la velocidad terminal/manejo no dependan de los FPS.
   damping = 0.985; // inercia: cerca de 1 = conserva velocidad
   brakeDamping = 0.92; // damping extra al frenar (S/Shift)
-  nitroMultiplier = 6;
+  nitroMultiplier = CONTROL_CONFIG.nitroMultiplier;
 
   /** Frenado de aproximación: 1 normal; <1 amortigua la velocidad cerca de un planeta. */
   private approachBrake = 1;

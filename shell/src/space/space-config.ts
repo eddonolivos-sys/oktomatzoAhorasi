@@ -37,6 +37,9 @@ export const STAR_FIELD_CONFIG = {
 export const CONTROL_CONFIG = {
   sensitivity: 0.0022, // [PERSONALIZABLE #5] rad de yaw/pitch por px de movimiento del ratón
   maxLookRate: 30, // [PERSONALIZABLE #5] velocidad angular máx. de mirada (rad/s); recorta solo picos bruscos
+  acceleration: 700, // [PERSONALIZABLE #5] empuje continuo (u/s²); subido para el sistema ×5 (antes 140)
+  strafeAccel: 450, // [PERSONALIZABLE #5] aceleración lateral A/D (antes 90)
+  nitroMultiplier: 6, // [PERSONALIZABLE #5] multiplicador de empuje con Space
 };
 
 /**
@@ -53,7 +56,8 @@ export const SOLAR_CONFIG = {
   // Planetas (#4: +20% visual; NO se escala ×scale → de ahí la vastedad)
   planetMin: 120 * 1.2, // [UNIFORME] 144
   planetMax: 260 * 1.2, // [UNIFORME] 312
-  influenceFactor: 4, // [UNIFORME] gatillo de aproximación; PROVISIONAL — #3 redefine la captura
+  influenceFactor: 8, // [UNIFORME] gatillo de aproximación/captura; subido para que los planetas sean ALCANZABLES a esta escala (antes 4)
+  orbitSpeedScale: 0.3, // [UNIFORME] factor de velocidad de traslación orbital (planetas más lentos = más fáciles de alcanzar)
 
   // Sol (crece con el sistema)
   sunRadius: 340 * SOLAR_SCALE, // [UNIFORME] 1700
