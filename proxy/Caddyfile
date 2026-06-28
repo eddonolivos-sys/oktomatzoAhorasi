@@ -81,9 +81,7 @@
 
 	# Shell SPA (catch-all: must be last)
 	handle {
-		root * /usr/share/shell
-		try_files {path} /index.html
-		file_server
+		reverse_proxy shell:80
 	}
 
 	log {
@@ -157,9 +155,7 @@
 	}
 
 	handle {
-		root * /usr/share/shell
-		try_files {path} /index.html
-		file_server
+		reverse_proxy shell:80
 	}
 
 	log {

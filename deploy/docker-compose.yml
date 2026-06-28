@@ -10,9 +10,9 @@ services:
       - ../docs:/usr/share/docs:ro
       - caddy_data:/data
       - caddy_config:/config
-      - ../shell/dist:/usr/share/shell
     depends_on:
       - backend
+      - shell
       - app-dashboard
       - app-viewer-3d
       - app-mundo-3d
@@ -39,6 +39,12 @@ services:
       - DB_PATH=/app/data/plataforma.db
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - PORT=8080
+
+  shell:
+    build:
+      context: ..
+      dockerfile: shell/Dockerfile
+    restart: unless-stopped
 
   app-dashboard:
     build:
