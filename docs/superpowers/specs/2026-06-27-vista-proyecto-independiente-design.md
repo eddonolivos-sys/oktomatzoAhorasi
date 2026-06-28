@@ -45,3 +45,14 @@ El motor **no se destruye**: se pausa y su `#space-host` se oculta. Al volver, `
 
 - Órbitas realistas (pieza 2), multijugador determinista/persistencia/idle (piezas 3-4).
 - Cambios en el motor 3D, apps o iframe interno.
+
+## Addendum — pivote a PESTAÑA independiente (2026-06-27)
+
+Tras probar el overlay+history, el usuario aclaró que quiere el proyecto en una **pestaña o página independiente** (documento aparte), con el mapa **vivo en su propia pestaña** ("la sesión permanece activa... al regresar se restaura sin recargar"). El overlay (aunque verificado) seguía sin funcionarle, probablemente por entrega de build viejo y/o conflictos de render del canvas detrás.
+
+**Nuevo enfoque (implementado):** al entrar, `window.open(app.externalUrl || app.src, '_blank')` abre el proyecto en una **pestaña nueva**. El mapa NO se oculta ni se monta cabina: queda intacto en su pestaña. El motor se **auto-pausa al perder el foco** y **reanuda al volver** (vía el `visibilitychange` que ya tenía el motor), así que regresar conserva el estado sin recargar. El "retroceso" no necesita History API: es cambiar/cerrar la pestaña.
+
+- `shell-space.ts`: `onEnterApp` → `window.open(...)`; se eliminó el overlay/cockpit, el `pushState/popstate` y el `display:none` de la pieza 1.
+- `space-engine.ts`: la tecla **E** llama `enterCurrentProject()` de forma **síncrona** dentro del gesto de teclado (para que el navegador no bloquee el popup); el botón "Entrar" ya era síncrono desde el clic. Se quitó `enterQueued` y la acción `enter` diferida del loop.
+- Verificado en arnés (shell-space real): al entrar, `window.open('/apps/<id>/')`; el mapa sigue `running` y visible (sin overlay).
+- **Caveat de auth:** las apps reciben el token del shell por `postMessage` (iframe). En pestaña nueva no hay shell padre, así que las apps protegidas podrían pedir login; las de prueba (vanilla) cargan directo. Compartir sesión con la pestaña nueva sería un follow-up (toca auth de apps).

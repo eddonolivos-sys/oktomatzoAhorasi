@@ -65,7 +65,6 @@ export class SpaceEngine {
 
   // ── Interacción orbital (#3) ──
   private orbit: OrbitState = { phase: 'free', cooldown: 0, grace: 0 };
-  private enterQueued = false;
   private readonly orbitCenter = new THREE.Vector3();
   private readonly orbitU = new THREE.Vector3();
   private readonly orbitV = new THREE.Vector3();
@@ -420,7 +419,9 @@ export class SpaceEngine {
     if (!this.running) return; // en cabina (motor pausado) el motor ignora las teclas
     // E: entra al proyecto del planeta en aproximación (no automático).
     if (e.code === 'KeyE') {
-      this.enterQueued = true; // lo consume la máquina de órbita (#3); solo entra si está orbitando
+      // Entrada SÍNCRONA dentro del gesto de teclado (para no bloquear el popup de la
+      // pestaña nueva). Solo entra si hay un proyecto en aproximación.
+      this.enterCurrentProject();
       return;
     }
     // C: abre/cierra la rueda de emoticonos (solo si hay multijugador).
@@ -444,14 +445,13 @@ export class SpaceEngine {
       this.orbit,
       {
         insideInfluence: !!approaching,
-        enterPressed: this.enterQueued,
+        enterPressed: false, // la entrada al proyecto la dispara onKeyDown(E)/botón de forma síncrona (pestaña nueva)
         thrustActive: this.ship.isThrusting,
         dt: delta,
       },
       { cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds, captureGrace: ORBIT_CONFIG.captureGraceSeconds },
     );
     this.orbit = r.state;
-    this.enterQueued = false;
 
     if (prevPhase !== 'orbiting' && this.orbit.phase === 'orbiting' && approaching) {
       this.beginOrbit(approaching, shipState);
@@ -460,9 +460,7 @@ export class SpaceEngine {
       this.advanceOrbit(approaching, delta);
     }
 
-    if (r.action === 'enter' && approaching) {
-      this.enterCurrentProject();
-    } else if (r.action === 'eject' && approaching) {
+    if (r.action === 'eject' && approaching) {
       this.ship.setOrbiting(false);
       const v = ejectVelocity(approaching.center, this.ship.object.position, ORBIT_CONFIG.ejectStrength);
       this.ship.applyImpulse(this.orbitImpulse.set(v.x, v.y, v.z));
@@ -511,10 +509,7 @@ export class SpaceEngine {
   private enterCurrentProject = () => {
     if (this.pauseMenu.visible) return;
     const app = this.approachingApp;
-    if (!app) return;
-    this.orbit = { phase: 'free', cooldown: 0, grace: 0 }; // al volver de la cabina, recaptura limpia
-    this.ship.setOrbiting(false);
-    this.enterProject(app);
+    if (app) this.enterProject(app);
   };
 
   /** Entrada al proyecto. COSTURA del circuito (#6): por ahora abre directo; #6 la envolverá. */

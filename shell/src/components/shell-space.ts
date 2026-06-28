@@ -1,6 +1,5 @@
 import { LitElement, html } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import './shell-cockpit'; // registra <shell-cockpit> (no depender del orden de main.ts)
 import type { AppInfo } from '../services/protocol';
 import type { SpaceEngine } from '../space/space-engine';
 
@@ -8,6 +7,11 @@ import type { SpaceEngine } from '../space/space-engine';
  * Host de la experiencia espacial. Renderiza en light DOM (createRenderRoot → this)
  * para que el canvas y los overlays del motor vivan en el documento (CSS global de
  * space.css). Carga el motor (y Three.js) con import dinámico post-login.
+ *
+ * Entrada a proyectos: vista DESACOPLADA. Al "entrar", el proyecto se abre en una
+ * PESTAÑA/PÁGINA independiente (`window.open`); el mapa permanece vivo en su pestaña
+ * (el motor se auto-pausa al perder el foco y reanuda al volver, vía visibilitychange),
+ * así que regresar restaura el estado sin recargar. No hay overlay ni iframe del mapa.
  */
 export class ShellSpace extends LitElement {
   protected createRenderRoot() {
@@ -19,7 +23,6 @@ export class ShellSpace extends LitElement {
   @property({ type: Object }) user: { id: string; name: string } | null = null;
 
   @state() private webglOk = true;
-  @state() private cockpitApp: AppInfo | null = null;
   @state() private igniting = true;
 
   private engine: SpaceEngine | null = null;
@@ -46,16 +49,13 @@ export class ShellSpace extends LitElement {
       apps: this.apps,
       user: this.user ?? undefined,
       onEnterApp: (app) => {
-        history.pushState({ cockpit: app.id }, '', `?app=${encodeURIComponent(app.id)}`);
-        this.cockpitApp = app;
-        this.engine?.pause();
+        // Vista de proyecto en PESTAÑA/PÁGINA independiente. El mapa sigue vivo en su
+        // pestaña (se auto-pausa al perder foco y reanuda al volver). Sin overlay/iframe.
+        const url = app.externalUrl || app.src;
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
       },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
     });
-
-    // Empezar siempre en el mapa: ignora un ?app= de una recarga previa.
-    if (location.search) history.replaceState({}, '', location.pathname);
-    window.addEventListener('popstate', this.onPopState);
 
     window.setTimeout(() => {
       this.igniting = false;
@@ -64,7 +64,6 @@ export class ShellSpace extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    window.removeEventListener('popstate', this.onPopState);
     this.engine?.dispose();
     this.engine = null;
   }
@@ -92,37 +91,11 @@ export class ShellSpace extends LitElement {
       <div
         id="space-host"
         class=${this.igniting ? 'igniting' : ''}
-        style="position:fixed;inset:0;overflow:hidden;background:#0A0503;display:${this.cockpitApp ? 'none' : 'block'};"
+        style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
       ></div>
       ${this.igniting ? html`<div id="ignition"></div>` : ''}
-      ${this.cockpitApp
-        ? html`<shell-cockpit
-            .app=${this.cockpitApp}
-            .theme=${this.theme}
-            @back=${this.onBack}
-            @logout=${() => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }))}
-          ></shell-cockpit>`
-        : ''}
     `;
   }
-
-  // El botón "Volver al espacio" navega atrás en el historial → mismo camino que el
-  // botón de retroceso del navegador (ambos disparan popstate).
-  private onBack = () => history.back();
-
-  // Manejador ÚNICO de retorno: lo invocan TANTO el botón (vía history.back) como el
-  // retroceso del navegador. Reconstruye la vista según el estado del historial.
-  private onPopState = (e: PopStateEvent) => {
-    const id = e.state && (e.state as { cockpit?: string }).cockpit;
-    const app = id ? this.apps.find((a) => a.id === id) ?? null : null;
-    if (app) {
-      this.cockpitApp = app;
-      this.engine?.pause();
-    } else {
-      this.cockpitApp = null;
-      this.engine?.resume();
-    }
-  };
 }
 
 customElements.define('shell-space', ShellSpace);
