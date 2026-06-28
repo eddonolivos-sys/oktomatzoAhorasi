@@ -148,8 +148,8 @@ export class ShipController {
     return !!(
       k['KeyW'] || k['ArrowUp'] || k['KeyS'] || k['ArrowDown'] ||
       k['KeyA'] || k['ArrowLeft'] || k['KeyD'] || k['ArrowRight'] ||
-      k['Space'] || k['ShiftLeft'] || k['ShiftRight']
-    );
+      k['ShiftLeft'] || k['ShiftRight']
+    ); // Space ya NO es empuje (pasó a "entrar"); Shift es nitro (sí rompe la órbita)
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -246,8 +246,8 @@ export class ShipController {
       };
     }
 
-    const isNitro = !!this.keys['Space'];
-    const isBraking = !!this.keys['KeyS'] || !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'];
+    const isNitro = !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight']; // nitro en SHIFT
+    const isBraking = !!this.keys['KeyS']; // freno/reversa en S (Shift pasó a nitro)
 
     const mult = isNitro ? this.nitroMultiplier : 1;
     // Empuje continuo SIN tope: mientras se mantiene W, la velocidad crece.

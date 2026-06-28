@@ -45,7 +45,7 @@ export class Hud {
         <div class="pp-name"></div>
         <div class="pp-desc"></div>
         <div class="pp-blurb"></div>
-        <button type="button" class="pp-enter" style="pointer-events:auto;cursor:pointer;background:transparent;border:1px solid rgba(230,168,23,0.5);color:#E6A817;font:inherit;padding:6px 14px;border-radius:6px;margin-top:8px;">Entrar al proyecto</button>
+        <button type="button" class="pp-enter" style="pointer-events:auto;cursor:pointer;background:transparent;border:1px solid rgba(230,168,23,0.5);color:#E6A817;font:inherit;padding:6px 14px;border-radius:6px;margin-top:8px;">Entrar al proyecto (Space/E)</button>
       </div>
       <div id="startMsg">
         <h1>Ramatzo</h1>
@@ -53,8 +53,8 @@ export class Hud {
           <span class="key">RAT&Oacute;N</span> Mirar &nbsp;&middot;&nbsp;
           <span class="key">W</span><span class="key">S</span> Avanzar &nbsp;&middot;&nbsp;
           <span class="key">A</span><span class="key">D</span> Lateral &nbsp;&middot;&nbsp;
-          <span class="key">SPACE</span> Nitro<br/>
-          Ac&eacute;rcate a un planeta y pulsa <span class="key">E</span> para entrar
+          <span class="key">SHIFT</span> Nitro<br/>
+          Ac&eacute;rcate a un planeta y pulsa <span class="key">SPACE</span>/<span class="key">E</span> para entrar
         </p>
       </div>
       <div id="hud">
@@ -69,9 +69,9 @@ export class Hud {
         <span class="key">RAT&Oacute;N</span> mirar
         <span class="key">W</span><span class="key">S</span> avanzar
         <span class="key">A</span><span class="key">D</span> lateral
-        <span class="key">SPACE</span> nitro
-        <span class="key">SHIFT</span> freno
-        <span class="key">E</span> entrar
+        <span class="key">SHIFT</span> nitro
+        <span class="key">S</span> freno
+        <span class="key">SPACE</span><span class="key">E</span> entrar
         <span class="key">ESC</span> men&uacute;
       </div>`;
     host.appendChild(this.root);
@@ -126,7 +126,7 @@ export class Hud {
     this.reticle.classList.toggle('approaching', approaching);
     if (approaching) {
       const a = info.approaching!;
-      this.reticleLabel.textContent = `Pulsa E · ${a.name}`;
+      this.reticleLabel.textContent = `Space/E · ${a.name}`;
       // Anillo lleno como marcador estático (la entrada es por tecla E, no por permanencia).
       this.dwellRing.style.strokeDashoffset = '0';
       // Panel de info del proyecto (esquina): nombre + descripción + texto editable.

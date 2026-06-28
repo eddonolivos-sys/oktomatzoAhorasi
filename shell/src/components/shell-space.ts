@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { property, state } from 'lit/decorators.js';
+import './shell-cockpit'; // registra <shell-cockpit> (no depender del orden de main.ts)
 import type { AppInfo } from '../services/protocol';
 import type { SpaceEngine } from '../space/space-engine';
 
@@ -8,10 +9,11 @@ import type { SpaceEngine } from '../space/space-engine';
  * para que el canvas y los overlays del motor vivan en el documento (CSS global de
  * space.css). Carga el motor (y Three.js) con import dinámico post-login.
  *
- * Entrada a proyectos: vista DESACOPLADA. Al "entrar", el proyecto se abre en una
- * PESTAÑA/PÁGINA independiente (`window.open`); el mapa permanece vivo en su pestaña
- * (el motor se auto-pausa al perder el foco y reanuda al volver, vía visibilitychange),
- * así que regresar restaura el estado sin recargar. No hay overlay ni iframe del mapa.
+ * Entrada a proyectos: vista de cabina en la MISMA pestaña. Al "entrar", se monta
+ * <shell-cockpit> a pantalla completa (iframe del proyecto) y el motor se PAUSA; al
+ * volver ("Volver al espacio" o Esc) se reanuda sin recargar y la nave sigue
+ * orbitando el planeta visitado. Solo los proyectos externos (externalUrl, p. ej. el
+ * repo de GitHub) abren pestaña nueva, porque no se pueden incrustar.
  */
 export class ShellSpace extends LitElement {
   protected createRenderRoot() {
@@ -24,6 +26,7 @@ export class ShellSpace extends LitElement {
 
   @state() private webglOk = true;
   @state() private igniting = true;
+  @state() private cockpitApp: AppInfo | null = null;
 
   private engine: SpaceEngine | null = null;
 
@@ -49,10 +52,9 @@ export class ShellSpace extends LitElement {
       apps: this.apps,
       user: this.user ?? undefined,
       onEnterApp: (app) => {
-        // Vista de proyecto en PESTAÑA/PÁGINA independiente. El mapa sigue vivo en su
-        // pestaña (se auto-pausa al perder foco y reanuda al volver). Sin overlay/iframe.
-        const url = app.externalUrl || app.src;
-        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+        // Cabina en la MISMA pestaña: monta el proyecto y pausa el mapa.
+        this.cockpitApp = app;
+        this.engine?.pause();
       },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
     });
@@ -94,8 +96,21 @@ export class ShellSpace extends LitElement {
         style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
       ></div>
       ${this.igniting ? html`<div id="ignition"></div>` : ''}
+      ${this.cockpitApp
+        ? html`<shell-cockpit
+            .app=${this.cockpitApp}
+            .theme=${this.theme}
+            @back=${this.exitCockpit}
+            @logout=${() => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }))}
+          ></shell-cockpit>`
+        : ''}
     `;
   }
+
+  private exitCockpit = () => {
+    this.cockpitApp = null;
+    this.engine?.resume(); // reanuda el mapa; la nave sigue orbitando el planeta visitado
+  };
 }
 
 customElements.define('shell-space', ShellSpace);

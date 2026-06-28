@@ -418,9 +418,8 @@ export class SpaceEngine {
   private onKeyDown = (e: KeyboardEvent) => {
     if (!this.running) return; // en cabina (motor pausado) el motor ignora las teclas
     // E: entra al proyecto del planeta en aproximación (no automático).
-    if (e.code === 'KeyE') {
-      // Entrada SÍNCRONA dentro del gesto de teclado (para no bloquear el popup de la
-      // pestaña nueva). Solo entra si hay un proyecto en aproximación.
+    if (e.code === 'KeyE' || e.code === 'Space') {
+      // Space o E: entrar al proyecto del planeta en aproximación/órbita.
       this.enterCurrentProject();
       return;
     }

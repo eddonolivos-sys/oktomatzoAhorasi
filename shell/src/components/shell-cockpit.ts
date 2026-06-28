@@ -142,12 +142,30 @@ export class ShellCockpit extends LitElement {
     }
   `;
 
+  private onKey = (e: KeyboardEvent) => {
+    // Salir del proyecto al mapa con Esc (además del botón "Volver al espacio").
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      this.dispatchEvent(new CustomEvent('back'));
+    }
+  };
+
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('keydown', this.onKey);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.onKey);
+  }
+
   render() {
     return html`
       <div class="titlebar">
         <span class="project-name">${this.app?.name ?? ''}</span>
         <div class="actions">
-          <button @click=${() => this.dispatchEvent(new CustomEvent('back'))}>Volver al espacio</button>
+          <button @click=${() => this.dispatchEvent(new CustomEvent('back'))}>Volver al espacio (Esc)</button>
           <button
             class="danger"
             @click=${() => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }))}
@@ -167,6 +185,7 @@ export class ShellCockpit extends LitElement {
         <div class="rivets br"></div>
       </div>
       <div class="controls">
+        <span style="color:var(--orange-amber,#e6a817);font-weight:500;">Esc &middot; Volver al mapa</span>
         <span>SISTEMAS</span>
         <span class="indicator"><span class="dot green"></span> Navegación</span>
         <span class="indicator"><span class="dot green"></span> Comunicación</span>
