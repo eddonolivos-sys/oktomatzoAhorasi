@@ -1,0 +1,4 @@
+# Los .sh se ejecutan en el VPS (Linux): forzar LF siempre (CRLF rompe bash).
+*.sh text eol=lf
+# Los .bat son de Windows: CRLF nativo.
+*.bat text eol=crlf
