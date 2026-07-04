@@ -22,8 +22,10 @@ import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
-import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG } from './space-config';
+import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG } from './space-config';
 import { stepOrbit, ejectVelocity, type OrbitState } from './orbit';
+import { FrameTimeRingBuffer, computeStats } from './perf-stats';
+import { PerfHud, type PerfSnapshot } from './perf-hud';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -58,6 +60,12 @@ export class SpaceEngine {
   private fpsSamples: number[] = [];
   private pixelRatio = Math.min(window.devicePixelRatio, 2);
   private readonly minPixelRatio = 1;
+
+  // ── Instrumentación de rendimiento (Hito 0) ──
+  private readonly frameStats = new FrameTimeRingBuffer(PERF_CONFIG.frameWindowSize);
+  private lastDrawCalls = 0;
+  private lastTriangles = 0;
+  private perfHud!: PerfHud;
 
   /** Desplazamiento de origen para precisión en distancias largas (§5 spec). */
   readonly worldOffset = new THREE.Vector3();
@@ -117,6 +125,11 @@ export class SpaceEngine {
     this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05; // sobrio: evita lavar los acentos
+    // autoReset=false + reset manual en el loop (antes de composer.render()): el
+    // EffectComposer llama renderer.render() varias veces por frame (escena +
+    // pasadas de bloom) y el autoReset por defecto solo dejaría ver la ÚLTIMA
+    // pasada interna en renderer.info, subestimando muchísimo drawCalls/tris.
+    this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -168,6 +181,8 @@ export class SpaceEngine {
 
     // HUD (reticula, velocidad, altitud/rumbo, leyenda, vignette)
     this.hud = new Hud(host);
+    // Panel de diagnóstico de rendimiento (Hito 0), oculto salvo alternar con P.
+    this.perfHud = new PerfHud(host);
     this.hud.onEnter = this.enterCurrentProject; // botón "Entrar" del panel de proyecto (#3)
     this.ship.onLockChange = (locked) => {
       // El prompt "Clic para tomar control" no aparece si el menú de pausa está
@@ -281,8 +296,12 @@ export class SpaceEngine {
     if (!this.running) return;
     this.rafId = requestAnimationFrame(this.loop);
 
-    let delta = (time - this.lastTime) / 1000;
+    const rawDelta = (time - this.lastTime) / 1000;
     this.lastTime = time;
+    // Delta CRUDO (ms) para el ring buffer de perf: SIN el clamp de abajo, para
+    // que p95/p99/max reflejen los peores frames de verdad (§3.5 del plan).
+    if (rawDelta > 0 && Number.isFinite(rawDelta)) this.frameStats.push(rawDelta * 1000);
+    let delta = rawDelta;
     if (!delta || delta < 0 || delta > 0.1) delta = 0.016;
     this.elapsed += delta;
 
@@ -358,12 +377,31 @@ export class SpaceEngine {
         this.worldOffset,
       );
       this.multiplayer.sendState({ x: abs.x, y: abs.y, z: abs.z, yaw: ship.yaw }, time);
+      this.multiplayer.maybeSendPing(time);
     }
     this.remoteShips?.update(delta);
 
+    // Reset manual (autoReset=false, ver mount()): antes de renderizar el frame,
+    // para que info.render acumule TODAS las pasadas internas del composer.
+    this.renderer.info.reset();
     this.composer.render();
+    // Draw calls/triángulos: lectura de renderer.info tras el render (coste cero).
+    this.lastDrawCalls = this.renderer.info.render.calls;
+    this.lastTriangles = this.renderer.info.render.triangles;
+    if (this.perfHud.visible) this.perfHud.update(this.getPerfSnapshot());
     this.updateLabels();
   };
+
+  /** Snapshot de instrumentación de rendimiento (Hito 0): frame p50/p95/p99, draw calls, pixelRatio, RTT. */
+  getPerfSnapshot(): PerfSnapshot {
+    return {
+      frame: computeStats(this.frameStats.toArray()),
+      drawCalls: this.lastDrawCalls,
+      triangles: this.lastTriangles,
+      pixelRatio: this.pixelRatio,
+      rttMs: this.multiplayer?.rttMs ?? null,
+    };
+  }
 
   private trackFps(delta: number) {
     this.fpsSamples.push(1 / delta);
@@ -426,6 +464,11 @@ export class SpaceEngine {
     // C: abre/cierra la rueda de emoticonos (solo si hay multijugador).
     if (e.code === 'KeyC') {
       this.emoteWheel?.toggle();
+      return;
+    }
+    // P: alterna el panel de diagnóstico de rendimiento (Hito 0).
+    if (e.code === 'KeyP') {
+      this.perfHud.toggle();
       return;
     }
     // ESC: abre el menú; si ya está abierto, reanuda. (Independiente del pointer lock.)
@@ -652,6 +695,7 @@ export class SpaceEngine {
     this.selfEmoteEl = null;
     this.ship?.detach();
     this.hud?.dispose();
+    this.perfHud?.dispose();
     this.galaxy?.dispose();
     this.farStars?.dispose();
     this.nebulae?.dispose();

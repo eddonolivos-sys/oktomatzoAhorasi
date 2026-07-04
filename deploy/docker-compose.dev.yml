@@ -1,3 +1,8 @@
+# ADVERTENCIA: este compose está INCOMPLETO respecto a docker-compose.yml (prod).
+# Faltan: redis, space-server, oktomatzo2-api/oktomatzo2-app y la ruta /space-ws
+# del Caddyfile.dev. Un despliegue con este archivo queda SIN multijugador ni
+# TattooAR. Para exponer a internet, componer docker-compose.internet.yml con
+# docker-compose.yml (ver el comentario en ese archivo), NUNCA con este.
 services:
   caddy:
     image: caddy:2-alpine

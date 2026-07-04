@@ -158,6 +158,38 @@ describe('toAbsolute / toScene (conversión worldOffset)', () => {
   });
 });
 
+import { rttEwma } from './multiplayer-math';
+
+describe('rttEwma', () => {
+  it('primera muestra (prevEwma=null) arranca en el valor crudo, sin sesgo', () => {
+    expect(rttEwma(null, 80, 0.2)).toBe(80);
+  });
+
+  it('se mueve hacia la nueva muestra proporcionalmente a alpha', () => {
+    // prev=100, sample=200, alpha=0.5 → punto medio exacto.
+    expect(rttEwma(100, 200, 0.5)).toBeCloseTo(150, 10);
+  });
+
+  it('alpha bajo suaviza mucho (poco movimiento por muestra)', () => {
+    const r = rttEwma(100, 200, 0.1);
+    expect(r).toBeCloseTo(110, 10);
+  });
+
+  it('alpha=1 salta directo a la muestra nueva (sin suavizado)', () => {
+    expect(rttEwma(100, 200, 1)).toBeCloseTo(200, 10);
+  });
+
+  it('converge hacia una señal constante tras varias muestras', () => {
+    let ewma: number | null = null;
+    for (let i = 0; i < 50; i++) ewma = rttEwma(ewma, 60, 0.2);
+    expect(ewma).toBeCloseTo(60, 6);
+  });
+
+  it('una muestra estable no cambia la EWMA', () => {
+    expect(rttEwma(75, 75, 0.3)).toBe(75);
+  });
+});
+
 import { emoteWheelSector } from './multiplayer-math';
 
 describe('emoteWheelSector', () => {

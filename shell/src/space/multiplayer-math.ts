@@ -13,6 +13,17 @@ export function shouldSendState(now: number, last: number, intervalMs: number): 
   return now - last >= intervalMs;
 }
 
+/**
+ * EWMA (media móvil exponencial) del RTT del WebSocket, para amortiguar el ruido
+ * de una única medición ping/pong. `prevEwma=null` → arranca en la primera
+ * muestra cruda (sin sesgo de "calentamiento"). `alpha` en (0,1]: mayor = más
+ * peso a la muestra nueva (reacciona más rápido, más ruidoso).
+ */
+export function rttEwma(prevEwma: number | null, sampleMs: number, alpha: number): number {
+  if (prevEwma === null) return sampleMs;
+  return prevEwma + alpha * (sampleMs - prevEwma);
+}
+
 /** Estado interpolable de una nave (coordenadas absolutas de mundo + rumbo). */
 export interface PlayerState {
   x: number;

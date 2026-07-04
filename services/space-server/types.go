@@ -19,6 +19,9 @@ type ClientMessage struct {
 	Z     *float64 `json:"z,omitempty"`
 	Yaw   *float64 `json:"yaw,omitempty"`
 	Emoji string   `json:"emoji,omitempty"`
+	// T is the client's local timestamp (ms) for a "ping" frame; echoed back
+	// verbatim in "pong" so the client computes RTT = now - t.
+	T *float64 `json:"t,omitempty"`
 }
 
 // ServerMessage is any JSON frame sent server -> client.
@@ -28,4 +31,6 @@ type ServerMessage struct {
 	Player  *PlayerState  `json:"player,omitempty"`
 	ID      string        `json:"id,omitempty"`
 	Emoji   string        `json:"emoji,omitempty"`
+	// T carries back the "t" from a "pong" frame (see ClientMessage.T).
+	T *float64 `json:"t,omitempty"`
 }

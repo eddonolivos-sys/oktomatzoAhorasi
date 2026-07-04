@@ -1,5 +1,7 @@
 # Exposición a internet vía Cloudflare Tunnel
-# Uso: docker compose -f deploy/docker-compose.dev.yml -f deploy/docker-compose.internet.yml up --build -d
+# Uso: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.internet.yml up --build -d
+# (compone con docker-compose.yml, el compose de PRODUCCIÓN con los 14 servicios;
+# NO con docker-compose.dev.yml, que está incompleto — ver advertencia en ese archivo)
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest

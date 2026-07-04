@@ -92,3 +92,18 @@ export const ORBIT_CONFIG = {
   ejectCooldownSeconds: 1.0, // [UNIFORME] tiempo sin recaptura tras expulsar
   captureGraceSeconds: 0.5, // [UNIFORME] gracia tras capturar: ignora el empuje un instante (no auto-expulsa al llegar con W); pasada la gracia, mantener empuje expulsa (no quedarse atrapado)
 };
+
+/**
+ * Instrumentación y presupuestos de rendimiento (Hito 0 — base de la puerta de
+ * latencia de los Hitos 5/6). Umbrales sobre el delta CRUDO (antes del clamp
+ * del loop) y sobre el RTT del WebSocket de `/space-ws`.
+ */
+export const PERF_CONFIG = {
+  frameWindowSize: 300, // [UNIFORME] muestras en el ring buffer de frame times (~5s a 60fps)
+  rttEwmaAlpha: 0.2, // [UNIFORME] suavizado exponencial del RTT ping/pong
+  pingIntervalMs: 2000, // [UNIFORME] periodo de envío de {type:'ping'} para medir RTT
+  p95BudgetMultiplierRace: 1.2, // [UNIFORME] Hito 5: p95 en carrera <= baseline * este factor
+  p95BudgetMultiplierRooms: 1.25, // [UNIFORME] Hito 6: p95 con 4+ naves remotas <= baseline * este factor
+  rttP95BudgetMs: 120, // [UNIFORME] Hito 6: RTT p95 objetivo en LAN/local
+  minSustainedFps: 30, // [UNIFORME] FPS mínimos sostenidos (con degradación de pixelRatio ya registrada)
+};

@@ -173,6 +173,12 @@ func (h *Hub) emote(c *Client, emoji string) {
 	h.broadcastRoom(c.room, ServerMessage{Type: "emote", ID: c.state.ID, Emoji: emoji})
 }
 
+// pongFor builds the direct reply to a "ping" frame, echoing its timestamp
+// unchanged (pure, no lock/IO: the RTT clock lives entirely on the client).
+func pongFor(msg ClientMessage) ServerMessage {
+	return ServerMessage{Type: "pong", T: msg.T}
+}
+
 // tickRoom broadcasts the current snapshot of one room as a state_update.
 func (h *Hub) tickRoom(room string) {
 	h.broadcastRoom(room, ServerMessage{Type: "state_update", Players: h.roomPlayers(room)})

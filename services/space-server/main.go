@@ -75,6 +75,8 @@ func (c *Client) readPump(hub *Hub) {
 			cancel()
 		case "emote":
 			hub.emote(c, msg.Emoji)
+		case "ping":
+			c.send1(pongFor(msg))
 		}
 	}
 }

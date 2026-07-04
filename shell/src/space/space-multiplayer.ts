@@ -1,4 +1,5 @@
-import { shouldSendState, type PlayerState } from './multiplayer-math';
+import { shouldSendState, rttEwma, type PlayerState } from './multiplayer-math';
+import { PERF_CONFIG } from './space-config';
 
 /** Jugador tal como lo envía el servidor (coordenadas absolutas de mundo). */
 export interface Player {
@@ -46,6 +47,9 @@ export class SpaceMultiplayer {
 
   private lastSentAt = 0;
   private readonly sendIntervalMs = 50; // ~20 Hz
+
+  private lastPingSentAt = 0;
+  private rttEwmaMs: number | null = null;
 
   private closedByUser = false;
 
@@ -118,7 +122,26 @@ export class SpaceMultiplayer {
           this.handlers.onEmote(msg.id, msg.emoji);
         }
         break;
+      case 'pong':
+        if (typeof msg.t === 'number') {
+          const sampleMs = performance.now() - msg.t;
+          this.rttEwmaMs = rttEwma(this.rttEwmaMs, sampleMs, PERF_CONFIG.rttEwmaAlpha);
+        }
+        break;
     }
+  }
+
+  /** Ping periódico (PERF_CONFIG.pingIntervalMs) para medir el RTT del WS. `now` en ms. */
+  maybeSendPing(now: number) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (now - this.lastPingSentAt < PERF_CONFIG.pingIntervalMs) return;
+    this.lastPingSentAt = now;
+    this.ws.send(JSON.stringify({ type: 'ping', t: now }));
+  }
+
+  /** RTT suavizado (EWMA) en ms; null hasta el primer pong. Instrumentación (Hito 0). */
+  get rttMs(): number | null {
+    return this.rttEwmaMs;
   }
 
   /** Envía el estado absoluto de la nave, con throttle (~20 Hz). `now` en ms. */

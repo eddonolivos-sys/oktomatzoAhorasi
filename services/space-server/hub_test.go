@@ -165,6 +165,24 @@ func TestHub_RegisterRestoresFromRedis(t *testing.T) {
 	}
 }
 
+func TestPongFor_EchoesTimestamp(t *testing.T) {
+	tVal := 12345.5
+	got := pongFor(ClientMessage{Type: "ping", T: &tVal})
+	if got.Type != "pong" {
+		t.Fatalf("want type=pong, got %q", got.Type)
+	}
+	if got.T == nil || *got.T != tVal {
+		t.Fatalf("want t echoed back as %v, got %+v", tVal, got.T)
+	}
+}
+
+func TestPongFor_NilTimestampPassesThrough(t *testing.T) {
+	got := pongFor(ClientMessage{Type: "ping"})
+	if got.T != nil {
+		t.Fatalf("want nil t passed through, got %v", *got.T)
+	}
+}
+
 func TestHub_ApplyStatePersists(t *testing.T) {
 	hub := hubWithStore(t)
 	a := newClient("a", "A", "home")
