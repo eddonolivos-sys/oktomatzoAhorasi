@@ -85,9 +85,31 @@ cp deploy/.env.example deploy/.env
 # Editar .env con dominio y JWT_SECRET seguro:
 #   JWT_SECRET=$(openssl rand -base64 32)
 
-# 5. Construir y desplegar
+# 5. Construir y desplegar (compose de producción, 14 servicios)
 docker compose -f deploy/docker-compose.yml up --build -d
+
+# 5b. Si además necesitas exposición a internet vía Cloudflare Tunnel,
+#     compón con el overlay dedicado (ver Opción 3 para el flujo completo):
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.internet.yml up -d --build
 ```
+
+### Redespliegue selectivo tras un cambio
+
+Para no reconstruir los 14 servicios en cada cambio, usa los scripts de
+`deploy/` (Windows: `.bat`, VPS: `.sh`):
+
+```bash
+deploy/ejec-shell.sh              # solo el shell (frontend)
+deploy/ejec-backend.sh            # solo el backend (Go/API)
+deploy/ejec-space-server.sh       # solo el space-server (WS multijugador/salas)
+deploy/ejec-servicio.sh <nombre>  # cualquier otro servicio del compose (p.ej. caddy)
+deploy/ejec-todo.sh               # los 14 servicios (con pre-pull de imágenes base)
+```
+
+> Un cambio en `proxy/Caddyfile` requiere reiniciar el contenedor `caddy`
+> explícitamente (`deploy/ejec-servicio.sh caddy` o `docker restart
+> deploy-caddy-1`): al ser un archivo montado por bind mount, `docker
+> compose up -d` no detecta el cambio de contenido por sí solo.
 
 ---
 
@@ -150,13 +172,68 @@ cloudflared tunnel run plataforma
 
 | Servicio | Puerto host | Descripción |
 |----------|-------------|-------------|
-| Caddy (entrada) | 8080 | Punto de acceso principal |
+| Caddy (entrada) | 8080 | Punto de acceso principal — único puerto que necesita el usuario final |
 | Backend API | 8081 | Acceso directo para debug |
 | Dashboard | 8082 | App A (React) |
 | Visor 3D | 8083 | App B (Three.js) |
 | Test Uno | 8084 | App de prueba 1 |
 | Test Dos | 8085 | App de prueba 2 |
-| Shell | 8086 | Interfaz orquestadora |
+| Mundo 3D | 8087 | App CesiumJS |
+| Combate 3D | 8088 | App multijugador de combate |
+| Oktomatzo2 API | 8089 | Backend de TattooAR |
+| Oktomatzo2 App | 8090 | Frontend de TattooAR (Next.js) |
+| Game Server | 8091 | WebSocket de `app-combate-3d` (`/ws`) |
+| Redis | 8092 | Presencia del espacio 3D (solo loopback, `127.0.0.1`) |
+| Space Server | 8093 | WebSocket del espacio 3D (`/space-ws`, salas + `/rooms`) |
+
+Todos los puertos salvo el 8080 (Caddy) están publicados solo en
+`127.0.0.1` en el compose de producción — no son accesibles desde fuera
+del host salvo a través del proxy.
+
+### Consumo de recursos (referencia, hardware de desarrollo)
+
+Snapshot de `docker stats --no-stream` con los 14 servicios en reposo
+(sin usuarios activos), tomado el 2026-07-05 tras el Hito 7. No es un
+límite ni un SLA — sirve como referencia relativa para detectar
+regresiones de consumo entre despliegues:
+
+| Servicio | CPU | Memoria |
+|---|---|---|
+| shell, backend, caddy, apps (dashboard/viewer-3d/mundo-3d/combate-3d/test-uno/test-dos) | ~0% en reposo | 3–33 MiB cada uno |
+| game-server | ~0% en reposo | ~34 MiB |
+| space-server | ~0.4% (tick de 18 Hz) | ~7 MiB |
+| redis | ~0.2% | ~9 MiB |
+| oktomatzo2-api / oktomatzo2-app | ~0–0.3% | 67 / 87 MiB |
+
+El conjunto completo cabe cómodamente en un VPS de 1 GB de RAM en reposo;
+el margen real depende de la carga de usuarios concurrentes en el
+espacio 3D (naves remotas) y en TattooAR (procesamiento de imágenes).
+
+---
+
+## Tests
+
+```bash
+# Suite completa (Vitest del shell + todos los paquetes con script "test")
+pnpm --recursive run test
+
+# Solo el shell (lógica pura del espacio 3D: órbita, carrera, salas, audio...)
+pnpm --filter @plataforma/shell test    # Vitest
+pnpm --filter @plataforma/shell lint    # tsc --noEmit
+pnpm --filter @plataforma/shell build   # tsc + vite build
+
+# Backend (Go, autenticación/apps)
+make test-backend      # equivalente a: cd backend && go test ./...
+
+# Space server (Go, presencia/salas multijugador — miniredis, sin Redis real)
+make test-space-server # equivalente a: cd services/space-server && go test ./...
+```
+
+No hay tests end-to-end automatizados: los flujos completos (login,
+invitado, entrar/salir de un proyecto, carrera single-player, salas
+multijugador) se verifican manualmente contra el stack real desplegado
+localmente (`http://localhost:8080`) antes de cada hito — ver
+`docs/superpowers/notes/` para los checklists ya ejecutados.
 
 ---
 
