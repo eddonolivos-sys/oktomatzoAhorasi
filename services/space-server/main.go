@@ -40,6 +40,14 @@ func handleSpaceWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		name = "Player_" + id
 	}
 
+	// Hito 6: reject invalid room names and rooms over the cap BEFORE
+	// registering the client (the WS upgrade already happened, so we just
+	// close without ever calling hub.register).
+	if !validRoomName(room) || !hub.canJoinRoom(room) {
+		conn.Close()
+		return
+	}
+
 	client := &Client{
 		conn:  conn,
 		send:  make(chan []byte, 64),
@@ -77,6 +85,8 @@ func (c *Client) readPump(hub *Hub) {
 			hub.emote(c, msg.Emoji)
 		case "ping":
 			c.send1(pongFor(msg))
+		case "start_race":
+			hub.startRace(c)
 		}
 	}
 }
@@ -98,6 +108,13 @@ func tickLoop(hub *Hub) {
 	}
 }
 
+func handleRooms(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(hub.listRooms()); err != nil {
+		log.Printf("encode rooms: %v", err)
+	}
+}
+
 func main() {
 	addr := os.Getenv("REDIS_ADDR")
 	if addr == "" {
@@ -110,6 +127,9 @@ func main() {
 
 	http.HandleFunc("/space-ws", func(w http.ResponseWriter, r *http.Request) {
 		handleSpaceWS(hub, w, r)
+	})
+	http.HandleFunc("/rooms", func(w http.ResponseWriter, r *http.Request) {
+		handleRooms(hub, w, r)
 	})
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

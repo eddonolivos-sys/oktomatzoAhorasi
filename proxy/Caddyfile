@@ -49,6 +49,11 @@
 		reverse_proxy space-server:8080
 	}
 
+	# Room listing (Hito 6)
+	handle /rooms {
+		reverse_proxy space-server:8080
+	}
+
 	# Documentación y búsqueda
 	handle /docs/* {
 		uri strip_prefix /docs
@@ -126,6 +131,11 @@
 
 	# Space WebSocket server (multiplayer presence)
 	handle /space-ws {
+		reverse_proxy space-server:8080
+	}
+
+	# Room listing (Hito 6)
+	handle /rooms {
 		reverse_proxy space-server:8080
 	}
 

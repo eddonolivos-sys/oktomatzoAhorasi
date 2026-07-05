@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -42,6 +44,29 @@ func hubWithStore(t *testing.T) *Hub {
 	t.Cleanup(mr.Close)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	return newHub(&RedisStore{rdb: rdb})
+}
+
+// countingStore is a fake Store that counts Save calls without touching
+// Redis, so throttle tests don't depend on real timing against miniredis.
+type countingStore struct {
+	mu    sync.Mutex
+	saves int
+}
+
+func (s *countingStore) Save(ctx context.Context, p PlayerState, room string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.saves++
+	return nil
+}
+
+func (s *countingStore) Restore(ctx context.Context, id string) (PlayerState, bool, error) {
+	return PlayerState{}, false, nil
+}
+
+func hubWithCountingStore() (*Hub, *countingStore) {
+	s := &countingStore{}
+	return newHub(s), s
 }
 
 func TestHub_JoinSendsSnapshotAndBroadcastsJoined(t *testing.T) {
@@ -198,5 +223,152 @@ func TestHub_ApplyStatePersists(t *testing.T) {
 	}
 	if got.X != 7 || got.Y != 8 || got.Z != 9 || got.Yaw != 1.1 {
 		t.Fatalf("persisted state wrong: %+v", got)
+	}
+}
+
+func TestHub_FirstJoinBecomesHost(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	hub.register(context.Background(), a)
+	_, hostID, phase, ok := hub.roomSnapshot("home")
+	if !ok || hostID != "a" || phase != "lobby" {
+		t.Fatalf("want host=a phase=lobby, got hostID=%q phase=%q ok=%v", hostID, phase, ok)
+	}
+}
+
+func TestHub_SecondJoinDoesNotBecomeHost(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	b := newClient("b", "B", "home")
+	hub.register(context.Background(), a)
+	hub.register(context.Background(), b)
+	_, hostID, _, _ := hub.roomSnapshot("home")
+	if hostID != "a" {
+		t.Fatalf("want host still a, got %q", hostID)
+	}
+}
+
+func TestHub_HostTransferOnLeave(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	b := newClient("b", "B", "home")
+	hub.register(context.Background(), a)
+	hub.register(context.Background(), b)
+	hub.unregister(a)
+	_, hostID, _, ok := hub.roomSnapshot("home")
+	if !ok || hostID != "b" {
+		t.Fatalf("want host transferred to b, got hostID=%q ok=%v", hostID, ok)
+	}
+}
+
+func TestHub_StartRaceOnlyByHost(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	b := newClient("b", "B", "home")
+	hub.register(context.Background(), a)
+	hub.register(context.Background(), b)
+
+	hub.startRace(b) // non-host: no-op
+	_, _, phase, _ := hub.roomSnapshot("home")
+	if phase != "lobby" {
+		t.Fatalf("non-host start_race must not change phase, got %q", phase)
+	}
+
+	hub.startRace(a) // host
+	_, _, phase, _ = hub.roomSnapshot("home")
+	if phase != "racing" {
+		t.Fatalf("host start_race must set phase=racing, got %q", phase)
+	}
+}
+
+func TestHub_StateUpdateIncludesHostAndPhase(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	hub.register(context.Background(), a)
+	drain(a)
+
+	hub.tickRoom("home")
+	got := drain(a)
+	if len(got) != 1 || got[0].Type != "state_update" {
+		t.Fatalf("want state_update, got %+v", got)
+	}
+	if got[0].HostID != "a" || got[0].Phase != "lobby" {
+		t.Fatalf("want hostId=a phase=lobby, got %+v", got[0])
+	}
+}
+
+func TestHub_RoomDestroyedWhenEmptyStillWorks(t *testing.T) {
+	hub := hubWithStore(t)
+	a := newClient("a", "A", "home")
+	hub.register(context.Background(), a)
+	hub.unregister(a)
+	if _, _, _, ok := hub.roomSnapshot("home"); ok {
+		t.Fatalf("room should be destroyed when empty")
+	}
+}
+
+func TestHub_ApplyStateThrottlesRedisSaves(t *testing.T) {
+	hub, store := hubWithCountingStore()
+	a := newClient("a", "A", "home")
+	hub.register(context.Background(), a)
+
+	x1, x2 := 1.0, 2.0
+	hub.applyState(context.Background(), a, ClientMessage{Type: "state", X: &x1})
+	hub.applyState(context.Background(), a, ClientMessage{Type: "state", X: &x2})
+
+	store.mu.Lock()
+	saves := store.saves
+	store.mu.Unlock()
+	if saves != 1 {
+		t.Fatalf("want 1 throttled save, got %d", saves)
+	}
+}
+
+func TestHub_UnregisterFlushesFinalState(t *testing.T) {
+	hub, store := hubWithCountingStore()
+	a := newClient("a", "A", "home")
+	hub.register(context.Background(), a)
+
+	x := 1.0
+	hub.applyState(context.Background(), a, ClientMessage{Type: "state", X: &x})
+	hub.unregister(a)
+
+	store.mu.Lock()
+	saves := store.saves
+	store.mu.Unlock()
+	if saves != 2 {
+		t.Fatalf("want 2 saves (applyState + final flush), got %d", saves)
+	}
+}
+
+func TestValidRoomName(t *testing.T) {
+	valid := []string{"home", "race:AB12", "a", "abc-DEF_123"}
+	for _, name := range valid {
+		if !validRoomName(name) {
+			t.Errorf("want %q valid", name)
+		}
+	}
+	invalid := []string{"", "with space", "toolongtoolongtoolongtoolongtoolong12345"}
+	for _, name := range invalid {
+		if validRoomName(name) {
+			t.Errorf("want %q invalid", name)
+		}
+	}
+}
+
+func TestHub_CanJoinRoom_RespectsCap(t *testing.T) {
+	hub := hubWithStore(t)
+	for i := 0; i < maxRooms; i++ {
+		room := fmt.Sprintf("race:%d", i)
+		if !hub.canJoinRoom(room) {
+			t.Fatalf("room %d should be joinable under cap", i)
+		}
+		hub.register(context.Background(), newClient(fmt.Sprintf("p%d", i), "P", room))
+	}
+	if hub.canJoinRoom("race:overflow") {
+		t.Fatalf("new room over cap should be rejected")
+	}
+	if !hub.canJoinRoom("race:0") {
+		t.Fatalf("existing room should still accept clients over cap")
 	}
 }

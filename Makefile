@@ -53,3 +53,6 @@ test:
 
 test-backend:
 	cd backend && go test ./...
+
+test-space-server:
+	cd services/space-server && go test ./...

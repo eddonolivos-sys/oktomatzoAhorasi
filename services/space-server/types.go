@@ -22,6 +22,9 @@ type ClientMessage struct {
 	// T is the client's local timestamp (ms) for a "ping" frame; echoed back
 	// verbatim in "pong" so the client computes RTT = now - t.
 	T *float64 `json:"t,omitempty"`
+	// Type "start_race" carries no extra fields: the sender's room/identity are
+	// already known from the connection; hub.startRace validates the sender is
+	// that room's current host.
 }
 
 // ServerMessage is any JSON frame sent server -> client.
@@ -33,4 +36,16 @@ type ServerMessage struct {
 	Emoji   string        `json:"emoji,omitempty"`
 	// T carries back the "t" from a "pong" frame (see ClientMessage.T).
 	T *float64 `json:"t,omitempty"`
+	// HostID and Phase (Hito 6) ride on every "players" and "state_update"
+	// frame (not just a one-shot event): a dropped non-blocking send
+	// self-corrects on the next tick instead of desyncing the client's UI.
+	HostID string `json:"hostId,omitempty"`
+	Phase  string `json:"phase,omitempty"`
+}
+
+// RoomInfo is one row of the GET /rooms listing (Hito 6).
+type RoomInfo struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+	Phase string `json:"phase"`
 }

@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"regexp"
 	"sync"
+	"time"
 )
 
 // Client is one connected presence. send is buffered; tests fill state/room directly.
 type Client struct {
-	conn  wsConn
-	send  chan []byte
-	room  string
-	state PlayerState
+	conn      wsConn
+	send      chan []byte
+	room      string
+	state     PlayerState
+	lastSaved time.Time // Hito 6: throttles Redis Save to saveThrottle
 }
 
 // wsConn is the minimal websocket surface the hub/pumps use (kept here so the
@@ -23,28 +26,78 @@ type wsConn interface {
 	Close() error
 }
 
+// Room holds one room's clients plus its host and lifecycle phase (Hito 6).
+type Room struct {
+	clients map[*Client]bool
+	host    *Client
+	phase   string // "lobby" | "racing"
+}
+
 // Hub holds presence keyed by room and persists durable state via store.
 type Hub struct {
 	mu    sync.RWMutex
-	rooms map[string]map[*Client]bool
+	rooms map[string]*Room
 	store Store
+}
+
+// maxRooms caps the number of simultaneously active rooms (Hito 6).
+const maxRooms = 20
+
+// saveThrottle bounds how often a single client's state is persisted to Redis.
+const saveThrottle = time.Second
+
+var roomNameRe = regexp.MustCompile(`^[a-zA-Z0-9_:-]{1,32}$`)
+
+// validRoomName reports whether name is an acceptable room identifier.
+func validRoomName(name string) bool {
+	return roomNameRe.MatchString(name)
 }
 
 func newHub(store Store) *Hub {
 	return &Hub{
-		rooms: make(map[string]map[*Client]bool),
+		rooms: make(map[string]*Room),
 		store: store,
 	}
 }
 
-// roomPlayers returns a snapshot of states in a room (caller holds no lock).
-func (h *Hub) roomPlayers(room string) []PlayerState {
+// canJoinRoom reports whether a client may join room: existing rooms always
+// accept more clients; a brand-new room name is rejected once maxRooms is reached.
+func (h *Hub) canJoinRoom(room string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	set := h.rooms[room]
-	out := make([]PlayerState, 0, len(set))
-	for c := range set {
-		out = append(out, c.state)
+	if _, ok := h.rooms[room]; ok {
+		return true
+	}
+	return len(h.rooms) < maxRooms
+}
+
+// roomSnapshot returns players, the current host id, and phase for room in a
+// single locked read (avoids reading host/phase and players in two separate
+// lock windows, which could race with the room being destroyed in between).
+func (h *Hub) roomSnapshot(room string) (players []PlayerState, hostID string, phase string, ok bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	r := h.rooms[room]
+	if r == nil {
+		return nil, "", "", false
+	}
+	players = make([]PlayerState, 0, len(r.clients))
+	for c := range r.clients {
+		players = append(players, c.state)
+	}
+	if r.host != nil {
+		hostID = r.host.state.ID
+	}
+	return players, hostID, r.phase, true
+}
+
+// listRooms returns a snapshot of every active room for GET /rooms.
+func (h *Hub) listRooms() []RoomInfo {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]RoomInfo, 0, len(h.rooms))
+	for name, r := range h.rooms {
+		out = append(out, RoomInfo{Name: name, Count: len(r.clients), Phase: r.phase})
 	}
 	return out
 }
@@ -57,7 +110,11 @@ func (h *Hub) broadcastRoom(room string, msg ServerMessage) {
 	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for c := range h.rooms[room] {
+	r := h.rooms[room]
+	if r == nil {
+		return
+	}
+	for c := range r.clients {
 		select {
 		case c.send <- data:
 		default:
@@ -78,11 +135,12 @@ func (c *Client) send1(msg ServerMessage) {
 }
 
 // register adds a client to its room, restores persisted state if present,
-// sends it the room snapshot, then broadcasts "joined" to the room.
+// sends it the room snapshot, then broadcasts "joined" to the room. The
+// first client to join a brand-new room becomes its host (Hito 6).
 func (h *Hub) register(ctx context.Context, c *Client) {
 	// Redis I/O is done WITHOUT the lock; only the assignment to c.state and the
 	// insertion into the room map happen under h.mu, before c becomes visible to
-	// readers (roomPlayers/tick) that hold RLock.
+	// readers (roomSnapshot/tick) that hold RLock.
 	prev, ok, err := h.store.Restore(ctx, c.state.ID)
 	if err != nil {
 		log.Printf("restore %s: %v", c.state.ID, err)
@@ -93,13 +151,16 @@ func (h *Hub) register(ctx context.Context, c *Client) {
 		// Keep the (fresh) name/id from the query; restore position+yaw.
 		c.state.X, c.state.Y, c.state.Z, c.state.Yaw = prev.X, prev.Y, prev.Z, prev.Yaw
 	}
-	if h.rooms[c.room] == nil {
-		h.rooms[c.room] = make(map[*Client]bool)
+	r := h.rooms[c.room]
+	if r == nil {
+		r = &Room{clients: make(map[*Client]bool), host: c, phase: "lobby"}
+		h.rooms[c.room] = r
 	}
-	h.rooms[c.room][c] = true
+	r.clients[c] = true
 	h.mu.Unlock()
 
-	c.send1(ServerMessage{Type: "players", Players: h.roomPlayers(c.room)})
+	players, hostID, phase, _ := h.roomSnapshot(c.room)
+	c.send1(ServerMessage{Type: "players", Players: players, HostID: hostID, Phase: phase})
 	h.broadcastJoined(c)
 }
 
@@ -115,7 +176,11 @@ func (h *Hub) broadcastJoined(c *Client) {
 	if err != nil {
 		return
 	}
-	for peer := range h.rooms[c.room] {
+	r := h.rooms[c.room]
+	if r == nil {
+		return
+	}
+	for peer := range r.clients {
 		if peer == c {
 			continue
 		}
@@ -126,25 +191,46 @@ func (h *Hub) broadcastJoined(c *Client) {
 	}
 }
 
-// unregister removes c and broadcasts "left" to the rest of its room.
+// unregister removes c, transfers host if needed, flushes its final state to
+// the store, and broadcasts "left" to the rest of its room.
 func (h *Hub) unregister(c *Client) {
 	h.mu.Lock()
-	set := h.rooms[c.room]
-	if set != nil {
-		delete(set, c)
-		if len(set) == 0 {
+	r := h.rooms[c.room]
+	if r != nil {
+		delete(r.clients, c)
+		if r.host == c {
+			r.host = nil
+			for peer := range r.clients {
+				r.host = peer
+				break
+			}
+		}
+		if len(r.clients) == 0 {
 			delete(h.rooms, c.room)
 		}
 	}
+	state := c.state
+	room := c.room
 	h.mu.Unlock()
+
 	close(c.send)
-	h.broadcastRoom(c.room, ServerMessage{Type: "left", ID: c.state.ID})
+
+	// Final flush (Hito 6): ignore the throttle so the last known position is
+	// never lost just because the 1s window hadn't elapsed yet.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if err := h.store.Save(ctx, state, room); err != nil {
+		log.Printf("final save %s: %v", state.ID, err)
+	}
+	cancel()
+
+	h.broadcastRoom(room, ServerMessage{Type: "left", ID: c.state.ID})
 }
 
-// applyState merges a "state" frame into the client and persists to the store.
-// The mutation of c.state is done under the hub mutex (so readers that hold
-// RLock are actually protected); we then take a COPY and release the lock
-// BEFORE the Redis Save so we never hold the mutex across I/O.
+// applyState merges a "state" frame into the client and persists to the
+// store, throttled to at most once per saveThrottle per client (Hito 6): the
+// mutation of c.state is always applied under the lock (so readers that hold
+// RLock are actually protected); the Redis Save is skipped when the client's
+// last save is still fresh.
 func (h *Hub) applyState(ctx context.Context, c *Client, msg ClientMessage) {
 	h.mu.Lock()
 	if msg.X != nil {
@@ -159,10 +245,17 @@ func (h *Hub) applyState(ctx context.Context, c *Client, msg ClientMessage) {
 	if msg.Yaw != nil {
 		c.state.Yaw = *msg.Yaw
 	}
+	shouldSave := time.Since(c.lastSaved) >= saveThrottle
+	if shouldSave {
+		c.lastSaved = time.Now()
+	}
 	state := c.state
 	room := c.room
 	h.mu.Unlock()
 
+	if !shouldSave {
+		return
+	}
 	if err := h.store.Save(ctx, state, room); err != nil {
 		log.Printf("save %s: %v", state.ID, err)
 	}
@@ -173,15 +266,35 @@ func (h *Hub) emote(c *Client, emoji string) {
 	h.broadcastRoom(c.room, ServerMessage{Type: "emote", ID: c.state.ID, Emoji: emoji})
 }
 
+// startRace flips a room's phase to "racing", but only when c is its current
+// host (Hito 6). Silently ignored for non-hosts and unknown rooms — the
+// client already hides the control from non-hosts; this is server-side
+// validation, not user-facing feedback.
+func (h *Hub) startRace(c *Client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	r := h.rooms[c.room]
+	if r == nil || r.host != c {
+		return
+	}
+	r.phase = "racing"
+}
+
 // pongFor builds the direct reply to a "ping" frame, echoing its timestamp
 // unchanged (pure, no lock/IO: the RTT clock lives entirely on the client).
 func pongFor(msg ClientMessage) ServerMessage {
 	return ServerMessage{Type: "pong", T: msg.T}
 }
 
-// tickRoom broadcasts the current snapshot of one room as a state_update.
+// tickRoom broadcasts the current snapshot of one room as a state_update,
+// including the room's host and phase (Hito 6) so a dropped one-shot event
+// self-corrects on the next tick.
 func (h *Hub) tickRoom(room string) {
-	h.broadcastRoom(room, ServerMessage{Type: "state_update", Players: h.roomPlayers(room)})
+	players, hostID, phase, ok := h.roomSnapshot(room)
+	if !ok {
+		return
+	}
+	h.broadcastRoom(room, ServerMessage{Type: "state_update", Players: players, HostID: hostID, Phase: phase})
 }
 
 // tickAll broadcasts state_update to every room (called by the server tick loop).
