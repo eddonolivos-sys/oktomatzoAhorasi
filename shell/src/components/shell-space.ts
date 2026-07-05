@@ -4,6 +4,7 @@ import './shell-cockpit'; // registra <shell-cockpit> (no depender del orden de 
 import type { AppInfo } from '../services/protocol';
 import type { SpaceEngine } from '../space/space-engine';
 import type { ShellSettings } from './shell-settings';
+import { shouldWarnDesktopOnly } from './device-warning';
 
 /**
  * Host de la experiencia espacial. Renderiza en light DOM (createRenderRoot → this)
@@ -28,6 +29,11 @@ export class ShellSpace extends LitElement {
   @state() private webglOk = true;
   @state() private igniting = true;
   @state() private cockpitApp: AppInfo | null = null;
+  // Mejora 4: aviso dismissable de "se requiere teclado y ratón" en
+  // dispositivos táctiles sin puntero fino disponible — NO bloquea el motor
+  // (a diferencia de webglOk), solo se superpone hasta que el usuario elige continuar.
+  @state() private desktopWarningDismissed = false;
+  private readonly needsDesktopWarning = this.detectDesktopWarning();
 
   private engine: SpaceEngine | null = null;
 
@@ -40,6 +46,15 @@ export class ShellSpace extends LitElement {
     } catch {
       return false;
     }
+  }
+
+  /** Mejora 4: ver device-warning.ts para el porqué de este par de matchMedia. */
+  private detectDesktopWarning(): boolean {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return shouldWarnDesktopOnly(
+      window.matchMedia('(pointer: coarse)').matches,
+      window.matchMedia('(any-pointer: fine)').matches,
+    );
   }
 
   async firstUpdated() {
@@ -100,6 +115,33 @@ export class ShellSpace extends LitElement {
         style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
       ></div>
       ${this.igniting ? html`<div id="ignition"></div>` : ''}
+      ${this.needsDesktopWarning && !this.desktopWarningDismissed
+        ? html`
+            <div
+              style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+                     background:rgba(10,5,3,0.9);color:#C8B898;font-family:'Cinzel',serif;text-align:center;padding:40px;"
+            >
+              <div style="max-width:420px;">
+                <h2 style="color:#E6A817;font-family:'Cinzel Decorative',serif;letter-spacing:0.1em;">
+                  Experiencia de escritorio
+                </h2>
+                <p style="color:#8A7A6A;line-height:1.7;">
+                  Ramatzo se controla con teclado y ratón (mirar con el ratón, WASD para moverse,
+                  Shift para el impulso). En un dispositivo táctil sin teclado ni ratón la
+                  experiencia será muy limitada.
+                </p>
+                <button
+                  @click=${() => (this.desktopWarningDismissed = true)}
+                  style="margin-top:12px;padding:10px 24px;background:transparent;border:1px solid #8A7A6A;
+                         border-radius:6px;color:#C8B898;font-family:'Cinzel',serif;letter-spacing:0.08em;
+                         text-transform:uppercase;font-size:12px;cursor:pointer;"
+                >
+                  Continuar de todas formas
+                </button>
+              </div>
+            </div>
+          `
+        : ''}
       <shell-settings .cockpitApp=${this.cockpitApp}></shell-settings>
       ${this.cockpitApp
         ? html`<shell-cockpit

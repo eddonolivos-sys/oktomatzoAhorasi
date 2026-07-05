@@ -155,6 +155,29 @@ cloudflared tunnel run plataforma
 > ⚠️ Sin el archivo `docker-compose.internet.yml`, la plataforma solo es
 > accesible desde `localhost:8080`. Usa el overlay para exponerla a internet.
 
+> ⚠️ **El túnel "Permanente" (paso 6) es un proceso/servicio systemd propio
+> del VPS, DISTINTO del contenedor `cloudflared` del overlay
+> `docker-compose.internet.yml`** (ese es el "Rápido", pensado para pruebas
+> puntuales con URL efímera de `trycloudflare.com`). Si el túnel permanente
+> se desconecta (Cloudflare 530/1033 al visitar el dominio), es un problema
+> de ese servicio systemd en el VPS — revisar con `systemctl status
+> cloudflared` (o el nombre del servicio que se le haya dado) y sus logs, NO
+> el overlay de este repo ni el código de la plataforma (el WebSocket del
+> shell ya usa `wss://` relativo al dominio actual, sin `localhost`
+> hardcodeado — verificado, no es la causa si el túnel está caído).
+
+### Verificación e2e contra el dominio público
+
+Los checklists de flujos manuales (login/invitado/registro, entrar y salir
+de un proyecto, carrera, salas multijugador — ver
+`docs/superpowers/notes/2026-07-05-hito-7-reporte.md`) solo se validaron
+contra `http://localhost:8080`. Antes de dar por buena una entrega expuesta
+a internet, repetir al menos el flujo básico (login o invitado → entrar a
+un proyecto → volver) contra el dominio público real (`https://tudominio.com`
+o la URL de `trycloudflare.com`), no solo contra `localhost` — un túnel caído,
+mal configurado, o un certificado TLS inválido no se detectan probando en
+local.
+
 ---
 
 ## Variables de entorno
