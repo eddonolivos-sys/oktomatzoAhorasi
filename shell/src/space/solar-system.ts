@@ -6,6 +6,7 @@ import { planetLayout, orbitPosition, planetWorldCenter, captureState } from './
 import { approachBrakeFactor } from './flight-math';
 import { SOLAR_CONFIG, ORBIT_CONFIG } from './space-config';
 import { initialsFor } from './initials';
+import { markerScaleForDistance } from './sprite-scale';
 
 export interface RadarBlip {
   name: string;
@@ -81,7 +82,9 @@ function createInitialsSprite(text: string): THREE.Sprite {
   ctx.fillText(text, size / 2, size / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  // Mejora 2: fog=false — el marcador debe seguir siendo la señal del planeta
+  // incluso más allá de fogFar, donde la niebla ya ocultó la esfera.
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, fog: false });
   return new THREE.Sprite(material);
 }
 
@@ -154,6 +157,20 @@ export class SolarSystem {
       const world = planetWorldCenter(this.systemGroup.position, p.mesh.position);
       this.tmpWorld.set(world.x, world.y, world.z);
       const dist = this.tmpWorld.distanceTo(shipPos);
+
+      // Mejora 2: la escala del marcador de iniciales crece con la distancia
+      // (nave≈cámara, offset de la cámara rígida es despreciable a esta
+      // escala) para que nunca subtienda menos de una fracción mínima de
+      // pantalla, aunque la esfera del planeta ya se haya perdido por niebla.
+      const baseInitialsScale = p.planetRadius * 0.8;
+      const initialsScale = markerScaleForDistance(
+        baseInitialsScale,
+        dist,
+        SOLAR_CONFIG.initialsReferenceFovRadians,
+        SOLAR_CONFIG.initialsMinScreenFraction,
+      );
+      p.initialsSprite.scale.set(initialsScale, initialsScale, 1);
+
       const state = captureState(dist, p.planetRadius, {
         influenceFactor: INFLUENCE_FACTOR,
         approachHintFactor: HINT_FACTOR,

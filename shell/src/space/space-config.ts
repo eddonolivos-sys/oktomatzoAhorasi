@@ -72,7 +72,11 @@ export const SOLAR_CONFIG = {
 
   // Niebla / spawn (el sistema siempre nítido)
   fogNear: 55000, // [UNIFORME]
-  fogFar: 110000, // [UNIFORME] = camera.far
+  fogFar: 110000, // [UNIFORME] SOLO niebla — mejora 2: desacoplado de camera.far (antes eran iguales y el planeta se recortaba en seco por el far plane justo donde antes empezaba a desvanecerse por niebla)
+  cameraFar: 300000, // [UNIFORME] mejora 2: far plane de la cámara; cubre el peor caso nave↔planeta (~230000, acotado por rebaseThreshold=200000 + radio de órbita ~30000)
+  cameraNear: 1, // [UNIFORME] mejora 2: subido de 0.1 — más precisión de profundidad útil a esta escala; la nave nunca está a <1u de la cámara (offset ~16u)
+  initialsMinScreenFraction: 0.012, // [UNIFORME] mejora 2: fracción mínima de alto de pantalla que debe ocupar el marcador de iniciales a cualquier distancia
+  initialsReferenceFovRadians: (65 * Math.PI) / 180, // [UNIFORME] mejora 2: FOV de referencia para el cálculo (aprox.; el FOV real varía con el kick de velocidad, no hace falta exactitud para este propósito)
   spawn: { x: 0, y: 120 * SOLAR_SCALE, z: 2600 * SOLAR_SCALE }, // [UNIFORME] (0, 600, 13000)
 
   // Cinturón RAMATZO (periferia, opción A: banner lejano −Z)

@@ -174,7 +174,16 @@ export class SpaceEngine {
     this.scene.background = new THREE.Color(0x0a0503);
     this.scene.fog = new THREE.Fog(0x0a0503, SOLAR_CONFIG.fogNear, SOLAR_CONFIG.fogFar);
 
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 110000);
+    // Mejora 2: near/far desacoplados de la niebla — antes camera.far==fogFar
+    // (110000) recortaba planetas/sol en seco justo donde debían empezar a
+    // desvanecerse; ahora el far plane cubre el peor caso nave↔planeta y la
+    // niebla (SOLAR_CONFIG.fogNear/fogFar) sigue ocultando el FONDO por su cuenta.
+    this.camera = new THREE.PerspectiveCamera(
+      65,
+      window.innerWidth / window.innerHeight,
+      SOLAR_CONFIG.cameraNear,
+      SOLAR_CONFIG.cameraFar,
+    );
     this.camera.position.set(SOLAR_CONFIG.spawn.x, SOLAR_CONFIG.spawn.y, SOLAR_CONFIG.spawn.z);
 
     // Iluminación cálida y sobria: key cálido del sol, fill frío tenue y un
