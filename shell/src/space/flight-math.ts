@@ -43,3 +43,12 @@ export function limitAngularStep(current: number, target: number, maxRate: numbe
   if (d < -maxStep) return current - maxStep;
   return target;
 }
+
+/**
+ * Paso bajo exponencial (S7 — arregla la brusquedad de la mirada): desliza
+ * `current` hacia `target` con constante `damp` (mayor = converge más rápido).
+ * Estable con `delta` variable; nunca sobrepasa `target`.
+ */
+export function dampedFollow(current: number, target: number, damp: number, delta: number): number {
+  return current + (target - current) * (1 - Math.exp(-damp * delta));
+}

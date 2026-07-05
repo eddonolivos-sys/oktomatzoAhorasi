@@ -23,7 +23,9 @@ import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
 import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG } from './space-config';
-import { stepOrbit, ejectVelocity, type OrbitState } from './orbit';
+import { stepOrbit, ejectVelocity, freeAfterExit, type OrbitState } from './orbit';
+import { buildOrbitBasis } from './orbit-frame';
+import { orbitCameraPose } from './orbit-camera';
 import { FrameTimeRingBuffer, computeStats } from './perf-stats';
 import { PerfHud, type PerfSnapshot } from './perf-hud';
 import type { AppInfo } from '../services/protocol';
@@ -72,14 +74,22 @@ export class SpaceEngine {
   private readonly rebaseThreshold = 200000;
 
   // ── Interacción orbital (#3) ──
-  private orbit: OrbitState = { phase: 'free', cooldown: 0, grace: 0 };
+  private orbit: OrbitState = { phase: 'free', cooldown: 0 };
+  /** One-shot: botón "Salir de la órbita" del HUD (S5); se consume en `updateOrbit`. */
+  private exitOrbitRequested = false;
   private readonly orbitCenter = new THREE.Vector3();
   private readonly orbitU = new THREE.Vector3();
   private readonly orbitV = new THREE.Vector3();
-  private readonly orbitTmpVel = new THREE.Vector3();
   private readonly orbitImpulse = new THREE.Vector3();
   private orbitRadius = 0;
   private orbitAngle = 0;
+
+  // ── Transición cámara persecución↔órbita (S4) ──
+  private orbitCamBlend = 0; // 0=persecución, 1=pose orbital
+  private readonly orbitCamPos = new THREE.Vector3();
+  private readonly orbitCamTarget = new THREE.Vector3();
+  private readonly orbitCamUp = new THREE.Vector3();
+  private readonly blendedLookTarget = new THREE.Vector3();
 
   private ship!: ShipController;
   private chaseCamera!: ChaseCamera;
@@ -184,6 +194,7 @@ export class SpaceEngine {
     // Panel de diagnóstico de rendimiento (Hito 0), oculto salvo alternar con P.
     this.perfHud = new PerfHud(host);
     this.hud.onEnter = this.enterCurrentProject; // botón "Entrar" del panel de proyecto (#3)
+    this.hud.onExit = this.exitOrbit; // botón "Salir de la órbita" del HUD (S5)
     this.ship.onLockChange = (locked) => {
       // El prompt "Clic para tomar control" no aparece si el menú de pausa está
       // visible (ese caso lo cubre el propio menú con su botón "Reanudar control").
@@ -341,6 +352,7 @@ export class SpaceEngine {
 
     // ── Interacción orbital (#3): captura → órbita → entrar/expulsar ──
     if (!this.pauseMenu.visible) this.updateOrbit(approaching, ship, delta);
+    this.updateOrbitCameraBlend(delta, approaching);
 
     // HUD reactivo: altitud real (y + worldOffset), rumbo (yaw) y planeta en aproximación.
     const altitude = ship.position.y + this.worldOffset.y;
@@ -354,7 +366,9 @@ export class SpaceEngine {
             blurb: approaching.app.blurb,
           }
         : null,
+      hint: solar.hint ? { name: solar.hint.app.name } : null,
       dwellProgress: solar.dwellProgress,
+      orbiting: this.orbit.phase === 'orbiting',
     });
     this.radar.draw(
       ship.position,
@@ -483,20 +497,22 @@ export class SpaceEngine {
   // ── Interacción orbital (#3): máquina de estados libre/órbita/expulsión ──
   private updateOrbit(approaching: ApproachInfo | null, shipState: ShipState, delta: number) {
     const prevPhase = this.orbit.phase;
+    const exitPressed = this.ship.exitOrbitPressed || this.exitOrbitRequested;
+    this.exitOrbitRequested = false; // consumido este frame
     const r = stepOrbit(
       this.orbit,
       {
         insideInfluence: !!approaching,
         enterPressed: false, // la entrada al proyecto la dispara onKeyDown(E)/botón de forma síncrona (pestaña nueva)
-        thrustActive: this.ship.isThrusting,
+        exitPressed,
         dt: delta,
       },
-      { cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds, captureGrace: ORBIT_CONFIG.captureGraceSeconds },
+      { cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds },
     );
     this.orbit = r.state;
 
     if (prevPhase !== 'orbiting' && this.orbit.phase === 'orbiting' && approaching) {
-      this.beginOrbit(approaching, shipState);
+      this.beginOrbit(approaching);
     }
     if (this.orbit.phase === 'orbiting' && approaching) {
       this.advanceOrbit(approaching, delta);
@@ -509,29 +525,30 @@ export class SpaceEngine {
     }
   }
 
-  /** Captura: fija centro, radio (distancia de captura acotada) y el plano (radial × velocidad). */
-  private beginOrbit(approaching: ApproachInfo, shipState: ShipState) {
+  /** Botón "Salir de la órbita" del HUD (S5): marca la solicitud para el próximo `updateOrbit`. */
+  private exitOrbit = () => {
+    this.exitOrbitRequested = true;
+  };
+
+  /** Captura: fija centro, radio (distancia acotada) y el plano orbital (S3: determinista, orientado al sol). */
+  private beginOrbit(approaching: ApproachInfo) {
     this.orbitCenter.copy(approaching.center);
-    this.orbitU.copy(this.ship.object.position).sub(this.orbitCenter);
-    const dist = this.orbitU.length() || 1;
+    const dist = this.ship.object.position.distanceTo(this.orbitCenter) || 1;
     this.orbitRadius = Math.max(
       approaching.planetRadius * 1.5,
       Math.min(dist, approaching.influenceRadius),
     );
-    this.orbitU.multiplyScalar(1 / dist); // radial unitario
-    // Tangencial: velocidad de llegada sin su componente radial; si ~0, perpendicular cualquiera.
-    this.orbitTmpVel.copy(shipState.velocity);
-    this.orbitTmpVel.addScaledVector(this.orbitU, -this.orbitTmpVel.dot(this.orbitU));
-    if (this.orbitTmpVel.lengthSq() < 1e-4) {
-      const upish = Math.abs(this.orbitU.y) > 0.9;
-      this.orbitTmpVel.set(upish ? 1 : 0, upish ? 0 : 1, 0);
-      this.orbitTmpVel.addScaledVector(this.orbitU, -this.orbitTmpVel.dot(this.orbitU));
-    }
-    this.orbitV.copy(this.orbitTmpVel).normalize();
+    const basis = buildOrbitBasis({
+      center: this.orbitCenter,
+      ship: this.ship.object.position,
+      sun: this.ramatzoSun.position,
+    });
+    this.orbitU.set(basis.U.x, basis.U.y, basis.U.z);
+    this.orbitV.set(basis.V.x, basis.V.y, basis.V.z);
     this.orbitAngle = 0;
     this.ship.setOrbiting(true);
     // En órbita no hay control: libera el puntero para que el cursor se vea y pueda
-    // clicar el botón "Entrar" del HUD.
+    // clicar el botón "Entrar"/"Salir" del HUD.
     if (document.pointerLockElement) document.exitPointerLock();
   }
 
@@ -547,6 +564,33 @@ export class SpaceEngine {
       .addScaledVector(this.orbitV, sin * this.orbitRadius);
   }
 
+  /** S4: transición suave (lerp) entre la cámara de persecución y la pose orbital (sol+planeta). */
+  private updateOrbitCameraBlend(delta: number, approaching: ApproachInfo | null) {
+    const wantOrbitCam = this.orbit.phase === 'orbiting' && !!approaching;
+    const blendRate = delta / CAMERA_CONFIG.orbit.easeSeconds;
+    this.orbitCamBlend = wantOrbitCam
+      ? Math.min(1, this.orbitCamBlend + blendRate)
+      : Math.max(0, this.orbitCamBlend - blendRate);
+    if (this.orbitCamBlend <= 0) return;
+
+    const center = approaching ? approaching.center : this.orbitCenter;
+    const planetRadius = approaching ? approaching.planetRadius : 1;
+    const pose = orbitCameraPose({
+      center: { x: center.x, y: center.y, z: center.z },
+      sun: { x: this.ramatzoSun.position.x, y: this.ramatzoSun.position.y, z: this.ramatzoSun.position.z },
+      planetRadius,
+      params: CAMERA_CONFIG.orbit,
+    });
+    this.orbitCamPos.set(pose.position.x, pose.position.y, pose.position.z);
+    this.orbitCamTarget.set(pose.target.x, pose.target.y, pose.target.z);
+    this.orbitCamUp.set(pose.up.x, pose.up.y, pose.up.z);
+
+    this.camera.position.lerp(this.orbitCamPos, this.orbitCamBlend);
+    this.blendedLookTarget.copy(this.chaseCamera.currentLookTarget).lerp(this.orbitCamTarget, this.orbitCamBlend);
+    this.camera.up.lerp(this.orbitCamUp, this.orbitCamBlend).normalize();
+    this.camera.lookAt(this.blendedLookTarget);
+  }
+
   /** Entra al proyecto en aproximación/órbita (tecla E o botón "Entrar" del HUD). */
   private enterCurrentProject = () => {
     if (this.pauseMenu.visible) return;
@@ -560,6 +604,12 @@ export class SpaceEngine {
       window.open(app.externalUrl, '_blank', 'noopener,noreferrer');
       return;
     }
+    // S6 (arregla Bug B): deja el estado orbital en vuelo libre con cooldown
+    // anti-recaptura ANTES de pausar. Al volver (resume), WASD integra empuje
+    // de inmediato — la nave ya no queda re-anclada al mismo planeta.
+    this.orbit = freeAfterExit({ cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds });
+    this.ship.setOrbiting(false);
+    this.approachingApp = null;
     this.opts.onEnterApp(app);
   }
 

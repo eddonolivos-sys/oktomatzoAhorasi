@@ -15,23 +15,31 @@ type AuthListener = (state: AuthState) => void;
 const API_BASE = '/api';
 const STORAGE_KEY = 'plataforma_token';
 
-class AuthClient {
+export class AuthClient {
   private state: AuthState = { token: null, user: null };
   private listeners: Set<AuthListener> = new Set();
   private refreshInterval: number | null = null;
 
   constructor() {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    // S8 (arregla Bug A): persistencia en localStorage (sobrevive recargas y
+    // pestañas nuevas). Migración desde el esquema previo (sessionStorage):
+    // si no hay nada en localStorage pero sí en sessionStorage, se adopta y
+    // se limpia el rastro viejo.
+    const fromLocal = localStorage.getItem(STORAGE_KEY);
+    const fromSession = sessionStorage.getItem(STORAGE_KEY);
+    const raw = fromLocal ?? fromSession;
+    if (raw) {
       try {
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
           this.state = parsed as AuthState;
         }
       } catch {
-        sessionStorage.removeItem(STORAGE_KEY);
+        // JSON corrupto: arranca sin sesión.
       }
     }
+    if (fromSession) sessionStorage.removeItem(STORAGE_KEY);
+    if (this.state.token) this.persist();
   }
 
   getState(): AuthState {
@@ -42,8 +50,12 @@ class AuthClient {
     return !!this.state.token;
   }
 
+  /** S8: reemite el estado actual de inmediato al suscribirse, para que el
+   * usuario rehidratado en el constructor no dependa de que `me()` resuelva
+   * (arregla Bug A: re-pedía login en un montaje fresco). */
   subscribe(listener: AuthListener): () => void {
     this.listeners.add(listener);
+    listener(this.getState());
     return () => this.listeners.delete(listener);
   }
 
@@ -54,9 +66,9 @@ class AuthClient {
 
   private persist() {
     if (this.state.token) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
     } else {
-      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
     }
   }
 
@@ -109,7 +121,15 @@ class AuthClient {
 
     const body = await res.json();
     if (!body.success) {
-      this.logout();
+      // S8 (arregla Bug A): solo una respuesta 401 EXPLÍCITA es sesión
+      // inválida de verdad (backend/internal/handler/middleware.go y
+      // auth_handler.go: TODAS las rutas de fallo de /auth/me devuelven 401).
+      // Cualquier otro fallo (500, etc.) es transitorio del servidor: NO
+      // cierra la sesión. Un fallo de RED (fetch rechaza) ni siquiera llega
+      // aquí — se propaga antes, sin togar el estado.
+      if (res.status === 401) {
+        this.logout();
+      }
       throw new Error(body.error || 'Session expired');
     }
 
@@ -133,7 +153,7 @@ class AuthClient {
   private startRefresh() {
     this.stopRefresh();
     this.refreshInterval = window.setInterval(() => {
-      this.me().catch(() => this.logout());
+      this.me().catch(() => {});
     }, 15 * 60 * 1000);
   }
 

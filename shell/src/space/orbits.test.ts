@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planetLayout, orbitPosition } from './orbits';
+import { planetWorldCenter } from './orbits';
 
 describe('planetLayout', () => {
   it('es determinista para el mismo índice/total', () => {
@@ -84,5 +85,54 @@ describe('orbitPosition', () => {
     const a = orbitPosition(1000, 0.2, 0, 0.05, 0);
     const b = orbitPosition(1000, 0.2, 0, 0.05, 3);
     expect(a.x === b.x && a.z === b.z).toBe(false);
+  });
+});
+
+describe('planetWorldCenter (S1 — arregla Bug C: planetas que desaparecen)', () => {
+  it('suma la posición del grupo (mundo) y la posición local del planeta', () => {
+    expect(planetWorldCenter({ x: 100, y: 0, z: -50 }, { x: 10, y: 5, z: 0 })).toEqual({
+      x: 110,
+      y: 5,
+      z: -50,
+    });
+  });
+
+  it('invariante de rebase: mover el grupo en -delta desplaza el worldCenter exactamente en -delta', () => {
+    const localPos = { x: 20, y: 3, z: -8 };
+    const before = planetWorldCenter({ x: 0, y: 0, z: 0 }, localPos);
+    const delta = { x: 100, y: 0, z: 50 };
+    const groupAfterRebase = { x: -delta.x, y: -delta.y, z: -delta.z };
+    const after = planetWorldCenter(groupAfterRebase, localPos);
+    expect(after).toEqual({ x: before.x - delta.x, y: before.y - delta.y, z: before.z - delta.z });
+  });
+
+  it('con grupo en el origen, el worldCenter es igual a la posición local', () => {
+    expect(planetWorldCenter({ x: 0, y: 0, z: 0 }, { x: 7, y: -3, z: 42 })).toEqual({ x: 7, y: -3, z: 42 });
+  });
+});
+
+import { captureState } from './orbits';
+
+describe('captureState (S2 — recalibra la captura, antes excesiva)', () => {
+  const FACTORS = { influenceFactor: 3, approachHintFactor: 6 };
+  const planetRadius = 100;
+
+  it('dentro del radio de captura (influenceFactor) → capture', () => {
+    expect(captureState(250, planetRadius, FACTORS)).toBe('capture');
+    expect(captureState(300, planetRadius, FACTORS)).toBe('capture'); // borde inclusivo
+  });
+
+  it('entre captura y aviso → hint', () => {
+    expect(captureState(301, planetRadius, FACTORS)).toBe('hint');
+    expect(captureState(600, planetRadius, FACTORS)).toBe('hint'); // borde inclusivo
+  });
+
+  it('más allá del radio de aviso → far', () => {
+    expect(captureState(601, planetRadius, FACTORS)).toBe('far');
+    expect(captureState(10000, planetRadius, FACTORS)).toBe('far');
+  });
+
+  it('distancia 0 (nave en el centro) → capture', () => {
+    expect(captureState(0, planetRadius, FACTORS)).toBe('capture');
   });
 });

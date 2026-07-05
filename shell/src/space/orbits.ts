@@ -53,3 +53,38 @@ export function orbitPosition(
   // Rotación alrededor de X: el plano de la órbita se inclina, generando Y.
   return { x, y: zFlat * sinI, z: zFlat * cosI };
 }
+
+interface V3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * Centro del planeta en coordenadas de ESCENA (S1 — arregla Bug C: los
+ * planetas desaparecían porque `solar-system.ts` los movía en coordenadas
+ * absolutas sin restar `worldOffset`, cayendo fuera de niebla/far tras el
+ * rebase). `groupPos` es la posición del grupo "sistema" (afectada por
+ * rebase); `localPos` es la posición del planeta DENTRO de ese grupo
+ * (calculada por `orbitPosition`, sin cambios). worldCenter = groupPos + localPos.
+ */
+export function planetWorldCenter(groupPos: V3, localPos: V3): V3 {
+  return { x: groupPos.x + localPos.x, y: groupPos.y + localPos.y, z: groupPos.z + localPos.z };
+}
+
+export type CaptureState = 'far' | 'hint' | 'capture';
+
+/**
+ * Estado de aproximación a un planeta según la distancia (S2 — recalibra la
+ * esfera de captura, antes excesiva). `capture` dispara la órbita (#3);
+ * `hint` es SOLO aviso en el HUD (no interactúa); `far` no muestra nada.
+ */
+export function captureState(
+  distance: number,
+  planetRadius: number,
+  factors: { influenceFactor: number; approachHintFactor: number },
+): CaptureState {
+  if (distance <= planetRadius * factors.influenceFactor) return 'capture';
+  if (distance <= planetRadius * factors.approachHintFactor) return 'hint';
+  return 'far';
+}

@@ -181,6 +181,13 @@
   opacity: 1;
 }
 
+/* S2: aviso de aproximación (radio mayor que la captura) — más discreto que "approaching" */
+#reticle.hinting .reticle-label {
+  opacity: 0.75;
+  color: var(--space-text-2);
+  text-shadow: 0 1px 2px #000;
+}
+
 /* Mensaje de inicio */
 #startMsg {
   position: fixed;

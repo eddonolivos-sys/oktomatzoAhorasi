@@ -64,4 +64,9 @@ export class ChaseCamera {
     this.camera.fov += (targetFov - this.camera.fov) * (1 - Math.exp(-this.fovDamp * delta));
     this.camera.updateProjectionMatrix();
   }
+
+  /** Punto de mira calculado en el último `update()` (S4: base para la transición hacia la pose orbital). */
+  get currentLookTarget(): THREE.Vector3 {
+    return this.lookTarget;
+  }
 }

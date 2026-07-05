@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { bankFromYawRate, limitAngularStep } from './flight-math';
+import { bankFromYawRate, limitAngularStep, dampedFollow } from './flight-math';
 import { CONTROL_CONFIG } from './space-config';
 
 /**
@@ -58,6 +58,7 @@ export class ShipController {
   // Sintonía
   sensitivity = CONTROL_CONFIG.sensitivity;
   maxLookRate = CONTROL_CONFIG.maxLookRate; // rad/s; límite de velocidad angular de la mirada (recorta picos)
+  lookDamp = CONTROL_CONFIG.lookDamp; // S7: suavizado de paso bajo antes del límite de velocidad angular
   pitchLimit = 1.48; // ~85°
   rollDamp = 6;
   kRoll = 5.5;
@@ -142,14 +143,11 @@ export class ShipController {
     this.velocity.add(v);
   }
 
-  /** ¿Hay alguna tecla de empuje/strafe/nitro/freno activa? (rompe la órbita en #3). */
-  get isThrusting(): boolean {
-    const k = this.keys;
-    return !!(
-      k['KeyW'] || k['ArrowUp'] || k['KeyS'] || k['ArrowDown'] ||
-      k['KeyA'] || k['ArrowLeft'] || k['KeyD'] || k['ArrowRight'] ||
-      k['ShiftLeft'] || k['ShiftRight']
-    ); // Space ya NO es empuje (pasó a "entrar"); Shift es nitro (sí rompe la órbita)
+  /** Tecla "Salir de la órbita" (S5: S). En vuelo libre S sigue siendo freno;
+   * en órbita `ShipController.update` no integra empuje/freno (ver rama
+   * `orbiting`), así que leer KeyS aquí es seguro y no se pisa con el freno. */
+  get exitOrbitPressed(): boolean {
+    return !!this.keys['KeyS'];
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -192,10 +190,13 @@ export class ShipController {
   }
 
   update(delta: number): ShipState {
-    // Desliza la mirada aplicada hacia el objetivo crudo del ratón, recortando solo los
-    // picos que superan maxLookRate (por debajo del umbral es 1:1 exacto, sin lag).
-    this.yaw = limitAngularStep(this.yaw, this.rawYaw, this.maxLookRate, delta);
-    this.pitch = limitAngularStep(this.pitch, this.rawPitch, this.maxLookRate, delta);
+    // S7: la mirada aplicada persigue el objetivo crudo del ratón con un paso
+    // bajo real (dampedFollow, arregla la brusquedad), y el resultado se acota
+    // con limitAngularStep para recortar solo picos residuales muy bruscos.
+    const dampedYaw = dampedFollow(this.yaw, this.rawYaw, this.lookDamp, delta);
+    this.yaw = limitAngularStep(this.yaw, dampedYaw, this.maxLookRate, delta);
+    const dampedPitch = dampedFollow(this.pitch, this.rawPitch, this.lookDamp, delta);
+    this.pitch = limitAngularStep(this.pitch, dampedPitch, this.maxLookRate, delta);
 
     // Tasa de giro de yaw → alabeo objetivo (clamp). El roll lerp hacia el target.
     const yawRate = delta > 0 ? (this.yaw - this.prevYaw) / delta : 0;

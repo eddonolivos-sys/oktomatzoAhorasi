@@ -22,9 +22,12 @@ export class Hud {
   private headingValue: HTMLElement;
   private startMsg: HTMLElement;
   private enterBtn: HTMLElement;
+  private exitBtn: HTMLElement;
 
   /** Se invoca al pulsar el botón "Entrar" del panel de proyecto (#3). */
   onEnter?: () => void;
+  /** Se invoca al pulsar el botón "Salir de la órbita" (S5). */
+  onExit?: () => void;
 
   /** Circunferencia del círculo de progreso (r = 16). */
   private readonly ringCircumference = 2 * Math.PI * 16;
@@ -46,6 +49,7 @@ export class Hud {
         <div class="pp-desc"></div>
         <div class="pp-blurb"></div>
         <button type="button" class="pp-enter" style="pointer-events:auto;cursor:pointer;background:transparent;border:1px solid rgba(230,168,23,0.5);color:#E6A817;font:inherit;padding:6px 14px;border-radius:6px;margin-top:8px;">Entrar al proyecto (Space/E)</button>
+        <button type="button" class="pp-exit" hidden style="pointer-events:auto;cursor:pointer;background:transparent;border:1px solid rgba(200,184,152,0.4);color:#C8B898;font:inherit;padding:6px 14px;border-radius:6px;margin-top:8px;margin-left:8px;">Salir de la órbita (S)</button>
       </div>
       <div id="startMsg">
         <h1>Ramatzo</h1>
@@ -91,6 +95,8 @@ export class Hud {
     this.startMsg = q('#startMsg');
     this.enterBtn = q('#projectPanel .pp-enter');
     this.enterBtn.addEventListener('click', () => this.onEnter?.());
+    this.exitBtn = q('#projectPanel .pp-exit');
+    this.exitBtn.addEventListener('click', () => this.onExit?.());
 
     // Estado inicial del anillo de permanencia: vacío.
     this.dwellRing.style.strokeDasharray = String(this.ringCircumference);
@@ -103,7 +109,10 @@ export class Hud {
       altitude: number;
       heading: number;
       approaching: { name: string; description?: string; blurb?: string } | null;
+      /** S2: planeta en radio de aviso, sin interacción todavía. */
+      hint: { name: string } | null;
       dwellProgress: number;
+      orbiting: boolean;
     },
   ) {
     // Velocidad real, sin tope.
@@ -124,20 +133,26 @@ export class Hud {
     // Estado de la reticula: idle vs aproximando con anillo de permanencia.
     const approaching = info.approaching != null;
     this.reticle.classList.toggle('approaching', approaching);
+    this.reticle.classList.toggle('hinting', !approaching && info.hint != null);
     if (approaching) {
       const a = info.approaching!;
-      this.reticleLabel.textContent = `Space/E · ${a.name}`;
-      // Anillo lleno como marcador estático (la entrada es por tecla E, no por permanencia).
+      this.reticleLabel.textContent = info.orbiting ? `S · Salir de órbita · ${a.name}` : `Space/E · ${a.name}`;
       this.dwellRing.style.strokeDashoffset = '0';
-      // Panel de info del proyecto (esquina): nombre + descripción + texto editable.
       this.panelName.textContent = a.name;
       this.panelDesc.textContent = a.description ?? '';
       this.panelBlurb.textContent = a.blurb ?? '';
       this.projectPanel.classList.add('visible');
+      this.exitBtn.hidden = !info.orbiting;
+    } else if (info.hint) {
+      this.reticleLabel.textContent = info.hint.name;
+      this.dwellRing.style.strokeDashoffset = String(this.ringCircumference);
+      this.projectPanel.classList.remove('visible');
+      this.exitBtn.hidden = true;
     } else {
       this.reticleLabel.textContent = '';
       this.dwellRing.style.strokeDashoffset = String(this.ringCircumference);
       this.projectPanel.classList.remove('visible');
+      this.exitBtn.hidden = true;
     }
   }
 

@@ -106,3 +106,41 @@ describe('limitAngularStep', () => {
     expect(limitAngularStep(0.7, 0.7, 30, 0.016)).toBe(0.7);
   });
 });
+
+import { dampedFollow } from './flight-math';
+
+describe('dampedFollow (S7 — arregla la brusquedad de la mirada)', () => {
+  it('converge hacia target tras varios pasos', () => {
+    let v = 0;
+    for (let i = 0; i < 200; i++) v = dampedFollow(v, 10, 12, 1 / 60);
+    expect(v).toBeCloseTo(10, 3);
+  });
+
+  it('con delta=0 no se mueve', () => {
+    expect(dampedFollow(3, 10, 12, 0)).toBeCloseTo(3, 10);
+  });
+
+  it('damp alto en un paso grande se aproxima al valor objetivo (casi 1:1)', () => {
+    const v = dampedFollow(0, 10, 12, 1);
+    // exp(-12) ≈ 6.14e-6: la diferencia real con 10 es ~6.14e-5, por encima del
+    // margen de toBeCloseTo(10, 4) (5e-5); 3 decimales es la precisión correcta.
+    expect(v).toBeCloseTo(10, 3);
+  });
+
+  it('nunca overshoot: el resultado siempre queda entre current y target', () => {
+    expect(dampedFollow(5, 2, 12, 0.5)).toBeGreaterThanOrEqual(2);
+    expect(dampedFollow(5, 2, 12, 0.5)).toBeLessThanOrEqual(5);
+    expect(dampedFollow(2, 5, 12, 0.5)).toBeGreaterThanOrEqual(2);
+    expect(dampedFollow(2, 5, 12, 0.5)).toBeLessThanOrEqual(5);
+  });
+
+  it('es estable con delta variable (no diverge)', () => {
+    let v = 0;
+    for (const d of [0.05, 0.001, 0.1, 0.02, 0.2]) {
+      v = dampedFollow(v, 10, 12, d);
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(10);
+    }
+  });
+});
