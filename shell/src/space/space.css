@@ -278,10 +278,12 @@
   color: var(--orange-amber);
 }
 
-/* Panel de diagnóstico de rendimiento (Hito 0), oculto salvo alternar con P */
+/* Panel de diagnóstico de rendimiento (Hito 0), oculto salvo alternar con P.
+   Debajo del radar (canvas fixed en top:24/left:24, 200x200 — radar.ts): en la
+   misma esquina lo tapaba con su fondo semitransparente. */
 #perfHud {
   position: fixed;
-  top: 18px;
+  top: 236px;
   left: 24px;
   z-index: 170;
   padding: 8px 12px;

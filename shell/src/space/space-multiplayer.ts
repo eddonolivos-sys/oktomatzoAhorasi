@@ -131,12 +131,19 @@ export class SpaceMultiplayer {
     }
   }
 
-  /** Ping periódico (PERF_CONFIG.pingIntervalMs) para medir el RTT del WS. `now` en ms. */
+  /**
+   * Ping periódico (PERF_CONFIG.pingIntervalMs) para medir el RTT del WS. `now`
+   * (timestamp del rAF, inicio del frame) regula SOLO el throttle; el `t` del
+   * ping se toma con performance.now() EN el envío. El send ocurre al final del
+   * update del frame: usar el `now` del rAF como `t` sumaría el coste de CPU
+   * del frame a cada muestra (sesgo sistemático, máximo justo bajo el jank que
+   * esta instrumentación existe para medir).
+   */
   maybeSendPing(now: number) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     if (now - this.lastPingSentAt < PERF_CONFIG.pingIntervalMs) return;
     this.lastPingSentAt = now;
-    this.ws.send(JSON.stringify({ type: 'ping', t: now }));
+    this.ws.send(JSON.stringify({ type: 'ping', t: performance.now() }));
   }
 
   /** RTT suavizado (EWMA) en ms; null hasta el primer pong. Instrumentación (Hito 0). */
