@@ -113,3 +113,11 @@ export const PERF_CONFIG = {
   rttP95BudgetMs: 120, // [UNIFORME] Hito 6: RTT p95 objetivo en LAN/local
   minSustainedFps: 30, // [UNIFORME] FPS mínimos sostenidos (con degradación de pixelRatio ya registrada)
 };
+
+/** Audio global y por proyecto (Hito 3). */
+export const AUDIO_CONFIG = {
+  defaultMasterVolume: 0.8, // [PERSONALIZABLE] volumen inicial si no hay nada persistido
+  thrusterSpeedRef: 2500, // [PERSONALIZABLE] u/s a la que el propulsor satura su gain (thrusterGain)
+  duckLevel: 0.2, // [UNIFORME] a qué fracción de volumen queda la música al entrar en cabina
+  duckDamp: 8, // [UNIFORME] velocidad de la transición de ducking (mayor = más rápida)
+};

@@ -10,13 +10,14 @@ export class PauseMenu {
   private controlsPanel: HTMLElement;
   private _visible = false;
 
-  constructor(host: HTMLElement, cb: { onResume: () => void; onLogout: () => void }) {
+  constructor(host: HTMLElement, cb: { onResume: () => void; onLogout: () => void; onSettings: () => void }) {
     this.root = document.createElement('div');
     this.root.id = 'pauseMenu';
     this.root.innerHTML = `
       <div class="panel">
         <h3>Pausa</h3>
         <button data-act="resume">Reanudar control</button>
+        <button data-act="settings">Configuración</button>
         <button data-act="controls">Controles</button>
         <button data-act="logout">Cerrar sesi&oacute;n</button>
         <div class="controls-panel" hidden>
@@ -35,6 +36,7 @@ export class PauseMenu {
     this.controlsPanel = this.root.querySelector('.controls-panel') as HTMLElement;
 
     this.root.querySelector('[data-act="resume"]')!.addEventListener('click', () => cb.onResume());
+    this.root.querySelector('[data-act="settings"]')!.addEventListener('click', () => cb.onSettings());
     this.root.querySelector('[data-act="controls"]')!.addEventListener('click', () => {
       this.controlsPanel.hidden = !this.controlsPanel.hidden;
     });

@@ -1,8 +1,9 @@
 import { LitElement, html } from 'lit';
-import { property, state } from 'lit/decorators.js';
+import { property, state, query } from 'lit/decorators.js';
 import './shell-cockpit'; // registra <shell-cockpit> (no depender del orden de main.ts)
 import type { AppInfo } from '../services/protocol';
 import type { SpaceEngine } from '../space/space-engine';
+import type { ShellSettings } from './shell-settings';
 
 /**
  * Host de la experiencia espacial. Renderiza en light DOM (createRenderRoot → this)
@@ -29,6 +30,8 @@ export class ShellSpace extends LitElement {
   @state() private cockpitApp: AppInfo | null = null;
 
   private engine: SpaceEngine | null = null;
+
+  @query('shell-settings') private settingsEl?: ShellSettings;
 
   private hasWebGL(): boolean {
     try {
@@ -57,6 +60,7 @@ export class ShellSpace extends LitElement {
         this.engine?.pause();
       },
       onLogout: () => this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true })),
+      onOpenSettings: () => this.settingsEl?.openModal(),
     });
 
     window.setTimeout(() => {
@@ -96,6 +100,7 @@ export class ShellSpace extends LitElement {
         style="position:fixed;inset:0;overflow:hidden;background:#0A0503;"
       ></div>
       ${this.igniting ? html`<div id="ignition"></div>` : ''}
+      <shell-settings .cockpitApp=${this.cockpitApp}></shell-settings>
       ${this.cockpitApp
         ? html`<shell-cockpit
             .app=${this.cockpitApp}

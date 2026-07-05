@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { state } from 'lit/decorators.js';
 import { authClient } from '../services/auth-client';
+import { audioService } from '../services/audio-service';
 
 export class ShellLogin extends LitElement {
   static styles = css`
@@ -268,6 +269,7 @@ export class ShellLogin extends LitElement {
 
   private async _handleSubmit(e: Event) {
     e.preventDefault();
+    audioService.unlock();
     const email    = (this.shadowRoot?.getElementById('email')    as HTMLInputElement)?.value.trim() ?? '';
     const name     = (this.shadowRoot?.getElementById('name')     as HTMLInputElement)?.value.trim() ?? '';
     const password = (this.shadowRoot?.getElementById('password') as HTMLInputElement)?.value ?? '';
@@ -301,6 +303,7 @@ export class ShellLogin extends LitElement {
   }
 
   private async _handleGuestLogin() {
+    audioService.unlock();
     this._loading = true;
     this._error = '';
     try {

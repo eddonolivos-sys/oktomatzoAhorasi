@@ -6,3 +6,4 @@ import './components/shell-app-container';
 import './components/shell-login';
 import './components/shell-space';
 import './components/shell-cockpit';
+import './components/shell-settings';

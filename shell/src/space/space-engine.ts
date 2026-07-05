@@ -22,12 +22,14 @@ import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
-import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG } from './space-config';
+import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG, AUDIO_CONFIG } from './space-config';
 import { stepOrbit, ejectVelocity, freeAfterExit, type OrbitState } from './orbit';
 import { buildOrbitBasis } from './orbit-frame';
 import { orbitCameraPose } from './orbit-camera';
 import { FrameTimeRingBuffer, computeStats } from './perf-stats';
 import { PerfHud, type PerfSnapshot } from './perf-hud';
+import { audioService } from '../services/audio-service';
+import { thrusterGain } from './audio-math';
 import type { AppInfo } from '../services/protocol';
 import './space.css';
 
@@ -35,6 +37,8 @@ export interface MountOpts {
   apps: AppInfo[];
   onEnterApp: (app: AppInfo) => void;
   onLogout: () => void;
+  /** Abre el modal de configuración de audio (botón "Configuración" del PauseMenu). */
+  onOpenSettings: () => void;
   /** Identidad del usuario autenticado (de authState.user). Sin ella, el multijugador no se activa. */
   user?: { id: string; name: string };
 }
@@ -241,6 +245,9 @@ export class SpaceEngine {
     this.playerShip.object.scale.setScalar(0.85);
     this.ship.attachVisual(this.playerShip.object);
 
+    audioService.loadThrusterSfx();
+    audioService.loadNitroSfx();
+
     // Prompt "Clic para tomar control" (visible cuando no hay pointer lock).
     this.controlPrompt = document.createElement('div');
     this.controlPrompt.id = 'controlPrompt';
@@ -263,6 +270,7 @@ export class SpaceEngine {
     this.pauseMenu = new PauseMenu(host, {
       onResume: () => this.resumeControl(),
       onLogout: () => this.opts.onLogout(),
+      onSettings: () => this.opts.onOpenSettings(),
     });
     // Truco clave (§5.6): el navegador consume el primer ESC liberando el lock.
     // Escuchamos pointerlockchange: si se pierde el lock y no hay menú abierto,
@@ -384,6 +392,11 @@ export class SpaceEngine {
     // ShipController, NO player-ship.
     this.playerShip.update(this.elapsed, ship, delta);
 
+    // Audio del propulsor/nitro (Hito 3): gain proporcional a la velocidad.
+    const thrustGain = thrusterGain(ship.speed, AUDIO_CONFIG.thrusterSpeedRef);
+    audioService.setThrusterGain(ship.isNitro ? 0 : thrustGain);
+    audioService.setNitroGain(ship.isNitro ? thrustGain : 0);
+
     // ── Multijugador por frame ──
     if (this.multiplayer) {
       const abs = toAbsolute(
@@ -448,6 +461,7 @@ export class SpaceEngine {
   // a proyectos ya no es por clic, sino por permanencia dentro de la esfera de
   // influencia de un planeta.
   private onCanvasClick = () => {
+    audioService.unlock();
     if (this.pauseMenu.visible) return;
     // En órbita el cursor queda libre para clicar "Entrar": no recapturamos el puntero.
     if (this.orbit.phase === 'orbiting') return;
@@ -610,6 +624,7 @@ export class SpaceEngine {
     this.orbit = freeAfterExit({ cooldownDuration: ORBIT_CONFIG.ejectCooldownSeconds });
     this.ship.setOrbiting(false);
     this.approachingApp = null;
+    audioService.enterProjectAudio(app.id);
     this.opts.onEnterApp(app);
   }
 
@@ -725,6 +740,7 @@ export class SpaceEngine {
 
   resume() {
     if (document.hidden) return;
+    audioService.exitProjectAudio();
     // Vuelve del proyecto en estado limpio: menú cerrado (el bucle rehabilita la
     // nave) y prompt visible por si se quiere clic para el modo inmersivo.
     this.pauseMenu?.close();

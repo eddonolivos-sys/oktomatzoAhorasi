@@ -1,3 +1,15 @@
+/* shell-app pasó a light DOM (ver shell-app.ts): sustituye el `:host{...}`
+   que perdió al quitar su shadow root. Sus hijos (shell-login/shell-space) ya
+   se dimensionan solos (100vh/100vw o position:fixed), esto es solo para que
+   el propio elemento no quede en el `display:inline` por defecto de un
+   custom element desconocido. */
+shell-app {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 :root {
   /* Layout */
   --shell-topbar-height: 60px;

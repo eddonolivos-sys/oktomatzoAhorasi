@@ -1,45 +1,23 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html } from 'lit';
 import { state } from 'lit/decorators.js';
 import { authClient, type AuthState } from '../services/auth-client';
 import { listen, sendMessage, type AppInfo, type AppMessage, type ShellMessage } from '../services/protocol';
 import '../styles/themes.css';
 
 export class ShellApp extends LitElement {
-  static styles = css`
-    :host {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-    }
-
-    .shell-layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .shell-main {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .shell-content {
-      flex: 1;
-      overflow: auto;
-      padding: 0;
-      position: relative;
-    }
-
-    @media (max-width: 767px) {
-      .shell-layout {
-        flex-direction: column;
-      }
-    }
-  `;
+  // Light DOM (sin shadow root): <shell-login>/<shell-space> y todo lo que
+  // cuelga de ellas (HUD, radar, pause-menu, shell-settings...) dependen de
+  // hojas de estilo GLOBALES (space.css, themes.css, shell-settings.css)
+  // inyectadas por Vite en document.head. Un shadow root aquí las bloquea por
+  // completo (la encapsulación de Shadow DOM no deja que selectores externos
+  // apliquen dentro) — <shell-login> y <shell-cockpit> siguen con SU PROPIO
+  // shadow root vía `static styles`, eso no cambia; es solo este contenedor
+  // de nivel superior el que pasa a light DOM. El bloque `static styles`
+  // anterior (`.shell-layout`/`.shell-main`/`.shell-content`) era CSS muerto:
+  // `render()` nunca genera esas clases.
+  protected createRenderRoot() {
+    return this;
+  }
 
   @state()
   private authState: AuthState = { token: null, user: null };

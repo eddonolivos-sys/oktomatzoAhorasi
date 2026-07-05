@@ -1,0 +1,85 @@
+.settings-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 130;
+  padding: 8px 16px;
+  border: 1px solid var(--metal-iron);
+  border-radius: 6px;
+  background: rgba(10, 5, 3, 0.7);
+  color: var(--space-text-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.settings-fab:hover {
+  border-color: var(--orange-amber);
+  color: var(--orange-amber);
+}
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 131;
+  background: rgba(10, 5, 3, 0.6);
+}
+.settings-modal {
+  position: fixed;
+  bottom: 76px;
+  right: 24px;
+  z-index: 132;
+  width: 280px;
+  padding: 18px;
+  border: 1px solid var(--metal-iron);
+  border-radius: 10px;
+  background: rgba(20, 11, 6, 0.97);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-serif);
+  color: var(--space-text);
+}
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-family: var(--font-display);
+  color: var(--orange-amber);
+  letter-spacing: 0.08em;
+  font-size: 13px;
+}
+.settings-close {
+  background: transparent;
+  border: none;
+  color: var(--space-text-2);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.settings-close:hover {
+  color: var(--orange-amber);
+}
+.settings-row {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.settings-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.settings-slider-label {
+  display: block;
+  margin-bottom: 6px;
+  cursor: default;
+}
+.settings-row input[type='range'] {
+  width: 100%;
+}
+.settings-project {
+  padding-top: 10px;
+  border-top: 1px solid var(--metal-iron);
+}
