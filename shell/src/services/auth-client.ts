@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'guest';
 }
 
 export interface AuthState {
@@ -101,6 +101,21 @@ export class AuthClient {
     const body = await res.json();
     if (!body.success) {
       throw new Error(body.error || 'Registration failed');
+    }
+
+    this.state = { token: body.data.token, user: body.data.user };
+    this.persist();
+    this.startRefresh();
+    this.notify();
+    return body.data.user;
+  }
+
+  async loginAsGuest(): Promise<User> {
+    const res = await fetch(`${API_BASE}/auth/guest`, { method: 'POST' });
+
+    const body = await res.json();
+    if (!body.success) {
+      throw new Error(body.error || 'Guest login failed');
     }
 
     this.state = { token: body.data.token, user: body.data.user };

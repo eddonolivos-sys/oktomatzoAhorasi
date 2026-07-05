@@ -31,10 +31,14 @@ function makeStorage(): Storage {
 // resuelva los imports (fase de colección), demasiado tarde para el import de
 // abajo. `vi.hoisted` sí se reubica ANTES de los imports: lo usamos para dejar
 // los 3 globals listos antes de que `import './auth-client'` se ejecute.
+// `login`/`register`/`loginAsGuest` llaman a `startRefresh()`, que usa
+// `window.setInterval`/`clearInterval` — tampoco existe en `environment:
+// 'node'`. Se stubea con el mismo patrón que los otros 3 globals.
 vi.hoisted(() => {
   (globalThis as unknown as { localStorage: Storage }).localStorage = makeStorage();
   (globalThis as unknown as { sessionStorage: Storage }).sessionStorage = makeStorage();
   (globalThis as unknown as { fetch: unknown }).fetch = vi.fn();
+  (globalThis as unknown as { window: unknown }).window = globalThis;
 });
 
 import { AuthClient } from './auth-client';
@@ -44,6 +48,7 @@ describe('AuthClient (S8 — persistencia de sesión, arregla Bug A)', () => {
     vi.stubGlobal('localStorage', makeStorage());
     vi.stubGlobal('sessionStorage', makeStorage());
     vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('window', globalThis);
   });
 
   it('subscribe reemite el estado actual de inmediato (sin esperar a me())', () => {
@@ -121,5 +126,33 @@ describe('AuthClient (S8 — persistencia de sesión, arregla Bug A)', () => {
     const result = await client.me();
     expect(result).toEqual(fresh);
     expect(client.getState().user).toEqual(fresh);
+  });
+
+  it('loginAsGuest() exitoso guarda token/user de invitado y persiste en localStorage', async () => {
+    const client = new AuthClient();
+    const guestUser = { id: 'guest-1', email: '', name: 'Invitado', role: 'guest' };
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      status: 200,
+      json: async () => ({ success: true, data: { token: 'guest-tok', user: guestUser } }),
+    });
+
+    const result = await client.loginAsGuest();
+
+    expect(result).toEqual(guestUser);
+    expect(client.getState()).toEqual({ token: 'guest-tok', user: guestUser });
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(
+      JSON.stringify({ token: 'guest-tok', user: guestUser })
+    );
+  });
+
+  it('loginAsGuest(): un fallo del servidor rechaza y no cambia el estado', async () => {
+    const client = new AuthClient();
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      status: 500,
+      json: async () => ({ success: false, error: 'guest login failed' }),
+    });
+
+    await expect(client.loginAsGuest()).rejects.toThrow();
+    expect(client.getState()).toEqual({ token: null, user: null });
   });
 });

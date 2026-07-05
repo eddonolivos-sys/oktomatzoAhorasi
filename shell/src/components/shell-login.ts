@@ -225,6 +225,33 @@ export class ShellLogin extends LitElement {
       color: #e08a8a;
       border-color: rgba(204, 51, 51, 0.3);
     }
+    .guest-wrap {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--metal-iron);
+      text-align: center;
+    }
+    .guest-btn {
+      background: transparent;
+      border: none;
+      color: var(--space-text-2);
+      font-family: var(--font-serif);
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      padding: 6px 10px;
+      transition: color var(--shell-transition);
+    }
+    .guest-btn:hover:not(:disabled) {
+      color: var(--orange-amber);
+    }
+    .guest-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .guest-hint {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--space-text-dim);
+      letter-spacing: 0.03em;
+    }
   `;
 
   @state() private _mode: 'login' | 'register' = 'login';
@@ -273,6 +300,19 @@ export class ShellLogin extends LitElement {
     }
   }
 
+  private async _handleGuestLogin() {
+    this._loading = true;
+    this._error = '';
+    try {
+      await authClient.loginAsGuest();
+      this.dispatchEvent(new CustomEvent('login-success', { bubbles: true, composed: true }));
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Error desconocido';
+    } finally {
+      this._loading = false;
+    }
+  }
+
   render() {
     return html`
       <div class="bg-texture"></div>
@@ -307,6 +347,12 @@ export class ShellLogin extends LitElement {
           <button class="submit-btn" type="submit" ?disabled=${this._loading}>
             ${this._loading ? 'Procesando…' : this._mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
           </button>
+          <div class="guest-wrap">
+            <button type="button" class="guest-btn" @click=${this._handleGuestLogin} ?disabled=${this._loading}>
+              Quién te crees que eres para pedirme el login?
+            </button>
+            <div class="guest-hint">Continuar como invitado</div>
+          </div>
         </form>
       </div>
     `;
