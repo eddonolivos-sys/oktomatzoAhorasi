@@ -16,6 +16,7 @@ func main() {
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
 	port := getEnv("PORT", "8080")
 	tokenExpiryHours := 72
+	guestTokenExpiryHours := 24
 
 	// Initialize database
 	db, err := repository.NewSQLiteDB(dbPath)
@@ -29,7 +30,7 @@ func main() {
 	appRepo := repository.NewAppRepository(db)
 
 	// Services
-	authService := service.NewAuthService(userRepo, []byte(jwtSecret), time.Duration(tokenExpiryHours)*time.Hour)
+	authService := service.NewAuthService(userRepo, []byte(jwtSecret), time.Duration(tokenExpiryHours)*time.Hour, time.Duration(guestTokenExpiryHours)*time.Hour)
 	userService := service.NewUserService(userRepo)
 	appService := service.NewAppService(appRepo)
 
@@ -45,6 +46,7 @@ func main() {
 	// Public routes
 	mux.HandleFunc("POST /api/auth/register", authHandler.Register)
 	mux.HandleFunc("POST /api/auth/login", authHandler.Login)
+	mux.HandleFunc("POST /api/auth/guest", authHandler.GuestLogin)
 
 	// Authenticated routes
 	mux.Handle("GET /api/auth/me", middleware.Authenticate(http.HandlerFunc(authHandler.Me)))
@@ -52,9 +54,9 @@ func main() {
 	// App routes (authenticated)
 	mux.Handle("GET /api/apps", middleware.Authenticate(http.HandlerFunc(appHandler.List)))
 	mux.Handle("GET /api/apps/{id}", middleware.Authenticate(http.HandlerFunc(appHandler.GetByID)))
-	mux.Handle("POST /api/apps", middleware.Authenticate(http.HandlerFunc(appHandler.Create)))
-	mux.Handle("PUT /api/apps/{id}", middleware.Authenticate(http.HandlerFunc(appHandler.Update)))
-	mux.Handle("DELETE /api/apps/{id}", middleware.Authenticate(http.HandlerFunc(appHandler.Delete)))
+	mux.Handle("POST /api/apps", middleware.Authenticate(middleware.RequireNonGuest(http.HandlerFunc(appHandler.Create))))
+	mux.Handle("PUT /api/apps/{id}", middleware.Authenticate(middleware.RequireNonGuest(http.HandlerFunc(appHandler.Update))))
+	mux.Handle("DELETE /api/apps/{id}", middleware.Authenticate(middleware.RequireNonGuest(http.HandlerFunc(appHandler.Delete))))
 
 	// User routes (admin)
 	mux.Handle("GET /api/users", middleware.Authenticate(middleware.RequireAdmin(http.HandlerFunc(userHandler.List))))

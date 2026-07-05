@@ -84,6 +84,17 @@ func (m *Middleware) RequireAdmin(next http.Handler) http.Handler {
 	})
 }
 
+func (m *Middleware) RequireNonGuest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := r.Context().Value(UserContextKey).(*domain.User)
+		if !ok || user.Role == domain.RoleGuest {
+			writeJSON(w, http.StatusForbidden, apiError("guest access not allowed"))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int

@@ -10,16 +10,18 @@ import (
 )
 
 type AuthService struct {
-	userRepo    domain.UserRepository
-	jwtSecret   []byte
-	tokenExpiry time.Duration
+	userRepo         domain.UserRepository
+	jwtSecret        []byte
+	tokenExpiry      time.Duration
+	guestTokenExpiry time.Duration
 }
 
-func NewAuthService(userRepo domain.UserRepository, jwtSecret []byte, tokenExpiry time.Duration) *AuthService {
+func NewAuthService(userRepo domain.UserRepository, jwtSecret []byte, tokenExpiry, guestTokenExpiry time.Duration) *AuthService {
 	return &AuthService{
-		userRepo:    userRepo,
-		jwtSecret:   jwtSecret,
-		tokenExpiry: tokenExpiry,
+		userRepo:         userRepo,
+		jwtSecret:        jwtSecret,
+		tokenExpiry:      tokenExpiry,
+		guestTokenExpiry: guestTokenExpiry,
 	}
 }
 
@@ -98,10 +100,33 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult,
 	return &AuthResult{User: user, Token: token}, nil
 }
 
+func (s *AuthService) GuestLogin(ctx context.Context) (*AuthResult, error) {
+	user := &domain.User{
+		ID:        "guest-" + generateID(),
+		Name:      "Invitado",
+		Role:      domain.RoleGuest,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+	token, err := s.generateGuestToken(user)
+	if err != nil {
+		return nil, err
+	}
+	return &AuthResult{User: user, Token: token}, nil
+}
+
 func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*domain.User, error) {
 	claims, err := parseToken(tokenString, s.jwtSecret)
 	if err != nil {
 		return nil, domain.ErrUnauthorized
+	}
+
+	if claims.Role == domain.RoleGuest {
+		return &domain.User{
+			ID:   claims.UserID,
+			Name: "Invitado",
+			Role: domain.RoleGuest,
+		}, nil
 	}
 
 	user, err := s.userRepo.FindByID(ctx, claims.UserID)

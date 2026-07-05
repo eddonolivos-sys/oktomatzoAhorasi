@@ -76,6 +76,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, apiData(result))
 }
 
+func (h *AuthHandler) GuestLogin(w http.ResponseWriter, r *http.Request) {
+	result, err := h.authService.GuestLogin(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, apiError(err.Error()))
+		return
+	}
+	writeJSON(w, http.StatusOK, apiData(result))
+}
+
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	user, err := getUserFromContext(r)
 	if err != nil {

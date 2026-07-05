@@ -21,12 +21,20 @@ func generateID() string {
 }
 
 func (s *AuthService) generateToken(user *domain.User) (string, error) {
+	return s.generateTokenWithExpiry(user, s.tokenExpiry)
+}
+
+func (s *AuthService) generateGuestToken(user *domain.User) (string, error) {
+	return s.generateTokenWithExpiry(user, s.guestTokenExpiry)
+}
+
+func (s *AuthService) generateTokenWithExpiry(user *domain.User, expiry time.Duration) (string, error) {
 	claims := TokenClaims{
 		UserID: user.ID,
 		Email:  user.Email,
 		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(s.tokenExpiry)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 			Subject:   user.ID,
 		},
