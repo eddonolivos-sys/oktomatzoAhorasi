@@ -22,7 +22,7 @@ import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
-import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG, AUDIO_CONFIG } from './space-config';
+import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG, AUDIO_CONFIG, RACE_CONFIG } from './space-config';
 import { stepOrbit, ejectVelocity, freeAfterExit, type OrbitState } from './orbit';
 import { buildOrbitBasis } from './orbit-frame';
 import { orbitCameraPose } from './orbit-camera';
@@ -31,6 +31,11 @@ import { PerfHud, type PerfSnapshot } from './perf-hud';
 import { audioService } from '../services/audio-service';
 import { thrusterGain } from './audio-math';
 import type { AppInfo } from '../services/protocol';
+import { generateTrack, type RaceTrack } from './race-track';
+import { nearestSegmentDistance, sweptSphereHitsSphere } from './race-math';
+import { startRace, stepRace, type RaceState } from './race-state';
+import { createRaceRender, type RaceRender } from './race-render';
+import { RaceHud } from './race-hud';
 import './space.css';
 
 export interface MountOpts {
@@ -87,6 +92,14 @@ export class SpaceEngine {
   private readonly orbitImpulse = new THREE.Vector3();
   private orbitRadius = 0;
   private orbitAngle = 0;
+
+  // ── Carrera espacial (Hito 5) ──
+  private raceState: RaceState = { phase: 'idle', currentCheckpoint: 0, lap: 0, offTrackSeconds: 0 };
+  private raceTrack: RaceTrack | null = null;
+  private raceRender: RaceRender | null = null;
+  private raceHud: RaceHud | null = null;
+  private raceZoneActive = false;
+  private readonly racePrevShipPos = new THREE.Vector3();
 
   // ── Transición cámara persecución↔órbita (S4) ──
   private orbitCamBlend = 0; // 0=persecución, 1=pose orbital
@@ -308,6 +321,28 @@ export class SpaceEngine {
       this.emoteWheel = new EmoteWheel(host, (emote: Emote) => this.multiplayer?.sendEmote(emote));
     }
 
+    // ── Carrera espacial (Hito 5): landmark nativo, fuera del app-registry ──
+    if (RACE_CONFIG.enabled) {
+      this.raceTrack = generateTrack(RACE_CONFIG.trackSeed, {
+        checkpointCount: RACE_CONFIG.checkpointCount,
+        baseRadius: RACE_CONFIG.baseRadius,
+        radiusJitter: RACE_CONFIG.radiusJitter,
+        heightJitter: RACE_CONFIG.heightJitter,
+      });
+      this.raceRender = createRaceRender({
+        track: this.raceTrack,
+        checkpointRadius: RACE_CONFIG.checkpointRadius,
+        gateRadius: RACE_CONFIG.gateRadius,
+        asteroidCount: RACE_CONFIG.asteroidCount,
+        asteroidRadius: RACE_CONFIG.asteroidRadius,
+        seed: RACE_CONFIG.trackSeed,
+      });
+      this.raceRender.object.position.set(RACE_CONFIG.center.x, RACE_CONFIG.center.y, RACE_CONFIG.center.z);
+      this.scene.add(this.raceRender.object);
+      this.raceHud = new RaceHud(host);
+      this.racePrevShipPos.copy(this.ship.object.position);
+    }
+
     this.start();
   }
 
@@ -408,6 +443,90 @@ export class SpaceEngine {
     }
     this.remoteShips?.update(delta);
 
+    // ── Carrera espacial (Hito 5) ──
+    if (RACE_CONFIG.enabled && this.raceRender && this.raceTrack) {
+      const raceGroupPos = this.raceRender.object.position;
+      const shipLocal = {
+        x: ship.position.x - raceGroupPos.x,
+        y: ship.position.y - raceGroupPos.y,
+        z: ship.position.z - raceGroupPos.z,
+      };
+      const distToRaceCenter = Math.hypot(shipLocal.x, shipLocal.y, shipLocal.z);
+      this.raceZoneActive = distToRaceCenter <= RACE_CONFIG.zoneRadius;
+
+      this.raceRender.update(this.elapsed, delta, this.raceState.currentCheckpoint);
+
+      if (this.raceState.phase === 'racing') {
+        const nearestDist = nearestSegmentDistance(shipLocal, this.raceTrack.waypoints);
+        const targetWp = this.raceTrack.waypoints[this.raceState.currentCheckpoint];
+        const reachedCheckpoint = targetWp
+          ? Math.hypot(shipLocal.x - targetWp.x, shipLocal.y - targetWp.y, shipLocal.z - targetWp.z) <=
+            RACE_CONFIG.checkpointRadius
+          : false;
+
+        const r = stepRace(
+          this.raceState,
+          { distanceToNearestSegment: nearestDist, reachedCheckpoint, dt: delta },
+          {
+            totalCheckpoints: RACE_CONFIG.checkpointCount,
+            totalLaps: RACE_CONFIG.totalLaps,
+            offTrackToleranceDistance: RACE_CONFIG.offTrackToleranceDistance,
+            offTrackRespawnSeconds: RACE_CONFIG.offTrackRespawnSeconds,
+          },
+        );
+        this.raceState = r.state;
+
+        if (r.action === 'respawn') {
+          // Respawnea en el ÚLTIMO checkpoint VALIDADO (currentCheckpoint es el
+          // PRÓXIMO objetivo, aún no alcanzado) — no en currentCheckpoint: eso
+          // colocaría la nave exactamente sobre el objetivo pendiente y lo
+          // "regalaría" en el frame siguiente (reachedCheckpoint se cumpliría
+          // de inmediato). Con currentCheckpoint=0 (inicio de carrera o de
+          // vuelta), el último validado envuelve al final del circuito.
+          const total = this.raceTrack.waypoints.length;
+          const lastValidated = (this.raceState.currentCheckpoint - 1 + total) % total;
+          const target = this.raceTrack.waypoints[lastValidated];
+          if (target) {
+            this.ship.object.position.set(
+              raceGroupPos.x + target.x,
+              raceGroupPos.y + target.y,
+              raceGroupPos.z + target.z,
+            );
+            this.ship.dampVelocity(0);
+          }
+        }
+
+        // Colisión con asteroides: tramo recorrido este frame (posición anterior → actual).
+        const prevLocal = {
+          x: this.racePrevShipPos.x - raceGroupPos.x,
+          y: this.racePrevShipPos.y - raceGroupPos.y,
+          z: this.racePrevShipPos.z - raceGroupPos.z,
+        };
+        for (const obstacle of this.raceRender.obstaclePositions()) {
+          if (
+            sweptSphereHitsSphere(prevLocal, shipLocal, obstacle, RACE_CONFIG.asteroidRadius, RACE_CONFIG.shipCollisionRadius)
+          ) {
+            this.ship.dampVelocity(RACE_CONFIG.collisionBrakeFactor);
+            break;
+          }
+        }
+
+        this.raceHud?.update(
+          this.raceState,
+          this.raceTrack.waypoints,
+          shipLocal,
+          ship.yaw,
+          RACE_CONFIG.totalLaps,
+          this.raceState.offTrackSeconds > 0,
+        );
+      } else if (this.raceZoneActive) {
+        this.raceHud?.showPrompt();
+      } else {
+        this.raceHud?.hide();
+      }
+    }
+    this.racePrevShipPos.copy(ship.position);
+
     // Reset manual (autoReset=false, ver mount()): antes de renderizar el frame,
     // para que info.render acumule TODAS las pasadas internas del composer.
     this.renderer.info.reset();
@@ -485,8 +604,21 @@ export class SpaceEngine {
     if (!this.running) return; // en cabina (motor pausado) el motor ignora las teclas
     // E: entra al proyecto del planeta en aproximación (no automático).
     if (e.code === 'KeyE' || e.code === 'Space') {
+      // Dentro de la zona de carrera y sin correr todavía: E la inicia (nunca
+      // coincide con un planeta real: la zona está a 70 000 u de cualquiera).
+      if (this.raceZoneActive && this.raceState.phase !== 'racing') {
+        this.raceState = startRace();
+        return;
+      }
       // Space o E: entrar al proyecto del planeta en aproximación/órbita.
       this.enterCurrentProject();
+      return;
+    }
+    // Q: abandona la carrera en curso (vuelo libre, no se pierde el control).
+    if (e.code === 'KeyQ') {
+      if (this.raceState.phase === 'racing') {
+        this.raceState = { phase: 'idle', currentCheckpoint: 0, lap: 0, offTrackSeconds: 0 };
+      }
       return;
     }
     // C: abre/cierra la rueda de emoticonos (solo si hay multijugador).
@@ -713,6 +845,7 @@ export class SpaceEngine {
     this.chunks.rebase(delta);
     this.solarSystem.rebase(delta);
     this.belt.rebase(delta);
+    this.raceRender?.rebase(delta);
     this.ramatzoSun.object.position.sub(delta);
     for (const s of this.ships) s.position.sub(delta);
     // farStars es fija (referencia absoluta): no se rebasa a proposito.
@@ -767,6 +900,8 @@ export class SpaceEngine {
     this.nebulae?.dispose();
     this.comets?.dispose();
     this.belt?.dispose();
+    this.raceRender?.dispose();
+    this.raceHud?.dispose();
     this.ramatzoSun?.dispose();
     this.playerShip?.dispose();
     this.chunks?.dispose();

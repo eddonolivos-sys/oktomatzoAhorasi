@@ -143,6 +143,11 @@ export class ShipController {
     this.velocity.add(v);
   }
 
+  /** Amortigua la velocidad por un factor (Hito 5: frenado brusco al colisionar con un obstáculo). */
+  dampVelocity(factor: number) {
+    this.velocity.multiplyScalar(factor);
+  }
+
   /** Tecla "Salir de la órbita" (S5: S). En vuelo libre S sigue siendo freno;
    * en órbita `ShipController.update` no integra empuje/freno (ver rama
    * `orbiting`), así que leer KeyS aquí es seguro y no se pisa con el freno. */

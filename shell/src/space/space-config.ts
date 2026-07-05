@@ -121,3 +121,24 @@ export const AUDIO_CONFIG = {
   duckLevel: 0.2, // [UNIFORME] a qué fracción de volumen queda la música al entrar en cabina
   duckDamp: 8, // [UNIFORME] velocidad de la transición de ducking (mayor = más rápida)
 };
+
+/** Pista de carreras espacial (Hito 5). Landmark nativo, fuera del app-registry. */
+export const RACE_CONFIG = {
+  enabled: true, // [UNIFORME] kill-switch: apaga la zona sin revertir código
+  trackSeed: 1337, // [PERSONALIZABLE] semilla del circuito
+  center: { x: 0, y: 4000, z: 70000 }, // [UNIFORME] lejos del clúster de planetas y del cinturón
+  zoneRadius: 3000, // [UNIFORME] radio de detección para el prompt "Pulsa E"
+  checkpointCount: 10, // [PERSONALIZABLE] nº de waypoints del circuito
+  baseRadius: 2200, // [PERSONALIZABLE] radio medio del circuito
+  radiusJitter: 0.4, // [PERSONALIZABLE] variación de radio por checkpoint (fracción de baseRadius)
+  heightJitter: 600, // [PERSONALIZABLE] variación de altura por checkpoint (unidades)
+  checkpointRadius: 220, // [UNIFORME] distancia para considerar "alcanzado" un checkpoint
+  offTrackToleranceDistance: 450, // [PERSONALIZABLE] distancia al segmento más cercano antes de "fuera de pista"
+  offTrackRespawnSeconds: 4, // [PERSONALIZABLE] segundos fuera de pista antes de respawnear
+  totalLaps: 2, // [PERSONALIZABLE] vueltas para terminar la carrera
+  asteroidCount: 14, // [PERSONALIZABLE] obstáculos móviles con colisión (bajar si falla la puerta de rendimiento)
+  asteroidRadius: 90, // [UNIFORME] radio de colisión de cada asteroide
+  shipCollisionRadius: 2.5, // [UNIFORME] radio de colisión de la nave
+  gateRadius: 900, // [UNIFORME] radio de las 2 esferas "planetas masivos" decorativas
+  collisionBrakeFactor: 0.15, // [UNIFORME] multiplicador de velocidad al colisionar con un asteroide
+};

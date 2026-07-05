@@ -603,3 +603,38 @@
   font-size: 9px;
   color: var(--space-text-2);
 }
+
+/* ── Carrera espacial (Hito 5): estado + minimapa ── */
+#raceHud {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+#raceHud.visible {
+  display: flex;
+}
+#raceHud .race-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--space-text);
+  background: rgba(10, 5, 3, 0.6);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--metal-iron);
+}
+#raceHud .race-status.warning {
+  color: var(--orange-ember);
+  border-color: var(--orange-ember);
+}
+#raceHud canvas {
+  border-radius: 50%;
+  border: 1px solid var(--metal-iron);
+}
