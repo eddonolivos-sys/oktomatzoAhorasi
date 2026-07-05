@@ -22,6 +22,8 @@ export interface SpaceMultiplayerHandlers {
   onJoined: (player: Player) => void;
   onLeft: (id: string) => void;
   onEmote: (id: string, emoji: string) => void;
+  /** Host y fase de la sala actual (Hito 6); viaja en CADA "players"/"state_update". */
+  onRoomState: (hostId: string, phase: string) => void;
 }
 
 export interface ConnectOpts {
@@ -63,6 +65,13 @@ export class SpaceMultiplayer {
     this.open();
   }
 
+  /** Cambia de sala (Hito 6): desconecta y reconecta con el mismo id/name. */
+  switchRoom(room: string) {
+    if (!this.opts) return;
+    this.disconnect();
+    this.connect({ room, id: this.opts.id, name: this.opts.name });
+  }
+
   private open() {
     if (!this.opts) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -73,24 +82,33 @@ export class SpaceMultiplayer {
       `&name=${encodeURIComponent(this.opts.name)}`;
     const url = `${protocol}//${host}/space-ws?${q}`;
 
-    this.ws = new WebSocket(url);
-    this.ws.onopen = () => {
+    // `sock` (no `this.ws`) es lo que capturan los handlers: `switchRoom()`
+    // llama disconnect()+connect() de forma síncrona, así que el "close" del
+    // socket VIEJO puede llegar DESPUÉS de que `this.ws` ya apunte al socket
+    // NUEVO. Comparar contra `sock` (no contra el flag `closedByUser`, que
+    // para entonces ya se reseteó) evita reconectar un socket ya sustituido
+    // — sin este chequeo, switchRoom() dejaba una conexión fantasma duplicada
+    // en la sala nueva ~1s después (bug encontrado en verificación runtime).
+    const sock = new WebSocket(url);
+    this.ws = sock;
+    sock.onopen = () => {
       this.reconnectDelay = 1000; // reset del backoff al conectar
     };
-    this.ws.onmessage = (event) => {
+    sock.onmessage = (event) => {
       try {
         this.handleMessage(JSON.parse(event.data));
       } catch {
         // mensaje no-JSON: ignora
       }
     };
-    this.ws.onclose = () => {
+    sock.onclose = () => {
+      if (this.ws !== sock) return; // socket ya sustituido: este cierre es obsoleto
       this.ws = null;
       if (this.closedByUser) return;
       this.scheduleReconnect();
     };
     // onerror no agenda reconexión: onclose siempre se dispara tras un error.
-    this.ws.onerror = () => {};
+    sock.onerror = () => {};
   }
 
   private scheduleReconnect() {
@@ -107,9 +125,11 @@ export class SpaceMultiplayer {
     switch (msg.type) {
       case 'players':
         this.handlers.onPlayers((msg.players as Player[]) || []);
+        this.handlers.onRoomState((msg.hostId as string) || '', (msg.phase as string) || '');
         break;
       case 'state_update':
         this.handlers.onPlayers((msg.players as Player[]) || []);
+        this.handlers.onRoomState((msg.hostId as string) || '', (msg.phase as string) || '');
         break;
       case 'joined':
         if (msg.player) this.handlers.onJoined(msg.player as Player);
@@ -164,6 +184,12 @@ export class SpaceMultiplayer {
   sendEmote(emoji: Emote) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify({ type: 'emote', emoji }));
+  }
+
+  /** Solicita iniciar la carrera de la sala (Hito 6); el servidor valida que seas el host. */
+  sendStartRace() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({ type: 'start_race' }));
   }
 
   disconnect() {

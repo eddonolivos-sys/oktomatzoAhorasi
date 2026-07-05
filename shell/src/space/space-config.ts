@@ -142,3 +142,13 @@ export const RACE_CONFIG = {
   gateRadius: 900, // [UNIFORME] radio de las 2 esferas "planetas masivos" decorativas
   collisionBrakeFactor: 0.15, // [UNIFORME] multiplicador de velocidad al colisionar con un asteroide
 };
+
+/** Salas multijugador con host (Hito 6). */
+export const ROOMS_CONFIG = {
+  enabled: true, // [UNIFORME] kill-switch, mismo patrón que RACE_CONFIG.enabled
+  countdownSeconds: 3, // [PERSONALIZABLE] cuenta atrás local tras el flip lobby->racing
+  startLineSpacing: 60, // [UNIFORME] separación lateral entre naves en la parrilla de salida
+  roomCodeAlphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', // [UNIFORME] sin 0/O/1/I (ambiguos)
+  roomCodeLength: 4, // [UNIFORME]
+  roomsListRefreshMs: 2000, // [UNIFORME] refresco del listado mientras el panel está abierto
+};

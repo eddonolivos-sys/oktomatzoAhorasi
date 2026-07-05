@@ -18,11 +18,11 @@ import { SolarSystem, type ApproachInfo } from './solar-system';
 import { Radar } from './radar';
 import { placeShips, floatShips } from './spaceships';
 import { createPlayerShip, type PlayerShip } from './player-ship';
-import { SpaceMultiplayer, EMOTE_GLYPH, type Emote } from './space-multiplayer';
+import { SpaceMultiplayer, EMOTE_GLYPH, type Emote, type Player } from './space-multiplayer';
 import { RemoteShips } from './remote-ships';
 import { EmoteWheel } from './emote-wheel';
 import { toAbsolute } from './multiplayer-math';
-import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG, AUDIO_CONFIG, RACE_CONFIG } from './space-config';
+import { SOLAR_CONFIG, CAMERA_CONFIG, ORBIT_CONFIG, PERF_CONFIG, AUDIO_CONFIG, RACE_CONFIG, ROOMS_CONFIG } from './space-config';
 import { stepOrbit, ejectVelocity, freeAfterExit, type OrbitState } from './orbit';
 import { buildOrbitBasis } from './orbit-frame';
 import { orbitCameraPose } from './orbit-camera';
@@ -36,6 +36,8 @@ import { nearestSegmentDistance, sweptSphereHitsSphere } from './race-math';
 import { startRace, stepRace, type RaceState } from './race-state';
 import { createRaceRender, type RaceRender } from './race-render';
 import { RaceHud } from './race-hud';
+import { startingSlotPosition } from './race-grid';
+import { RoomsPanel, type RoomSummary } from './rooms-panel';
 import './space.css';
 
 export interface MountOpts {
@@ -100,6 +102,14 @@ export class SpaceEngine {
   private raceHud: RaceHud | null = null;
   private raceZoneActive = false;
   private readonly racePrevShipPos = new THREE.Vector3();
+
+  // ── Salas multijugador con host (Hito 6) ──
+  private raceRoom: { name: string; hostId: string; phase: 'lobby' | 'racing'; players: Player[] } | null = null;
+  private roomsPanel: RoomsPanel | null = null;
+  private roomsPanelVisible = false;
+  private roomCountdown: number | null = null;
+  private roomsListTimer: number | null = null;
+  private prevRoomPhase: 'lobby' | 'racing' | null = null;
 
   // ── Transición cámara persecución↔órbita (S4) ──
   private orbitCamBlend = 0; // 0=persecución, 1=pose orbital
@@ -307,15 +317,32 @@ export class SpaceEngine {
       host.appendChild(this.selfEmoteEl);
 
       this.multiplayer = new SpaceMultiplayer({
-        onPlayers: (players) => this.remoteShips?.setSnapshot(players, this.worldOffset),
+        onPlayers: (players) => {
+          this.remoteShips?.setSnapshot(players, this.worldOffset);
+          if (this.raceRoom) this.raceRoom.players = players;
+        },
         onJoined: (player) => this.remoteShips?.addPlayer(player, this.worldOffset),
         onLeft: (id) => this.remoteShips?.removePlayer(id),
         onEmote: (id, emoji) => {
           if (id === user.id) this.showSelfEmote(emoji);
           else this.remoteShips?.showEmote(id, emoji);
         },
+        onRoomState: (hostId, phase) => {
+          if (!this.raceRoom) return;
+          this.raceRoom.hostId = hostId;
+          if (phase === 'lobby' || phase === 'racing') this.raceRoom.phase = phase;
+        },
       });
       this.multiplayer.connect({ room: 'home', id: user.id, name: user.name });
+
+      if (ROOMS_CONFIG.enabled) {
+        this.roomsPanel = new RoomsPanel(host, {
+          onCreateRoom: () => this.createRaceRoom(),
+          onJoinRoom: (name) => this.joinRaceRoom(name),
+          onStartRace: () => this.multiplayer?.sendStartRace(),
+          onLeaveRoom: () => (this.raceRoom ? this.leaveRaceRoom() : this.closeRoomsList()),
+        });
+      }
 
       // Rueda de emoticonos: la tecla C la abre (ver onKeyDown).
       this.emoteWheel = new EmoteWheel(host, (emote: Emote) => this.multiplayer?.sendEmote(emote));
@@ -363,7 +390,7 @@ export class SpaceEngine {
 
     // ── Actualización de subsistemas ──
     // Congela el vuelo (mirar + WASD) mientras el menú de pausa está visible.
-    this.ship.setEnabled(!this.pauseMenu.visible);
+    this.ship.setEnabled(!this.pauseMenu.visible && !this.roomsPanelVisible);
 
     // Vuelo: la nave se mueve; la cámara la sigue.
     const ship = this.ship.update(delta);
@@ -446,6 +473,52 @@ export class SpaceEngine {
     // ── Carrera espacial (Hito 5) ──
     if (RACE_CONFIG.enabled && this.raceRender && this.raceTrack) {
       const raceGroupPos = this.raceRender.object.position;
+
+      // ── Salas multijugador con host (Hito 6) ──
+      if (this.raceRoom) {
+        const phaseChanged = this.prevRoomPhase !== null && this.prevRoomPhase !== this.raceRoom.phase;
+        if (phaseChanged && this.raceRoom.phase === 'racing') {
+          this.roomCountdown = ROOMS_CONFIG.countdownSeconds;
+        }
+        this.prevRoomPhase = this.raceRoom.phase;
+
+        if (this.raceRoom.phase === 'lobby' || this.roomCountdown !== null) {
+          this.ship.setOrbiting(true);
+          const sorted = [...this.raceRoom.players].sort((p1, p2) => (p1.id < p2.id ? -1 : 1));
+          const selfIndex = sorted.findIndex((p) => p.id === this.opts.user?.id);
+          const signedIndex =
+            selfIndex <= 0 ? 0 : selfIndex % 2 === 1 ? Math.ceil(selfIndex / 2) : -Math.ceil(selfIndex / 2);
+          const slot = startingSlotPosition(this.raceTrack.waypoints, signedIndex, ROOMS_CONFIG.startLineSpacing);
+          this.ship.object.position.set(raceGroupPos.x + slot.x, raceGroupPos.y + slot.y, raceGroupPos.z + slot.z);
+
+          if (this.roomCountdown !== null) {
+            this.roomCountdown = Math.max(0, this.roomCountdown - delta);
+            this.roomsPanel?.showLobby({
+              room: this.raceRoom.name,
+              players: this.raceRoom.players,
+              hostId: this.raceRoom.hostId,
+              selfId: this.opts.user?.id ?? '',
+              countdown: this.roomCountdown,
+            });
+            if (this.roomCountdown <= 0) {
+              this.roomCountdown = null;
+              this.ship.setOrbiting(false);
+              this.raceState = startRace();
+              this.roomsPanel?.hide();
+              this.roomsPanelVisible = false;
+            }
+          } else if (this.roomsPanelVisible) {
+            this.roomsPanel?.showLobby({
+              room: this.raceRoom.name,
+              players: this.raceRoom.players,
+              hostId: this.raceRoom.hostId,
+              selfId: this.opts.user?.id ?? '',
+              countdown: null,
+            });
+          }
+        }
+      }
+
       const shipLocal = {
         x: ship.position.x - raceGroupPos.x,
         y: ship.position.y - raceGroupPos.y,
@@ -614,8 +687,26 @@ export class SpaceEngine {
       this.enterCurrentProject();
       return;
     }
-    // Q: abandona la carrera en curso (vuelo libre, no se pierde el control).
+    // R: abre/cierra el panel de salas (Hito 6). Solo dentro de la zona de
+    // carrera y sin una carrera SP en curso (no interrumpe al jugador solo).
+    if (e.code === 'KeyR') {
+      if (!ROOMS_CONFIG.enabled || !this.raceZoneActive || this.raceState.phase === 'racing') return;
+      if (this.roomsPanelVisible) {
+        if (this.raceRoom) this.leaveRaceRoom();
+        else this.closeRoomsList();
+      } else if (this.raceRoom) {
+        this.roomsPanelVisible = true; // reabrir la vista de lobby de una sala ya unida
+      } else {
+        this.openRoomsList();
+      }
+      return;
+    }
+    // Q: abandona la sala/carrera en curso (vuelo libre, no se pierde el control).
     if (e.code === 'KeyQ') {
+      if (this.raceRoom) {
+        this.leaveRaceRoom();
+        return;
+      }
       if (this.raceState.phase === 'racing') {
         this.raceState = { phase: 'idle', currentCheckpoint: 0, lap: 0, offTrackSeconds: 0 };
       }
@@ -743,6 +834,78 @@ export class SpaceEngine {
     const app = this.approachingApp;
     if (app) this.enterProject(app);
   };
+
+  private roomCode(): string {
+    const { roomCodeAlphabet, roomCodeLength } = ROOMS_CONFIG;
+    let code = '';
+    for (let i = 0; i < roomCodeLength; i++) {
+      code += roomCodeAlphabet[Math.floor(Math.random() * roomCodeAlphabet.length)];
+    }
+    return code;
+  }
+
+  private createRaceRoom() {
+    const name = 'race:' + this.roomCode();
+    this.multiplayer?.switchRoom(name);
+    this.raceRoom = { name, hostId: '', phase: 'lobby', players: [] };
+    this.prevRoomPhase = null;
+    this.ship.setEnabled(true);
+    this.stopRoomsListTimer();
+  }
+
+  private joinRaceRoom(name: string) {
+    this.multiplayer?.switchRoom(name);
+    this.raceRoom = { name, hostId: '', phase: 'lobby', players: [] };
+    this.prevRoomPhase = null;
+    this.ship.setEnabled(true);
+    this.stopRoomsListTimer();
+  }
+
+  private leaveRaceRoom() {
+    this.multiplayer?.switchRoom('home');
+    this.raceRoom = null;
+    this.roomCountdown = null;
+    this.prevRoomPhase = null;
+    this.ship.setOrbiting(false);
+    this.raceState = { phase: 'idle', currentCheckpoint: 0, lap: 0, offTrackSeconds: 0 };
+    this.roomsPanel?.hide();
+    this.roomsPanelVisible = false;
+    this.stopRoomsListTimer();
+  }
+
+  private stopRoomsListTimer() {
+    if (this.roomsListTimer !== null) {
+      window.clearInterval(this.roomsListTimer);
+      this.roomsListTimer = null;
+    }
+  }
+
+  private async fetchAndShowRoomsList() {
+    try {
+      const res = await fetch('/rooms');
+      const rooms = (await res.json()) as RoomSummary[];
+      if (!this.roomsPanelVisible || this.raceRoom) return; // se cerró o ya se unió mientras esperábamos
+      this.roomsPanel?.showList(rooms);
+    } catch {
+      // sin conexión al endpoint: deja el panel como estaba (reintenta en el próximo refresco)
+    }
+  }
+
+  private openRoomsList() {
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.ship.setEnabled(false);
+    this.roomsPanelVisible = true;
+    this.fetchAndShowRoomsList();
+    this.stopRoomsListTimer();
+    this.roomsListTimer = window.setInterval(() => this.fetchAndShowRoomsList(), ROOMS_CONFIG.roomsListRefreshMs);
+  }
+
+  private closeRoomsList() {
+    this.ship.setEnabled(true);
+    this.roomsPanelVisible = false;
+    this.roomsPanel?.hide();
+    this.stopRoomsListTimer();
+  }
 
   /** Entrada al proyecto. COSTURA del circuito (#6): por ahora abre directo; #6 la envolverá. */
   private enterProject(app: AppInfo) {
@@ -885,6 +1048,8 @@ export class SpaceEngine {
   dispose() {
     this.pause();
     this.multiplayer?.disconnect();
+    this.roomsPanel?.dispose();
+    this.stopRoomsListTimer();
     this.multiplayer = null;
     this.remoteShips?.dispose();
     this.remoteShips = null;
