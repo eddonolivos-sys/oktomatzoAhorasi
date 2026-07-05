@@ -131,31 +131,44 @@ export const AUDIO_CONFIG = {
   duckDamp: 8, // [UNIFORME] velocidad de la transición de ducking (mayor = más rápida)
 };
 
-/** Pista de carreras espacial (Hito 5). Landmark nativo, fuera del app-registry. */
+/**
+ * Pista de carreras espacial (Hito 5). Landmark nativo, fuera del app-registry.
+ * Mejora 3a: pista ×10 (baseRadius 2200→22000, con checkpointRadius/
+ * offTrackToleranceDistance/zoneRadius/heightJitter escalados proporcionalmente)
+ * — el radio de giro efectivo de la nave con nitro (sin tope) superaba el
+ * circuito original entero. `speedCap` añade un tope de velocidad SOLO
+ * mientras `raceState.phase === 'racing'` para que la pista vuelva a ser
+ * navegable a esta escala. `center` (z=70000) sigue lejos de las órbitas de
+ * los planetas (radio máximo ~26400 alrededor del centro de la zona; el
+ * punto más cercano del anillo al origen queda a ~43800u, con margen amplio
+ * sobre los ~30000u a los que llegan las órbitas) — no hace falta moverlo.
+ */
 export const RACE_CONFIG = {
   enabled: true, // [UNIFORME] kill-switch: apaga la zona sin revertir código
   trackSeed: 1337, // [PERSONALIZABLE] semilla del circuito
   center: { x: 0, y: 4000, z: 70000 }, // [UNIFORME] lejos del clúster de planetas y del cinturón
-  zoneRadius: 3000, // [UNIFORME] radio de detección para el prompt "Pulsa E"
+  zoneRadius: 30000, // [UNIFORME] mejora 3a: ×10 (antes 3000) — radio de detección para el prompt "Pulsa E"
   checkpointCount: 10, // [PERSONALIZABLE] nº de waypoints del circuito
-  baseRadius: 2200, // [PERSONALIZABLE] radio medio del circuito
-  radiusJitter: 0.4, // [PERSONALIZABLE] variación de radio por checkpoint (fracción de baseRadius)
-  heightJitter: 600, // [PERSONALIZABLE] variación de altura por checkpoint (unidades)
-  checkpointRadius: 220, // [UNIFORME] distancia para considerar "alcanzado" un checkpoint
-  offTrackToleranceDistance: 450, // [PERSONALIZABLE] distancia al segmento más cercano antes de "fuera de pista"
+  baseRadius: 22000, // [PERSONALIZABLE] mejora 3a: ×10 (antes 2200) — radio medio del circuito, pedido por el usuario
+  radiusJitter: 0.4, // [PERSONALIZABLE] variación de radio por checkpoint (fracción de baseRadius, no escala con el radio)
+  heightJitter: 6000, // [PERSONALIZABLE] mejora 3a: ×10 (antes 600) — variación de altura por checkpoint (unidades)
+  checkpointRadius: 2200, // [UNIFORME] mejora 3a: ×10 (antes 220) — distancia para considerar "alcanzado" un checkpoint
+  offTrackToleranceDistance: 4500, // [PERSONALIZABLE] mejora 3a: ×10 (antes 450) — distancia al segmento más cercano antes de "fuera de pista"
   offTrackRespawnSeconds: 4, // [PERSONALIZABLE] segundos fuera de pista antes de respawnear
   totalLaps: 2, // [PERSONALIZABLE] vueltas para terminar la carrera
   asteroidCount: 14, // [PERSONALIZABLE] obstáculos móviles con colisión (bajar si falla la puerta de rendimiento)
-  asteroidRadius: 90, // [UNIFORME] radio de colisión de cada asteroide
+  asteroidRadius: 90, // [UNIFORME] radio de colisión de cada asteroide (sin escalar — fuera del alcance de la mejora 3a)
   shipCollisionRadius: 2.5, // [UNIFORME] radio de colisión de la nave
   gateRadius: 900, // [UNIFORME] radio de las 2 esferas "planetas masivos" decorativas
   collisionBrakeFactor: 0.15, // [UNIFORME] multiplicador de velocidad al colisionar con un asteroide
+  speedCap: 3000, // [PERSONALIZABLE] mejora 3a: tope de |velocidad| SOLO en fase 'racing' (v_max*1.1s << baseRadius=22000)
+  startCountdownSeconds: 3, // [PERSONALIZABLE] mejora 3b: cuenta atrás local antes de startRace() — compartida por el flujo SP (tecla E) y por la sala (antes solo en ROOMS_CONFIG.countdownSeconds)
+  startGridBehindFactor: 1.5, // [UNIFORME] mejora 3b: la parrilla de salida queda `checkpointRadius * este factor` DETRÁS de waypoints[0] — evita "regalar" el checkpoint 0 por arrancar ya dentro de su radio de captura
 };
 
 /** Salas multijugador con host (Hito 6). */
 export const ROOMS_CONFIG = {
   enabled: true, // [UNIFORME] kill-switch, mismo patrón que RACE_CONFIG.enabled
-  countdownSeconds: 3, // [PERSONALIZABLE] cuenta atrás local tras el flip lobby->racing
   startLineSpacing: 60, // [UNIFORME] separación lateral entre naves en la parrilla de salida
   roomCodeAlphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', // [UNIFORME] sin 0/O/1/I (ambiguos)
   roomCodeLength: 4, // [UNIFORME]

@@ -38,4 +38,28 @@ describe('startingSlotPosition', () => {
     expect(() => startingSlotPosition([], 0, 60)).not.toThrow();
     expect(startingSlotPosition([], 0, 60)).toEqual({ x: 0, y: 0, z: 0 });
   });
+
+  it('without behindDistance (default) stays exactly on waypoints[0] (mejora 3b regression guard)', () => {
+    const pos = startingSlotPosition(waypoints, 0, 60);
+    expect(pos).toEqual(w0);
+  });
+
+  it('with behindDistance, slotIndex=0 moves opposite the travel direction by that distance', () => {
+    const pos = startingSlotPosition(waypoints, 0, 60, 100);
+    const dist = Math.hypot(pos.x - w0.x, pos.y - w0.y, pos.z - w0.z);
+    expect(dist).toBeCloseTo(100, 5);
+    // Debe alejarse de waypoints[1] (detrás de la línea de salida), no acercarse.
+    const distToNextFromGrid = Math.hypot(pos.x - waypoints[1]!.x, pos.z - waypoints[1]!.z);
+    const distToNextFromStart = Math.hypot(w0.x - waypoints[1]!.x, w0.z - waypoints[1]!.z);
+    expect(distToNextFromGrid).toBeGreaterThan(distToNextFromStart);
+  });
+
+  it('behindDistance combines with a lateral slotIndex', () => {
+    const pos = startingSlotPosition(waypoints, 2, 60, 100);
+    const distBehindOnly = startingSlotPosition(waypoints, 0, 60, 100);
+    // La componente lateral se suma sin alterar cuánto se aleja "hacia atrás".
+    const backDist = Math.hypot(distBehindOnly.x - w0.x, distBehindOnly.y - w0.y, distBehindOnly.z - w0.z);
+    expect(backDist).toBeCloseTo(100, 5);
+    expect(pos).not.toEqual(distBehindOnly);
+  });
 });

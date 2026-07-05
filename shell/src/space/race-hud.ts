@@ -39,6 +39,14 @@ export class RaceHud {
     this.statusEl.classList.remove('warning');
   }
 
+  /** Cuenta atrás antes de startRace() (mejora 3b) — también en SP, no solo en sala. */
+  showCountdown(secondsLeft: number) {
+    this.root.classList.add('visible');
+    this.canvas.style.display = 'none';
+    this.statusEl.textContent = `Saliendo en ${Math.ceil(secondsLeft)}...`;
+    this.statusEl.classList.remove('warning');
+  }
+
   hide() {
     this.root.classList.remove('visible');
   }

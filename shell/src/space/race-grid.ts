@@ -5,10 +5,20 @@ import { sub, normalize, type V3 } from './vec3-math';
  * desplazado `slotIndex * spacing` a lo largo de la perpendicular (plano XZ) a
  * la dirección de viaje inicial `waypoints[0]->waypoints[1]`. `slotIndex`
  * puede ser negativo para repartir naves a ambos lados de la línea de salida.
- * Con menos de 2 waypoints no hay dirección de viaje que perpendicularizar:
- * devuelve `waypoints[0]` (o el origen si la lista está vacía) sin desplazar.
+ * `behindDistance` (mejora 3b, por defecto 0 — compatibilidad exacta con el
+ * comportamiento del Hito 6) desplaza ADEMÁS la parrilla `behindDistance`
+ * unidades en la dirección OPUESTA a `waypoints[1]`: sin esto, arrancar
+ * exactamente sobre `waypoints[0]` "regala" el checkpoint 0 (ya está dentro
+ * de su radio de captura antes de recorrer nada). Con menos de 2 waypoints no
+ * hay dirección de viaje que perpendicularizar/retrasar: devuelve
+ * `waypoints[0]` (o el origen si la lista está vacía) sin desplazar.
  */
-export function startingSlotPosition(waypoints: V3[], slotIndex: number, spacing: number): V3 {
+export function startingSlotPosition(
+  waypoints: V3[],
+  slotIndex: number,
+  spacing: number,
+  behindDistance = 0,
+): V3 {
   const start = waypoints[0];
   if (!start) return { x: 0, y: 0, z: 0 };
   const next = waypoints[1];
@@ -21,8 +31,8 @@ export function startingSlotPosition(waypoints: V3[], slotIndex: number, spacing
   const perp = { x: -flatDir.z, y: 0, z: flatDir.x };
 
   return {
-    x: start.x + perp.x * slotIndex * spacing,
+    x: start.x + perp.x * slotIndex * spacing - flatDir.x * behindDistance,
     y: start.y,
-    z: start.z + perp.z * slotIndex * spacing,
+    z: start.z + perp.z * slotIndex * spacing - flatDir.z * behindDistance,
   };
 }

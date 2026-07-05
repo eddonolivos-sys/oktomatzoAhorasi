@@ -75,6 +75,8 @@ export class ShipController {
   private approachBrake = 1;
   /** Modo órbita (#3): la posición la impone el motor; update() no integra empuje. */
   private orbiting = false;
+  /** Tope duro de |velocidad| (mejora 3a); null = sin límite. Solo activo en fase 'racing'. */
+  private raceSpeedCap: number | null = null;
 
   onLockChange?: (locked: boolean) => void;
 
@@ -146,6 +148,25 @@ export class ShipController {
   /** Amortigua la velocidad por un factor (Hito 5: frenado brusco al colisionar con un obstáculo). */
   dampVelocity(factor: number) {
     this.velocity.multiplyScalar(factor);
+  }
+
+  /** Tope duro de |velocidad| (mejora 3a: sin esto, el nitro sin tope supera
+   * el circuito de carrera entero). Aplicado en `update()` tras el damping,
+   * antes de integrar la posición. `null` = sin límite (vuelo libre normal). */
+  setRaceSpeedCap(cap: number | null) {
+    this.raceSpeedCap = cap;
+  }
+
+  /** Fija yaw + mirada cruda + yaw previo a la vez (mejora 3b): usado al
+   * teletransportar la nave a la parrilla de salida. Sin resetear `rawYaw`
+   * también, el yaw fijado aquí solo duraría un frame — `update()` lo tira de
+   * vuelta hacia el `rawYaw` viejo (acumulado del ratón) en el siguiente
+   * frame. Resetear `prevYaw` además evita un pico de alabeo espurio por un
+   * `yawRate` grande calculado sobre el salto de un solo frame. */
+  setYaw(yaw: number) {
+    this.yaw = yaw;
+    this.rawYaw = yaw;
+    this.prevYaw = yaw;
   }
 
   /** Tecla "Salir de la órbita" (S5: S). En vuelo libre S sigue siendo freno;
@@ -274,6 +295,13 @@ export class ShipController {
     const base = isBraking ? this.brakeDamping : this.damping;
     const damp = this.frameDamp(base, delta) * this.frameDamp(this.approachBrake, delta);
     this.velocity.multiplyScalar(damp);
+
+    // Tope de velocidad de carrera (mejora 3a): la nave no tiene maxSpeed en
+    // vuelo libre, pero en fase 'racing' un tope duro es necesario para que
+    // el radio de giro efectivo quepa en el circuito.
+    if (this.raceSpeedCap !== null) {
+      this.velocity.clampLength(0, this.raceSpeedCap);
+    }
 
     // Integración de la posición del raíz.
     this.object.position.add(this.tmp.copy(this.velocity).multiplyScalar(delta));

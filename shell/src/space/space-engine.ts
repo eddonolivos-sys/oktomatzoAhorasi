@@ -102,6 +102,8 @@ export class SpaceEngine {
   private raceHud: RaceHud | null = null;
   private raceZoneActive = false;
   private readonly racePrevShipPos = new THREE.Vector3();
+  /** Cuenta atrás SP (mejora 3b) antes de startRace(); null = sin cuenta atrás en curso. */
+  private spRaceCountdown: number | null = null;
 
   // ── Salas multijugador con host (Hito 6) ──
   private raceRoom: { name: string; hostId: string; phase: 'lobby' | 'racing'; players: Player[] } | null = null;
@@ -483,11 +485,17 @@ export class SpaceEngine {
     if (RACE_CONFIG.enabled && this.raceRender && this.raceTrack) {
       const raceGroupPos = this.raceRender.object.position;
 
+      // Mejora 3a: el tope de velocidad se resincroniza cada frame contra la
+      // fase ACTUAL (en vez de fijarlo/quitarlo solo en cada transición) para
+      // que ningún camino de salida (Q, fin de carrera, salir de sala) pueda
+      // dejarlo pegado por accidente.
+      this.ship.setRaceSpeedCap(this.raceState.phase === 'racing' ? RACE_CONFIG.speedCap : null);
+
       // ── Salas multijugador con host (Hito 6) ──
       if (this.raceRoom) {
         const phaseChanged = this.prevRoomPhase !== null && this.prevRoomPhase !== this.raceRoom.phase;
         if (phaseChanged && this.raceRoom.phase === 'racing') {
-          this.roomCountdown = ROOMS_CONFIG.countdownSeconds;
+          this.roomCountdown = RACE_CONFIG.startCountdownSeconds;
         }
         this.prevRoomPhase = this.raceRoom.phase;
 
@@ -497,8 +505,10 @@ export class SpaceEngine {
           const selfIndex = sorted.findIndex((p) => p.id === this.opts.user?.id);
           const signedIndex =
             selfIndex <= 0 ? 0 : selfIndex % 2 === 1 ? Math.ceil(selfIndex / 2) : -Math.ceil(selfIndex / 2);
-          const slot = startingSlotPosition(this.raceTrack.waypoints, signedIndex, ROOMS_CONFIG.startLineSpacing);
-          this.ship.object.position.set(raceGroupPos.x + slot.x, raceGroupPos.y + slot.y, raceGroupPos.z + slot.z);
+          // Mejora 3b: parrilla vía el helper único (posición + orientación +
+          // margen detrás de waypoints[0], en vez de startingSlotPosition +
+          // position.set inline como antes).
+          this.enterStartingGrid(signedIndex);
 
           if (this.roomCountdown !== null) {
             this.roomCountdown = Math.max(0, this.roomCountdown - delta);
@@ -525,6 +535,18 @@ export class SpaceEngine {
               countdown: null,
             });
           }
+        }
+      }
+
+      // ── Cuenta atrás SP (mejora 3b) ──
+      if (this.spRaceCountdown !== null) {
+        this.ship.setOrbiting(true);
+        this.spRaceCountdown = Math.max(0, this.spRaceCountdown - delta);
+        this.raceHud?.showCountdown(this.spRaceCountdown);
+        if (this.spRaceCountdown <= 0) {
+          this.spRaceCountdown = null;
+          this.ship.setOrbiting(false);
+          this.raceState = startRace();
         }
       }
 
@@ -559,22 +581,29 @@ export class SpaceEngine {
         this.raceState = r.state;
 
         if (r.action === 'respawn') {
-          // Respawnea en el ÚLTIMO checkpoint VALIDADO (currentCheckpoint es el
-          // PRÓXIMO objetivo, aún no alcanzado) — no en currentCheckpoint: eso
-          // colocaría la nave exactamente sobre el objetivo pendiente y lo
-          // "regalaría" en el frame siguiente (reachedCheckpoint se cumpliría
-          // de inmediato). Con currentCheckpoint=0 (inicio de carrera o de
-          // vuelta), el último validado envuelve al final del circuito.
-          const total = this.raceTrack.waypoints.length;
-          const lastValidated = (this.raceState.currentCheckpoint - 1 + total) % total;
-          const target = this.raceTrack.waypoints[lastValidated];
-          if (target) {
-            this.ship.object.position.set(
-              raceGroupPos.x + target.x,
-              raceGroupPos.y + target.y,
-              raceGroupPos.z + target.z,
-            );
-            this.ship.dampVelocity(0);
+          if (this.raceState.lap === 0 && this.raceState.currentCheckpoint === 0) {
+            // Mejora 3b: aún no se validó NINGÚN checkpoint (fuera de pista
+            // antes de cruzar el checkpoint 0 por primera vez) — el "último
+            // validado" implícito es la parrilla de salida, NO waypoints[9]:
+            // ese wrap solo es correcto tras completar una vuelta real (lap>=1).
+            this.enterStartingGrid();
+          } else {
+            // Respawnea en el ÚLTIMO checkpoint VALIDADO (currentCheckpoint es el
+            // PRÓXIMO objetivo, aún no alcanzado) — no en currentCheckpoint: eso
+            // colocaría la nave exactamente sobre el objetivo pendiente y lo
+            // "regalaría" en el frame siguiente (reachedCheckpoint se cumpliría
+            // de inmediato).
+            const total = this.raceTrack.waypoints.length;
+            const lastValidated = (this.raceState.currentCheckpoint - 1 + total) % total;
+            const target = this.raceTrack.waypoints[lastValidated];
+            if (target) {
+              this.ship.object.position.set(
+                raceGroupPos.x + target.x,
+                raceGroupPos.y + target.y,
+                raceGroupPos.z + target.z,
+              );
+              this.ship.dampVelocity(0);
+            }
           }
         }
 
@@ -601,6 +630,8 @@ export class SpaceEngine {
           RACE_CONFIG.totalLaps,
           this.raceState.offTrackSeconds > 0,
         );
+      } else if (this.spRaceCountdown !== null) {
+        // ya se mostró showCountdown() arriba este mismo frame — no pisarlo.
       } else if (this.raceZoneActive) {
         this.raceHud?.showPrompt();
       } else {
@@ -664,6 +695,9 @@ export class SpaceEngine {
   private onCanvasClick = () => {
     audioService.unlock();
     if (this.pauseMenu.visible) return;
+    // Mejora 3c: con el panel de salas visible, el cursor debe quedar libre
+    // para clicar sus botones — recapturar el pointer lock aquí lo tapaba.
+    if (this.roomsPanelVisible) return;
     // En órbita el cursor queda libre para clicar "Entrar": no recapturamos el puntero.
     if (this.orbit.phase === 'orbiting') return;
     if (!this.ship.isLocked) this.ship.requestControl();
@@ -688,8 +722,19 @@ export class SpaceEngine {
     if (e.code === 'KeyE' || e.code === 'Space') {
       // Dentro de la zona de carrera y sin correr todavía: E la inicia (nunca
       // coincide con un planeta real: la zona está a 70 000 u de cualquiera).
-      if (this.raceZoneActive && this.raceState.phase !== 'racing') {
-        this.raceState = startRace();
+      // Mejora 3c: excluida mientras hay una sala activa (this.raceRoom) — si
+      // no, E pisaba la carrera de sala con una carrera SP local en paralelo.
+      // Mejora 3b: ya no arranca instantáneo — posiciona en la parrilla y
+      // muestra una cuenta atrás (mismo flujo que la sala) antes de startRace().
+      if (
+        this.raceZoneActive &&
+        this.raceState.phase !== 'racing' &&
+        !this.raceRoom &&
+        this.spRaceCountdown === null
+      ) {
+        this.enterStartingGrid();
+        this.ship.setOrbiting(true);
+        this.spRaceCountdown = RACE_CONFIG.startCountdownSeconds;
         return;
       }
       // Space o E: entrar al proyecto del planeta en aproximación/órbita.
@@ -699,7 +744,16 @@ export class SpaceEngine {
     // R: abre/cierra el panel de salas (Hito 6). Solo dentro de la zona de
     // carrera y sin una carrera SP en curso (no interrumpe al jugador solo).
     if (e.code === 'KeyR') {
-      if (!ROOMS_CONFIG.enabled || !this.raceZoneActive || this.raceState.phase === 'racing') return;
+      // Mejora 3c: bloqueada también durante la cuenta atrás SP — si no, R
+      // podía abrir/unirse a una sala mientras una carrera SP local ya
+      // estaba a punto de arrancar, dejando ambas activas a la vez.
+      if (
+        !ROOMS_CONFIG.enabled ||
+        !this.raceZoneActive ||
+        this.raceState.phase === 'racing' ||
+        this.spRaceCountdown !== null
+      )
+        return;
       if (this.roomsPanelVisible) {
         if (this.raceRoom) this.leaveRaceRoom();
         else this.closeRoomsList();
@@ -714,6 +768,14 @@ export class SpaceEngine {
     if (e.code === 'KeyQ') {
       if (this.raceRoom) {
         this.leaveRaceRoom();
+        return;
+      }
+      // Mejora 3b: Q también aborta una cuenta atrás SP en curso (descongela
+      // la nave; si no, quedaría congelada sin ninguna forma de salir).
+      if (this.spRaceCountdown !== null) {
+        this.spRaceCountdown = null;
+        this.ship.setOrbiting(false);
+        this.raceHud?.hide();
         return;
       }
       if (this.raceState.phase === 'racing') {
@@ -837,6 +899,34 @@ export class SpaceEngine {
     this.camera.lookAt(this.blendedLookTarget);
   }
 
+  /**
+   * Posiciona la nave en la parrilla de salida de la carrera (mejora 3b):
+   * punto ÚNICO de entrada a la pista — lo usa tanto el flujo SP (tecla E,
+   * antes de la cuenta atrás) como el bloque de sala (cada frame en lobby) y
+   * el respawn inicial (antes de validar el checkpoint 0). `slotIndex`
+   * reparte lateralmente (0 = centro, el que usa SP; la sala pasa su índice
+   * de jugador). La parrilla queda DETRÁS de waypoints[0]
+   * (RACE_CONFIG.startGridBehindFactor × checkpointRadius) para no regalar
+   * el checkpoint 0 arrancando ya dentro de su radio de captura.
+   */
+  private enterStartingGrid(slotIndex = 0) {
+    if (!this.raceTrack || !this.raceRender) return;
+    const raceGroupPos = this.raceRender.object.position;
+    const grid = startingSlotPosition(
+      this.raceTrack.waypoints,
+      slotIndex,
+      ROOMS_CONFIG.startLineSpacing,
+      RACE_CONFIG.checkpointRadius * RACE_CONFIG.startGridBehindFactor,
+    );
+    this.ship.object.position.set(raceGroupPos.x + grid.x, raceGroupPos.y + grid.y, raceGroupPos.z + grid.z);
+    const wp0 = this.raceTrack.waypoints[0];
+    const wp1 = this.raceTrack.waypoints[1];
+    if (wp0 && wp1) {
+      this.ship.setYaw(Math.atan2(-(wp1.x - wp0.x), -(wp1.z - wp0.z)));
+    }
+    this.ship.dampVelocity(0);
+  }
+
   /** Entra al proyecto en aproximación/órbita (tecla E o botón "Entrar" del HUD). */
   private enterCurrentProject = () => {
     if (this.pauseMenu.visible) return;
@@ -874,6 +964,7 @@ export class SpaceEngine {
     this.multiplayer?.switchRoom('home');
     this.raceRoom = null;
     this.roomCountdown = null;
+    this.spRaceCountdown = null;
     this.prevRoomPhase = null;
     this.ship.setOrbiting(false);
     this.raceState = { phase: 'idle', currentCheckpoint: 0, lap: 0, offTrackSeconds: 0 };
