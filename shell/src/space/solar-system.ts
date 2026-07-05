@@ -5,6 +5,7 @@ import { colorForCategory } from './layout';
 import { planetLayout, orbitPosition, planetWorldCenter, captureState } from './orbits';
 import { approachBrakeFactor } from './flight-math';
 import { SOLAR_CONFIG, ORBIT_CONFIG } from './space-config';
+import { initialsFor } from './initials';
 
 export interface RadarBlip {
   name: string;
@@ -38,6 +39,8 @@ export interface SolarUpdate {
 interface SolarPlanet {
   app: AppInfo;
   mesh: THREE.Mesh;
+  /** Rótulo de iniciales (Hito 4), hijo de `mesh`. */
+  initialsSprite: THREE.Sprite;
   /** Tamaño físico del planeta (radio de la esfera). */
   planetRadius: number;
   /** Radio de la esfera de influencia (gatillo de aproximación/dwell). */
@@ -60,6 +63,26 @@ function seedFromId(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return h || 1;
+}
+
+/** Sprite de iniciales (Hito 4): hijo del mesh del planeta, hereda su órbita y rebase gratis. */
+function createInitialsSprite(text: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  ctx.font = `700 ${Math.floor(size * 0.4)}px "Cinzel Decorative", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Crema apagado (--space-text-2): luminancia ≈0.49, por debajo del umbral
+  // de bloom (0.6) — no florece.
+  ctx.fillStyle = '#8A7A6A';
+  ctx.fillText(text, size / 2, size / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  return new THREE.Sprite(material);
 }
 
 /**
@@ -94,10 +117,15 @@ export class SolarSystem {
       const planetRadius = PLANET_MIN + ((PLANET_MAX - PLANET_MIN) * (i % 4)) / 3;
       const seed = seedFromId(app.id);
       const mesh = createPlanet(planetRadius, seed, colorForCategory(app.category));
+      const initialsSprite = createInitialsSprite(initialsFor(app.name));
+      initialsSprite.position.y = planetRadius * 1.3;
+      initialsSprite.scale.set(planetRadius * 0.8, planetRadius * 0.8, 1);
+      mesh.add(initialsSprite);
       this.systemGroup.add(mesh);
       this.planets.push({
         app,
         mesh,
+        initialsSprite,
         planetRadius,
         influenceRadius: planetRadius * INFLUENCE_FACTOR,
         radius: layout.radius,
@@ -184,6 +212,8 @@ export class SolarSystem {
       const mat = p.mesh.material;
       if (Array.isArray(mat)) mat.forEach((m) => m.dispose?.());
       else mat?.dispose?.();
+      p.initialsSprite.material.map?.dispose();
+      p.initialsSprite.material.dispose();
     }
     this.planets = [];
   }

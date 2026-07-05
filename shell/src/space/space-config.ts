@@ -83,7 +83,7 @@ export const SOLAR_CONFIG = {
 
 /** Cámara de persecución (mejora #4: más cercana) y de composición orbital (S4). */
 export const CAMERA_CONFIG = {
-  chaseOffset: { x: 0, y: 7, z: 24 }, // [PERSONALIZABLE #5] offset detrás/arriba de la nave (antes 0,9,34)
+  chaseOffset: { x: 0, y: 5, z: 16 }, // [PERSONALIZABLE] offset detrás/arriba de la nave (Hito 4: más cercana; antes 0,7,24; antes de eso 0,9,34)
   orbit: {
     distanceFactor: 5, // [PERSONALIZABLE] distancia cámara↔planeta, como múltiplo de planetRadius
     targetSunBias: 0.4, // [PERSONALIZABLE] desplaza el target hacia el sol (fracción de planetRadius); deja aire en el encuadre

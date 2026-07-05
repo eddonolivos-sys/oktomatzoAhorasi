@@ -144,6 +144,32 @@ export function createPlayerShip(): PlayerShip {
     navLights.push({ mat: navMat, phase: side < 0 ? 0 : Math.PI });
   }
 
+  // ── Detalle de superficie (Hito 4): costillas de panel + quilla + winglets ──
+  // Reutiliza materiales ya trackeados (hull/hullLight/dark/trim); no crea
+  // materiales nuevos, así que no hace falta registrar nada adicional.
+  for (const side of [-1, 1] as const) {
+    add(new THREE.BoxGeometry(0.04, 0.05, 2.2), trim, (m) => {
+      m.position.set(side * 0.18, 0.3, 0.1);
+    });
+  }
+  // Quilla ventral: aleta baja para equilibrio visual y silueta más afilada.
+  add(new THREE.BoxGeometry(0.05, 0.5, 1.4), hullLight, (m) => {
+    m.position.set(0, -0.55, 0.6);
+    m.rotation.x = 0.05;
+  });
+  // Pod sensor bajo la nariz: refuerza la lectura de "morro".
+  add(new THREE.CapsuleGeometry(0.08, 0.3, 6, 10), dark, (m) => {
+    m.rotation.x = Math.PI / 2;
+    m.position.set(0, -0.28, -1.9);
+  });
+  // Winglets: aletas verticales tras los pods de las puntas de ala.
+  for (const side of [-1, 1] as const) {
+    add(new THREE.BoxGeometry(0.05, 0.32, 0.4), hullLight, (m) => {
+      m.position.set(side * 2.62, 0.12, 0.75);
+      m.rotation.z = side * -0.08;
+    });
+  }
+
   // ── Toberas: boquilla oscura + núcleo emisivo + cono de llama estirable ──
   const flameMat = track(
     new THREE.MeshBasicMaterial({
